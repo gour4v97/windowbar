@@ -57,16 +57,6 @@ Settings live in `%APPDATA%\Winyard\config.json`.
 - `winapi.py` — Windows-only native helpers (AppBar reservation, glass, taskbar state, open windows, autostart); safe no-ops elsewhere
 - `tests/` — parser/recurrence/folder tests that run anywhere: `pytest -q`
 
-## Scope and non-goals
-
-Written honestly, because a feature list you can't verify is just marketing:
-
-- **AI usage widgets (Claude, ChatGPT, Gemini limits) are not included.** There is no official usage API for consumer plans, and reading them would mean scraping logged-in sessions.
-- Revenue is **Stripe only** — no Paddle, Gumroad, Shopify or Polar yet.
-- The glass is the standard Windows acrylic/DWM backdrop, **not** real-time wallpaper refraction.
-- Recurring calendar events are approximated: `COUNT`, `EXDATE` and edited occurrences are ignored.
-- Quick toggles for Wi-Fi and Bluetooth need admin rights and are not included.
-- There is no installer yet — it runs from source with Python.
 
 ## License
 
