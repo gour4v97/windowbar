@@ -618,21 +618,12 @@ class Dock(QWidget):
         winapi.restore_taskbar(self.cfg)   # undo auto-hide left by a crash
         save_config(self.cfg)
 
-        self.weather = WeatherService(self.cfg, lambda: save_config(self.cfg))
-        self.calendar = CalendarService(self.cfg)
-        self.media = MediaService()
-        self.screen_time = extras.ScreenTime(SCREEN_TIME_FILE)
-        self.polls = {
-            "github": extras.Poll(
-                lambda: extras.github_summary(self.cfg["github_user"]), 1800),
-            "revenue": extras.Poll(
-                lambda: extras.stripe_revenue(os.environ.get("WINYARD_STRIPE_KEY", "")),
-                1800),
-            "downloads": extras.Poll(lambda: extras.downloads_summary(), 30),
-            "shots": extras.Poll(
-                lambda: extras.downloads_summary(
-                    Path.home() / "Pictures" / "Screenshots"), 30),
-        }
+        self.weather = None
+        self.calendar = None
+        self.media = None
+        self.screen_time = None
+        self.polls = {}
+        self._ensure_services()
         self.appbar = winapi.AppBar()
         self.glass_active = False
         self._drag = None
@@ -666,8 +657,38 @@ class Dock(QWidget):
         self._hover_timer.timeout.connect(self._autohide_check)
         self._hover_timer.start(250)
 
+    def _ensure_services(self):
+        """Start only workers needed by enabled widgets and automations."""
+        widgets = self.cfg["widgets"]
+        if widgets.get("weather") and self.weather is None:
+            self.weather = WeatherService(
+                self.cfg, lambda: save_config(self.cfg))
+        needs_calendar = widgets.get("calendar") or self.cfg["pause_before_meeting"]
+        if needs_calendar and self.calendar is None:
+            self.calendar = CalendarService(self.cfg)
+        needs_media = widgets.get("media") or self.cfg["pause_before_meeting"]
+        if needs_media and self.media is None:
+            self.media = MediaService()
+        if widgets.get("screentime") and self.screen_time is None:
+            self.screen_time = extras.ScreenTime(SCREEN_TIME_FILE)
+        poll_specs = {
+            "github": (
+                lambda: extras.github_summary(self.cfg["github_user"]), 1800),
+            "revenue": (
+                lambda: extras.stripe_revenue(
+                    os.environ.get("WINYARD_STRIPE_KEY", "")), 1800),
+            "downloads": (lambda: extras.downloads_summary(), 30),
+            "shots": (
+                lambda: extras.downloads_summary(
+                    Path.home() / "Pictures" / "Screenshots"), 30),
+        }
+        for key, (fetch, interval) in poll_specs.items():
+            if widgets.get(key) and key not in self.polls:
+                self.polls[key] = extras.Poll(fetch, interval)
+
     # -- build ---------------------------------------------------------------
     def rebuild(self):
+        self._ensure_services()
         for c in self.cards:
             self.row.removeWidget(c)
             c.deleteLater()
@@ -759,9 +780,10 @@ class Dock(QWidget):
             if self._tick_n % getattr(c, "INTERVAL", 1) == 0:
                 changed = bool(c.tick()) or changed
         if changed and not self._hidden:
+            old_size = (self.width(), self.height())
             self.adjustSize()
             size = (self.width(), self.height())
-            if size != self._last_size:
+            if size != old_size and size != self._last_size:
                 self._last_size = size
                 self.place()
         self.automations()
@@ -849,6 +871,8 @@ class Dock(QWidget):
     def automations(self):
         if not self.cfg["pause_before_meeting"]:
             return
+        if self.calendar is None or self.media is None:
+            return
         nxt = self.calendar.next_event()
         if not nxt:
             return
@@ -869,9 +893,13 @@ class Dock(QWidget):
                 refresh()
 
     def ask_city(self):
+        if self.weather is None:
+            return
         self.ask_text("weather_city", "Weather", "City:", self.weather.refresh)
 
     def ask_calendar(self):
+        if self.calendar is None:
+            return
         self.ask_text("calendar_url", "Calendar",
                       "Secret iCal link (Google: Settings > calendar > "
                       "'Secret address in iCal format'):",
@@ -891,6 +919,8 @@ class Dock(QWidget):
                       "(blank = off):")
 
     def ask_github(self):
+        if "github" not in self.polls:
+            return
         self.ask_text("github_user", "GitHub", "GitHub username:",
                       self.polls["github"].refresh)
 
@@ -1005,6 +1035,8 @@ class Dock(QWidget):
 
     def set_option(self, key, on):
         self.cfg[key] = on
+        if key == "pause_before_meeting" and on:
+            self._ensure_services()
         if key == "auto_hide":
             self._last_hover = time.monotonic()
             if not on and self._hidden:
@@ -1025,7 +1057,8 @@ class Dock(QWidget):
         self.place()
 
     def shutdown(self):
-        self.screen_time.flush()
+        if self.screen_time is not None:
+            self.screen_time.flush()
         self.appbar.remove()
         winapi.set_taskbar_autohide(False, self.appbar.hwnd, self.cfg)
         save_config(self.cfg)
