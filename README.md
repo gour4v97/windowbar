@@ -10,6 +10,12 @@ only to its own service, and only if you turn it on.
 
 ## Install
 
+**Easy way (Windows):** download the release zip, unzip it, and double-click
+`setup.bat`. It installs per-user into `%LOCALAPPDATA%\\Winyard` (own venv,
+Start Menu shortcut, no admin needed). Remove with `setup.bat --uninstall`.
+
+**From source:**
+
 ```
 pip install -r requirements.txt
 python winyard.py
