@@ -17,8 +17,9 @@ from datetime import datetime
 from pathlib import Path
 
 import psutil
-from PySide6.QtCore import QRectF, Qt, QTimer
-from PySide6.QtGui import QAction, QColor, QFont, QPainter, QPainterPath
+from PySide6.QtCore import QPropertyAnimation, QRectF, Qt, QTimer
+from PySide6.QtGui import (QAction, QColor, QCursor, QFont, QPainter,
+                     QPainterPath)
 from PySide6.QtWidgets import (
     QApplication, QFrame, QHBoxLayout, QInputDialog, QLabel, QMenu,
     QMessageBox, QPushButton, QVBoxLayout, QWidget,
@@ -40,6 +41,8 @@ DEFAULTS = {
     "glass": True,
     "pause_before_meeting": False,
     "full_width": False,
+    "auto_hide": False,
+    "auto_hide_delay": 5,
     "quiet_hours": "",
     "weather_city": "",
     "calendar_url": "",
@@ -146,6 +149,13 @@ def autostart_command():
 
 # ----------------------------------------------------------------- cards ----
 class Card(QFrame):
+    """A titled card. INTERVAL is how many seconds between refreshes --
+    slow sources (Recycle Bin, open windows) must not run every second.
+    tick() returns True only when the displayed text actually changed,
+    so the dock can skip relayout/repaint work on quiet seconds."""
+
+    INTERVAL = 1
+
     def __init__(self, title):
         super().__init__()
         self.setObjectName("card")
@@ -159,8 +169,18 @@ class Card(QFrame):
         lay.addWidget(self.title)
         lay.addWidget(self.body)
 
+    def set_texts(self, title=None, body=None):
+        changed = False
+        if title is not None and title != self.title.text():
+            self.title.setText(title)
+            changed = True
+        if body is not None and body != self.body.text():
+            self.body.setText(body)
+            changed = True
+        return changed
+
     def tick(self):
-        pass
+        return False
 
 
 class ClockCard(Card):
@@ -168,11 +188,13 @@ class ClockCard(Card):
         super().__init__("Time")
 
     def tick(self):
-        self.title.setText(time.strftime("%a %d %b").upper())
-        self.body.setText(time.strftime("%I:%M %p").lstrip("0"))
+        return self.set_texts(time.strftime("%a %d %b").upper(),
+                              time.strftime("%I:%M %p").lstrip("0"))
 
 
 class WeatherCard(Card):
+    INTERVAL = 5
+
     def __init__(self, weather, ask_city):
         super().__init__("Weather")
         self.weather, self.ask_city = weather, ask_city
@@ -184,8 +206,7 @@ class WeatherCard(Card):
             self.ask_city()
 
     def tick(self):
-        self.title.setText(self.weather.label)
-        self.body.setText(self.weather.text)
+        return self.set_texts(self.weather.label, self.weather.text)
 
 
 class SystemCard(Card):
@@ -203,22 +224,27 @@ class SystemCard(Card):
         dt = max(t - self._last_t, 0.001)
         down = (now.bytes_recv - self._last.bytes_recv) / dt
         self._last, self._last_t = now, t
-        self.body.setText(f"{cpu:.0f}%  {ram:.0f}%  ↓{fmt_speed(down)}")
+        return self.set_texts(
+            body=f"{cpu:.0f}%  {ram:.0f}%  ↓{fmt_speed(down)}")
 
 
 class BatteryCard(Card):
+    INTERVAL = 5
+
     def __init__(self):
         super().__init__("Battery")
 
     def tick(self):
         b = psutil.sensors_battery()
         if b is None:
-            self.body.setText("No battery")
-            return
-        self.body.setText(f"{b.percent:.0f}% {'⚡' if b.power_plugged else ''}")
+            return self.set_texts(body="No battery")
+        return self.set_texts(
+            body=f"{b.percent:.0f}% {'⚡' if b.power_plugged else ''}")
 
 
 class MediaCard(Card):
+    INTERVAL = 2
+
     def __init__(self, media):
         super().__init__("Now playing")
         self.media = media
@@ -232,18 +258,17 @@ class MediaCard(Card):
     def tick(self):
         m = self.media
         if not m.available:
-            self.title.setText("NOW PLAYING")
-            self.body.setText("pip install winsdk")
-        elif not m.has_session:
-            self.title.setText("NOW PLAYING")
-            self.body.setText("Nothing playing")
-        else:
-            self.title.setText("NOW PLAYING " + ("▶" if m.playing else "❚❚"))
-            text = m.title + (f" — {m.artist}" if m.artist else "")
-            self.body.setText(clip(text, 28))
+            return self.set_texts("NOW PLAYING", "pip install winsdk")
+        if not m.has_session:
+            return self.set_texts("NOW PLAYING", "Nothing playing")
+        text = m.title + (f" — {m.artist}" if m.artist else "")
+        return self.set_texts("NOW PLAYING " + ("▶" if m.playing else "❚❚"),
+                              clip(text, 28))
 
 
 class CalendarCard(Card):
+    INTERVAL = 5
+
     def __init__(self, calendar, ask_link):
         super().__init__("Next event")
         self.calendar, self.ask_link = calendar, ask_link
@@ -256,22 +281,20 @@ class CalendarCard(Card):
 
     def tick(self):
         cal = self.calendar
-        self.title.setText("NEXT EVENT")
         if cal.status:
-            self.body.setText(cal.status)
-            return
+            return self.set_texts("NEXT EVENT", cal.status)
         nxt = cal.next_event()
         if not nxt:
-            self.body.setText("Nothing soon")
-            return
+            return self.set_texts("NEXT EVENT", "Nothing soon")
         dt, title = nxt
         delta = fmt_delta((dt - datetime.now()).total_seconds())
-        self.title.setText("NEXT · " + delta.upper())
-        self.body.setText(clip(title, 26))
+        return self.set_texts("NEXT · " + delta.upper(), clip(title, 26))
 
 
 class QuickCard(QFrame):
     """Lock, dark/light theme, and empty Recycle Bin."""
+
+    INTERVAL = 10
 
     def __init__(self, parent_widget):
         super().__init__()
@@ -318,9 +341,13 @@ class QuickCard(QFrame):
     def tick(self):
         try:
             dark = winapi.is_dark_mode()
-            self.theme_btn.setText("Light" if dark else "Dark")
+            text = "Light" if dark else "Dark"
+            if text != self.theme_btn.text():
+                self.theme_btn.setText(text)
+                return True
         except Exception:
             pass
+        return False
 
 
 class PomodoroCard(Card):
@@ -349,8 +376,9 @@ class PomodoroCard(Card):
                 self.remaining = self.minutes * 60
                 if not self.quiet():
                     QApplication.beep()
-        self.title.setText("FOCUS" + (" ▶" if self.running else " ❚❚"))
-        self.body.setText(fmt_hms(self.remaining))
+        return self.set_texts(
+            "FOCUS" + (" ▶" if self.running else " ❚❚"),
+            fmt_hms(self.remaining))
 
 
 class StopwatchCard(Card):
@@ -372,10 +400,12 @@ class StopwatchCard(Card):
     def tick(self):
         if self.running:
             self.elapsed += 1
-        self.body.setText(fmt_hms(self.elapsed))
+        return self.set_texts(body=fmt_hms(self.elapsed))
 
 
 class TodoCard(Card):
+    INTERVAL = 2
+
     def __init__(self, cfg):
         super().__init__("Todos")
         self.cfg = cfg
@@ -397,11 +427,13 @@ class TodoCard(Card):
 
     def tick(self):
         todos = self.cfg["todos"]
-        self.title.setText(f"TODOS ({len(todos)})")
-        self.body.setText(clip(todos[0], 24) if todos else "All clear")
+        return self.set_texts(f"TODOS ({len(todos)})",
+                              clip(todos[0], 24) if todos else "All clear")
 
 
 class NotesCard(Card):
+    INTERVAL = 5
+
     def __init__(self, cfg):
         super().__init__("Notes")
         self.cfg = cfg
@@ -418,23 +450,29 @@ class NotesCard(Card):
 
     def tick(self):
         first = (self.cfg["notes"].strip().splitlines() or [""])[0]
-        self.body.setText(clip(first, 26) if first else "Click to write")
+        return self.set_texts(
+            body=clip(first, 26) if first else "Click to write")
 
 
 class ScreenTimeCard(Card):
+    INTERVAL = 5
+
     def __init__(self, tracker):
         super().__init__("Screen time")
         self.tracker = tracker
 
     def tick(self):
         total, top = self.tracker.today()
-        self.body.setText(extras.fmt_dur(total) + " today")
-        self.setToolTip("\n".join(f"{n}: {extras.fmt_dur(s)}" for n, s in top)
-                        or "No data yet")
+        tip = "\n".join(f"{n}: {extras.fmt_dur(s)}" for n, s in top)
+        if tip and tip != self.toolTip():
+            self.setToolTip(tip)
+        return self.set_texts(body=extras.fmt_dur(total) + " today")
 
 
 class PollCard(Card):
     """Shows the value of a background Poll, or its error."""
+
+    INTERVAL = 5
 
     def __init__(self, title, poll, on_click=None, hint=""):
         super().__init__(title)
@@ -448,14 +486,17 @@ class PollCard(Card):
 
     def tick(self):
         if self.poll.value is not None:
-            self.body.setText(clip(str(self.poll.value), 30))
+            text = clip(str(self.poll.value), 30)
         elif self.poll.error:
-            self.body.setText(clip(self.poll.error, 30))
+            text = clip(self.poll.error, 30)
         else:
-            self.body.setText("Loading…")
+            text = "Loading…"
+        return self.set_texts(body=text)
 
 
 class DownloadsCard(Card):
+    INTERVAL = 5
+
     def __init__(self, poll, name="Downloads", folder=None):
         super().__init__(name)
         self.poll = poll
@@ -470,15 +511,16 @@ class DownloadsCard(Card):
 
     def tick(self):
         if self.poll.value is None:
-            self.body.setText(self.poll.error or "Loading…")
-            return
+            return self.set_texts(body=self.poll.error or "Loading…")
         recent, newest = self.poll.value
-        self.title.setText(f"{self.name.upper()} · {recent} TODAY")
-        self.body.setText(clip(newest or "Empty", 26))
+        return self.set_texts(f"{self.name.upper()} · {recent} TODAY",
+                              clip(newest or "Empty", 26))
 
 
 class WindowsCard(QFrame):
     """Buttons for the currently open windows; click one to focus it."""
+
+    INTERVAL = 4
 
     def __init__(self):
         super().__init__()
@@ -492,7 +534,7 @@ class WindowsCard(QFrame):
         wins = winapi.list_open_windows(limit=6)
         titles = [t for _, t in wins]
         if titles == self._titles:
-            return
+            return False
         self._titles = titles
         while self.lay.count():
             item = self.lay.takeAt(0)
@@ -502,16 +544,19 @@ class WindowsCard(QFrame):
             lab = QLabel("No open windows")
             lab.setObjectName("cardbody")
             self.lay.addWidget(lab)
-            return
+            return True
         for hwnd, title in wins:
             b = QPushButton(clip(title, 16))
             b.setCursor(Qt.PointingHandCursor)
             b.setToolTip(title)
             b.clicked.connect(lambda _=False, h=hwnd: winapi.focus_window(h))
             self.lay.addWidget(b)
+        return True
 
 
 class RecycleCard(Card):
+    INTERVAL = 30
+
     def __init__(self):
         super().__init__("Recycle Bin")
         self.setCursor(Qt.PointingHandCursor)
@@ -523,7 +568,8 @@ class RecycleCard(Card):
 
     def tick(self):
         n = winapi.recycle_count()
-        self.body.setText("—" if n is None else f"{n} item{'s' if n != 1 else ''}")
+        return self.set_texts(
+            body="—" if n is None else f"{n} item{'s' if n != 1 else ''}")
 
 
 class AppsCard(QFrame):
@@ -539,6 +585,8 @@ class AppsCard(QFrame):
             b.clicked.connect(lambda _=False, c=cmd: self.launch(c))
             lay.addWidget(b)
 
+    INTERVAL = 3600
+
     @staticmethod
     def launch(cmd):
         try:
@@ -547,7 +595,7 @@ class AppsCard(QFrame):
             pass
 
     def tick(self):
-        pass
+        return False
 
 
 STYLE = """
@@ -590,6 +638,15 @@ class Dock(QWidget):
         self._drag = None
         self._last_size = None
         self._fired = None
+        self._tick_n = 0
+        self._hidden = False
+        self._shown_pos = None
+        self._last_hover = time.monotonic()
+        self._menu_open = False
+        self._animating = False
+        self._anim = QPropertyAnimation(self, b"pos", self)
+        self._anim.setDuration(180)
+        self._anim.finished.connect(self._anim_done)
 
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
                             | Qt.Tool)
@@ -604,6 +661,10 @@ class Dock(QWidget):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.tick)
         self.timer.start(1000)
+
+        self._hover_timer = QTimer(self)
+        self._hover_timer.timeout.connect(self._autohide_check)
+        self._hover_timer.start(250)
 
     # -- build ---------------------------------------------------------------
     def rebuild(self):
@@ -643,6 +704,7 @@ class Dock(QWidget):
                 self.cards.append(make())
         for c in self.cards:
             self.row.addWidget(c)
+            c.tick()
         self.tick()
         self.place()
 
@@ -686,16 +748,102 @@ class Dock(QWidget):
             self.move(int(full.x() + MARGIN), int(y))
         else:
             self.move(int(full.x() + (full.width() - w) // 2), int(y))
+        self._shown_pos = self.pos()
+        if self._hidden:
+            self.move(self._hidden_pos())
 
     def tick(self):
+        self._tick_n += 1
+        changed = False
         for c in self.cards:
-            c.tick()
-        self.adjustSize()
-        size = (self.width(), self.height())
-        if size != self._last_size:
-            self._last_size = size
-            self.place()
+            if self._tick_n % getattr(c, "INTERVAL", 1) == 0:
+                changed = bool(c.tick()) or changed
+        if changed and not self._hidden:
+            self.adjustSize()
+            size = (self.width(), self.height())
+            if size != self._last_size:
+                self._last_size = size
+                self.place()
         self.automations()
+
+    # -- auto-hide -----------------------------------------------------------
+    SLIVER = 4  # px left visible at the edge while hidden
+
+    def _hidden_pos(self):
+        pos = self._shown_pos or self.pos()
+        screen = QApplication.primaryScreen().geometry()
+        if self.cfg["position"] == "top":
+            return pos.__class__(pos.x(), screen.y() - self.height()
+                                 + self.SLIVER)
+        return pos.__class__(pos.x(), screen.y() + screen.height()
+                             - self.SLIVER)
+
+    def _cursor_near(self):
+        """True when the mouse is over the dock, or over the sliver / screen
+        edge where the hidden dock sits."""
+        cur = QCursor.pos()
+        rect = self.geometry()
+        rect.adjust(-2, -2, 2, 2)
+        if rect.contains(cur):
+            return True
+        if self._hidden and self._shown_pos is not None:
+            screen = QApplication.primaryScreen().geometry()
+            in_x = (self._shown_pos.x() - 40 <= cur.x()
+                    <= self._shown_pos.x() + self.width() + 40)
+            if not in_x:
+                return False
+            if self.cfg["position"] == "top":
+                return cur.y() <= screen.y() + 2
+            return cur.y() >= screen.y() + screen.height() - 3
+        return False
+
+    def _autohide_check(self):
+        if not self.cfg.get("auto_hide"):
+            if self._hidden:
+                self._slide(False)
+            return
+        if self._drag is not None or self._menu_open \
+                or QApplication.activeModalWidget() is not None:
+            self._last_hover = time.monotonic()
+            return
+        if self._animating:
+            return
+        if self._cursor_near():
+            self._last_hover = time.monotonic()
+            if self._hidden:
+                self._slide(False)
+            return
+        if self._hidden:
+            return
+        delay = max(2, int(self.cfg.get("auto_hide_delay", 5)))
+        idle_long = time.monotonic() - self._last_hover >= delay
+        fullscreen = winapi.foreground_is_fullscreen(
+            self.appbar.hwnd or int(self.winId()))
+        if idle_long or fullscreen:
+            self._slide(True)
+
+    def _slide(self, hide):
+        if hide == self._hidden or self._shown_pos is None:
+            return
+        self._hidden = hide
+        if hide:
+            self.appbar.remove()   # give the space back while hidden
+        self._anim.stop()
+        self._animating = True
+        self._anim.setStartValue(self.pos())
+        self._anim.setEndValue(self._hidden_pos() if hide
+                               else self._shown_pos)
+        self._anim.start()
+
+    def _anim_done(self):
+        self._animating = False
+        if not self._hidden:
+            self.place()           # re-reserve space, settle exact position
+        self._last_hover = time.monotonic()
+
+    def enterEvent(self, e):
+        self._last_hover = time.monotonic()
+        super().enterEvent(e)
 
     # -- automations ---------------------------------------------------------
     def automations(self):
@@ -728,6 +876,14 @@ class Dock(QWidget):
                       "Secret iCal link (Google: Settings > calendar > "
                       "'Secret address in iCal format'):",
                       self.calendar.refresh)
+
+    def ask_autohide_delay(self):
+        val, ok = QInputDialog.getInt(
+            self, "Auto-hide", "Hide after this many seconds away:",
+            int(self.cfg.get("auto_hide_delay", 5)), 2, 120)
+        if ok:
+            self.cfg["auto_hide_delay"] = val
+            save_config(self.cfg)
 
     def ask_quiet_hours(self):
         self.ask_text("quiet_hours", "Quiet hours",
@@ -778,6 +934,13 @@ class Dock(QWidget):
 
     # -- menu ----------------------------------------------------------------
     def contextMenuEvent(self, e):
+        self._menu_open = True
+        try:
+            self._build_menu(e)
+        finally:
+            self._menu_open = False
+
+    def _build_menu(self, e):
         m = QMenu(self)
         pos = QAction("Move to top" if self.cfg["position"] == "bottom"
                       else "Move to bottom", self)
@@ -796,6 +959,7 @@ class Dock(QWidget):
             ("glass", "Glass effect"),
             ("pause_before_meeting", "Pause music before meetings"),
             ("full_width", "Full width"),
+            ("auto_hide", "Auto-hide dock (fullscreen friendly)"),
         ]:
             a = QAction(label, self, checkable=True)
             a.setChecked(self.cfg[key])
@@ -809,6 +973,9 @@ class Dock(QWidget):
         quiet = QAction("Set quiet hours…", self)
         quiet.triggered.connect(self.ask_quiet_hours)
         m.addAction(quiet)
+        delay = QAction("Set auto-hide delay…", self)
+        delay.triggered.connect(self.ask_autohide_delay)
+        m.addAction(delay)
         m.addSeparator()
         for label, fn in [("Set weather city…", self.ask_city),
                           ("Set calendar link…", self.ask_calendar),
@@ -823,6 +990,10 @@ class Dock(QWidget):
         m.exec(e.globalPos())
 
     def toggle_position(self):
+        if self._hidden:
+            self._hidden = False
+            self._anim.stop()
+            self._animating = False
         self.cfg["position"] = "top" if self.cfg["position"] == "bottom" else "bottom"
         save_config(self.cfg)
         self.place()
@@ -834,7 +1005,11 @@ class Dock(QWidget):
 
     def set_option(self, key, on):
         self.cfg[key] = on
-        if key == "hide_taskbar":
+        if key == "auto_hide":
+            self._last_hover = time.monotonic()
+            if not on and self._hidden:
+                self._slide(False)
+        elif key == "hide_taskbar":
             winapi.set_taskbar_autohide(on, self.appbar.hwnd, self.cfg)
         elif key == "full_width" and not on:
             self.setMinimumWidth(0)

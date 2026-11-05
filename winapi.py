@@ -164,20 +164,64 @@ def disable_glass(hwnd):
 
 
 # ------------------------------------------------------ system queries ----
+_fg_cache = {"hwnd": 0, "name": None}
+
+
 def foreground_process():
-    """Executable name of the focused window, e.g. 'Code.exe'."""
+    """Executable name of the focused window, e.g. 'Code.exe'.
+    Cached by window handle: this runs every second for screen time, and
+    building a psutil.Process each time was a steady source of CPU use."""
     if not IS_WIN:
         return None
     try:
-        import psutil
         hwnd = ctypes.windll.user32.GetForegroundWindow()
         if not hwnd:
             return None
+        if hwnd == _fg_cache["hwnd"]:
+            return _fg_cache["name"]
+        import psutil
         pid = wintypes.DWORD()
         ctypes.windll.user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
-        return psutil.Process(pid.value).name()
+        name = psutil.Process(pid.value).name()
+        _fg_cache.update(hwnd=hwnd, name=name)
+        return name
     except Exception:
         return None
+
+
+class _MONITORINFO(ctypes.Structure):
+    _fields_ = [("cbSize", wintypes.DWORD), ("rcMonitor", wintypes.RECT),
+                ("rcWork", wintypes.RECT), ("dwFlags", wintypes.DWORD)]
+
+
+def foreground_is_fullscreen(exclude_hwnd=0):
+    """True when the focused window covers its whole monitor (games, video,
+    presentation apps) and is not the desktop, the shell or the dock itself."""
+    if not IS_WIN:
+        return False
+    try:
+        user32 = ctypes.windll.user32
+        hwnd = user32.GetForegroundWindow()
+        if not hwnd or int(hwnd) == int(exclude_hwnd or 0):
+            return False
+        cls = ctypes.create_unicode_buffer(64)
+        user32.GetClassNameW(hwnd, cls, 64)
+        if cls.value in ("Progman", "WorkerW", "Shell_TrayWnd",
+                         "Shell_SecondaryTrayWnd"):
+            return False
+        rect = wintypes.RECT()
+        if not user32.GetWindowRect(hwnd, ctypes.byref(rect)):
+            return False
+        mon = user32.MonitorFromWindow(hwnd, 2)  # MONITOR_DEFAULTTONEAREST
+        info = _MONITORINFO()
+        info.cbSize = ctypes.sizeof(info)
+        if not user32.GetMonitorInfoW(mon, ctypes.byref(info)):
+            return False
+        m = info.rcMonitor
+        return (rect.left <= m.left and rect.top <= m.top
+                and rect.right >= m.right and rect.bottom >= m.bottom)
+    except Exception:
+        return False
 
 
 class _LASTINPUTINFO(ctypes.Structure):

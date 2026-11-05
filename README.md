@@ -48,6 +48,7 @@ Settings live in `%APPDATA%\Winyard\config.json`.
 - **Pause music before meetings** — pauses playback one minute before your next calendar event
 - **Quiet hours** (e.g. `23:00-07:00`) — the focus timer finishes silently
 - **Start with Windows** — adds/removes a Run key for the current user
+- **Auto-hide dock** — slides off screen after a few seconds away from it (delay settable, default 5s), and immediately when a fullscreen app (game, video, presentation) takes the screen; the reserved space is released while it is hidden, and it slides back when you touch the screen edge where it sits
 
 ## Files
 
