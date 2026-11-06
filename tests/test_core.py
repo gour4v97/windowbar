@@ -133,7 +133,7 @@ def test_hotkey_and_calc():
     assert search.safe_calc("9**9**9") is None
 
 
-# ------------------------------------------------------- dockyard parity ----
+# ------------------------------------------------------- newer widgets ----
 def test_period_progress_bounds():
     from datetime import datetime
     p = extras.period_progress(datetime(2026, 6, 15, 12, 0))

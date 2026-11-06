@@ -706,7 +706,7 @@ def _exe_of(cmd):
 
 
 class AppsCard(QFrame):
-    """Pinned apps (Dockyard-style): a dot marks the running ones; clicking
+    """Pinned apps: a dot marks the running ones; clicking
     a running app focuses it (or minimises it when already focused),
     clicking a stopped one launches it. Right-click an app for more."""
 
@@ -791,7 +791,7 @@ class AppsCard(QFrame):
         return True
 
 
-# ------------------------------------------------------- dockyard cards ----
+# ---------------------------------------------------------- more cards ----
 class StorageCard(Card):
     INTERVAL = 10
 
@@ -1122,8 +1122,8 @@ class AnalogClockCard(QFrame):
 
 # ------------------------------------------------------------- popups --------
 class Popup(QWidget):
-    """A small panel that opens over its card (Dockyard-style tile popup)
-    and closes when you click elsewhere."""
+    """A small panel that opens over its card and closes when you
+    click elsewhere."""
 
     def __init__(self, dock):
         super().__init__(dock)
@@ -1332,7 +1332,7 @@ class NotesPanel(Popup):
 class AppHotkeyFilter(QAbstractNativeEventFilter):
     """Win+1..Win+9 for the pinned apps (Alt+digit fallback: Windows itself
     owns Win+number for the taskbar and usually refuses the registration,
-    the same reason Dockyard needs a KWin script on KDE)."""
+    so the Alt variant is registered as a fallback)."""
 
     BASE = 0xC00
     WM_HOTKEY = 0x0312
