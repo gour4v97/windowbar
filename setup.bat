@@ -1,13 +1,13 @@
 @echo off
-REM Double-click to install Winyard. Extra flags are passed through, e.g.  setup.bat --uninstall
+REM Double-click to install Windows Bar. Extra flags are passed through, e.g.  setup.bat --uninstall
 where py >nul 2>nul
 if %errorlevel%==0 (
-    py -3 "%~dp0setup_winyard.py" %*
+    py -3 "%~dp0setup_windowsbar.py" %*
     goto :done
 )
 where python >nul 2>nul
 if %errorlevel%==0 (
-    python "%~dp0setup_winyard.py" %*
+    python "%~dp0setup_windowsbar.py" %*
     goto :done
 )
 echo Python 3.9+ was not found.

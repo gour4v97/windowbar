@@ -295,25 +295,40 @@ def lock_screen():
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 
 
-def list_open_windows(limit=8):
-    """[(hwnd, title)] for visible top-level windows that have a title,
-    most recently used first is not guaranteed; taskbar order is fine."""
+def list_open_windows(limit=8, exclude=()):
+    """[(hwnd, title)] for windows that would appear on the taskbar: visible,
+    titled, not cloaked (UWP ghosts, other virtual desktops), not tool windows
+    and not owned popups. Meant to run in a background thread."""
     if not IS_WIN:
         return []
     user32 = ctypes.windll.user32
+    dwm = ctypes.windll.dwmapi
     out = []
+    skip = {int(x) for x in exclude}
 
     CB = ctypes.WINFUNCTYPE(ctypes.c_bool, wintypes.HWND, wintypes.LPARAM)
 
     def _cb(hwnd, _):
-        if not user32.IsWindowVisible(hwnd):
+        h = int(hwnd or 0)
+        if h in skip or not user32.IsWindowVisible(hwnd):
             return True
         n = user32.GetWindowTextLengthW(hwnd)
-        if n:
-            buf = ctypes.create_unicode_buffer(n + 1)
-            user32.GetWindowTextW(hwnd, buf, n + 1)
-            if buf.value.strip():
-                out.append((int(hwnd), buf.value))
+        if not n:
+            return True
+        ex = user32.GetWindowLongW(hwnd, -20)           # GWL_EXSTYLE
+        if ex & 0x80 and not ex & 0x40000:              # TOOLWINDOW, not APPWINDOW
+            return True
+        if user32.GetWindow(hwnd, 4):                   # GW_OWNER
+            return True
+        cloaked = ctypes.c_int(0)
+        dwm.DwmGetWindowAttribute(hwnd, 14, ctypes.byref(cloaked), 4)
+        if cloaked.value:
+            return True
+        buf = ctypes.create_unicode_buffer(n + 1)
+        user32.GetWindowTextW(hwnd, buf, n + 1)
+        title = buf.value.strip()
+        if title and title != "Program Manager":
+            out.append((h, title))
         return len(out) < limit
 
     try:
@@ -321,6 +336,32 @@ def list_open_windows(limit=8):
     except Exception:
         pass
     return out[:limit]
+
+
+def foreground_hwnd():
+    if not IS_WIN:
+        return 0
+    try:
+        return int(ctypes.windll.user32.GetForegroundWindow() or 0)
+    except Exception:
+        return 0
+
+
+def wallpaper_path():
+    """Current desktop wallpaper file ('' when unknown, e.g. slideshow)."""
+    if not IS_WIN:
+        return ""
+    try:
+        buf = ctypes.create_unicode_buffer(520)
+        ctypes.windll.user32.SystemParametersInfoW(0x0073, 520, buf, 0)  # GETDESKWALLPAPER
+        if buf.value:
+            return buf.value
+        import os
+        cached = os.path.join(os.environ.get("APPDATA", ""), "Microsoft", "Windows",
+                              "Themes", "TranscodedWallpaper")
+        return cached if os.path.exists(cached) else ""
+    except Exception:
+        return ""
 
 
 def focus_window(hwnd):
@@ -335,7 +376,7 @@ def focus_window(hwnd):
         pass
 
 
-def autostart_enabled(name="Winyard"):
+def autostart_enabled(name="Windows Bar"):
     if not IS_WIN:
         return False
     import winreg

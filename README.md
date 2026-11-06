@@ -1,4 +1,4 @@
-# Winyard
+# Windows Bar
 
 A smart dock for Windows 10/11, written in Python (PySide6). It sits at the top
 or bottom of the screen as a row of live cards — clock, calendar, media, system,
@@ -10,19 +10,14 @@ only to its own service, and only if you turn it on.
 
 ## Install
 
-**Easy way (Windows):** download the release zip, unzip it, and double-click
-`setup.bat`. It installs per-user into `%LOCALAPPDATA%\\Winyard` (own venv,
-Start Menu shortcut, no admin needed). Remove with `setup.bat --uninstall`.
-
-**From source:**
-
 ```
 pip install -r requirements.txt
-python winyard.py
+pip install --only-binary=:all: -r requirements-media.txt   # optional: Now playing widget
+python windowsbar.py
 ```
 
 Right-click the dock for the menu: choose widgets, position, and options.
-Settings live in `%APPDATA%\Winyard\config.json`.
+Settings live in `%APPDATA%\Windows Bar\config.json`.
 
 ## Widgets (20)
 
@@ -40,7 +35,7 @@ Settings live in `%APPDATA%\Winyard\config.json`.
 | Screenshots | same idea for `Pictures\Screenshots` |
 | Screen time | seconds per focused app today; idle time not counted; data kept 14 days |
 | GitHub | public repos and followers; set your username from the menu |
-| Stripe revenue | available balance; set your key in the `WINYARD_STRIPE_KEY` environment variable |
+| Stripe revenue | available balance; set your key in the `WINDOWSBAR_STRIPE_KEY` environment variable |
 | Notes | click to edit |
 | Focus / Stopwatch / Todos | click to use; double-click resets; right-click a todo completes it |
 
@@ -56,9 +51,29 @@ Settings live in `%APPDATA%\Winyard\config.json`.
 - **Start with Windows** — adds/removes a Run key for the current user
 - **Auto-hide dock** — slides off screen after a few seconds away from it (delay settable, default 5s), and immediately when a fullscreen app (game, video, presentation) takes the screen; the reserved space is released while it is hidden, and it slides back when you touch the screen edge where it sits
 
+## Launcher, themes and accent (Seelen-style)
+
+- **Launcher** — press `Alt+Space` anywhere. Fuzzy-search your apps, Start Menu programs and open windows; `↑ ↓` to pick, `Enter` to run, `Esc` to close. Type `> command` to run a shell command, `= 2*(3+4)` (or just `2*(3+4)`) to calculate (Enter copies the result), or a path to open it. Change the key with `launcher_hotkey` in config.json (e.g. `ctrl+shift+k`); turn it off from the menu.
+- **Themes** — menu > Theme: midnight (default), daylight, aurora, rose, mono. Add your own as JSON in `%APPDATA%\Windows Bar\themes\` (menu > Theme > Open themes folder creates an example). A theme only lists the keys it changes: `panel`, `glass`, `border`, `card`, `text`, `muted`, `button`, `accent` (`"#rrggbb"` or `[r,g,b,a]`, alpha 0-255), `radius`, `panel_radius`, `font`.
+- **Custom CSS** — drop a `custom.qss` into `%APPDATA%\Windows Bar\` and it is applied on top of the theme (Qt style sheets, a CSS subset).
+- **Dynamic accent** — the accent colour is derived from your wallpaper and follows it when it changes (hover, focused window, launcher selection). Turn it off in the menu to use the theme's own accent.
+- The open-windows widget now behaves like a taskbar (no hidden/cloaked windows) and highlights the focused window.
+
+## Performance
+
+- Native window-reservation calls are made only when the dock's size/edge actually changes, not on every digit change (this was the main source of lag: it made other windows re-layout).
+- Widgets with changing numbers keep a stable width, so the dock no longer jitters.
+- Slow Windows calls (window list, Recycle Bin count) run in background threads, never on the UI thread.
+- Background work only runs for widgets that are switched on (weather, calendar, media, GitHub, Stripe, folder scans stop when their widget is off).
+- The dock background is cached instead of repainted from scratch; the auto-hide watcher only runs when auto-hide is on; cards stop updating while the dock is slid away (timers stay accurate).
+- Large calendars are parsed incrementally and old one-off events are dropped early.
+
 ## Files
 
-- `winyard.py` — the dock, cards and menu (UI)
+- `windowsbar.py` — the dock, cards and menu (UI)
+- `launcher.py` — the Alt+Space launcher and global hotkey
+- `theme.py` — themes, QSS builder, wallpaper accent (pure Python)
+- `search.py` — fuzzy search, Start Menu scan, hotkey parsing, safe calculator (pure Python)
 - `services.py` — background sources: weather, calendar (iCal + recurrence), media session
 - `extras.py` — screen time, GitHub, Stripe, folder stats, background poller
 - `winapi.py` — Windows-only native helpers (AppBar reservation, glass, taskbar state, open windows, autostart); safe no-ops elsewhere

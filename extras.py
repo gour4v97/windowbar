@@ -16,7 +16,7 @@ IDLE_LIMIT = 300  # seconds without input before screen time pauses
 
 def get_json(url, headers=None, timeout=10):
     req = urllib.request.Request(
-        url, headers={"User-Agent": "Winyard/0.3", **(headers or {})})
+        url, headers={"User-Agent": "WindowsBar/0.3", **(headers or {})})
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return json.loads(r.read().decode("utf-8"))
 
@@ -28,13 +28,18 @@ class Poll:
         self.fetch, self.every = fetch, every
         self.value, self.error = None, None
         self._wake = threading.Event()
+        self._stop = False
         threading.Thread(target=self._run, daemon=True).start()
 
     def refresh(self):
         self._wake.set()
 
+    def stop(self):
+        self._stop = True
+        self._wake.set()
+
     def _run(self):
-        while True:
+        while not self._stop:
             try:
                 self.value = self.fetch()
                 self.error = None
@@ -53,7 +58,7 @@ def github_summary(user):
 
 def stripe_revenue(key):
     if not key:
-        raise ValueError("Set WINYARD_STRIPE_KEY")
+        raise ValueError("Set WINDOWSBAR_STRIPE_KEY")
     d = get_json("https://api.stripe.com/v1/balance",
                  headers={"Authorization": "Bearer " + key})
     totals = {}

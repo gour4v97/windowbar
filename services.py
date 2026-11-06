@@ -2,16 +2,18 @@
 now-playing (Windows media session). Each runs in its own daemon thread and
 exposes plain attributes the UI reads once a second."""
 import asyncio
+import importlib
 import json
 import re
 import threading
+import time
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
 
 
 def http_get(url, timeout=10):
-    req = urllib.request.Request(url, headers={"User-Agent": "Winyard/0.2"})
+    req = urllib.request.Request(url, headers={"User-Agent": "WindowsBar/0.2"})
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return r.read().decode("utf-8", errors="replace")
 
@@ -34,6 +36,7 @@ class WeatherService:
         self.cfg, self.save = cfg, save
         self.label = "WEATHER"
         self.text = "Set city"
+        self.active = True          # False -> no network while the widget is off
         self._wake = threading.Event()
         threading.Thread(target=self._run, daemon=True).start()
 
@@ -42,6 +45,10 @@ class WeatherService:
 
     def _run(self):
         while True:
+            if not self.active:
+                self._wake.wait(10)
+                self._wake.clear()
+                continue
             try:
                 self._update()
             except Exception:
@@ -91,15 +98,35 @@ def _parse_dt(value, params=""):
     return dt, False   # TZID-tagged times are treated as local time
 
 
-def parse_ics(text):
-    lines = re.sub(r"\r?\n[ \t]", "", text).splitlines()
+def _unfold(text):
+    """Yield iCal lines with RFC 5545 continuation lines joined, one at a time
+    (no giant intermediate string, so the GIL is never held for long)."""
+    cur = None
+    for n, raw in enumerate(text.splitlines()):
+        if raw[:1] in (" ", "\t") and cur is not None:
+            cur += raw[1:]
+        else:
+            if cur is not None:
+                yield cur
+            cur = raw
+        if n % 4000 == 3999:
+            time.sleep(0.001)          # let the UI thread run on huge calendars
+    if cur is not None:
+        yield cur
+
+
+def parse_ics(text, drop_before=None):
+    """Timed events only. With drop_before, one-off events that started before
+    that moment are discarded early (calendars keep years of history)."""
     events, cur = [], None
-    for line in lines:
+    for line in _unfold(text):
         if line == "BEGIN:VEVENT":
             cur = {}
         elif line == "END:VEVENT":
             if cur and "start" in cur and not cur.get("allday"):
-                events.append(cur)
+                if not (drop_before and "rrule" not in cur
+                        and cur["start"] < drop_before):
+                    events.append(cur)
             cur = None
         elif cur is not None and ":" in line:
             key, _, value = line.partition(":")
@@ -168,6 +195,7 @@ class CalendarService:
         self.upcoming = []          # sorted [(datetime, summary)]
         self.status = ""
         self._events, self._url, self._fetched = [], None, 0.0
+        self.active = True
         self._wake = threading.Event()
         threading.Thread(target=self._run, daemon=True).start()
 
@@ -183,8 +211,11 @@ class CalendarService:
         return None
 
     def _run(self):
-        import time
         while True:
+            if not self.active:
+                self._wake.wait(10)
+                self._wake.clear()
+                continue
             try:
                 url = self.cfg.get("calendar_url", "").strip()
                 if url.startswith("webcal://"):
@@ -192,7 +223,8 @@ class CalendarService:
                 if not url:
                     self._events, self.upcoming, self.status = [], [], "Set link"
                 elif url != self._url or time.time() - self._fetched > 900:
-                    self._events = parse_ics(http_get(url, timeout=20))
+                    self._events = parse_ics(http_get(url, timeout=20),
+                                             drop_before=datetime.now() - timedelta(days=1))
                     self._url, self._fetched = url, time.time()
                     self.status = ""
                 now = datetime.now()
@@ -209,21 +241,37 @@ class CalendarService:
 
 
 # ---------------------------------------------------------------- media ----
+def _media_api():
+    """(SessionManager, PlaybackStatus) from `winsdk`, or from its maintained
+    successor `winrt`; None when neither is installed."""
+    for root in ("winsdk", "winrt"):
+        try:
+            try:
+                importlib.import_module(f"{root}.windows.foundation.collections")
+            except Exception:
+                pass
+            mod = importlib.import_module(f"{root}.windows.media.control")
+            return (mod.GlobalSystemMediaTransportControlsSessionManager,
+                    mod.GlobalSystemMediaTransportControlsSessionPlaybackStatus)
+        except Exception:
+            continue
+    return None
+
+
 class MediaService:
-    """Now-playing via the Windows media session (needs: pip install winsdk)."""
+    """Now-playing via the Windows media session (needs winsdk or winrt)."""
 
     def __init__(self):
         self.available = False
         self.title = self.artist = ""
         self.playing = False
         self.has_session = False
+        self.active = True          # False -> no polling while the widget is off
         self.loop = None
-        try:
-            import winsdk.windows.media.control  # noqa: F401
+        self._api = _media_api()
+        if self._api:
             self.available = True
             threading.Thread(target=self._run, daemon=True).start()
-        except Exception:
-            pass
 
     def _run(self):
         self.loop = asyncio.new_event_loop()
@@ -231,14 +279,15 @@ class MediaService:
         self.loop.run_until_complete(self._poll())
 
     async def _session(self):
-        from winsdk.windows.media.control import (
-            GlobalSystemMediaTransportControlsSessionManager as Mgr)
+        Mgr = self._api[0]
         return (await Mgr.request_async()).get_current_session()
 
     async def _poll(self):
-        from winsdk.windows.media.control import (
-            GlobalSystemMediaTransportControlsSessionPlaybackStatus as PS)
+        PS = self._api[1]
         while True:
+            if not self.active:
+                await asyncio.sleep(3)
+                continue
             try:
                 s = await self._session()
                 if s is None:
