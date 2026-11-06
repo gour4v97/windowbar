@@ -291,6 +291,192 @@ def lock_screen():
         ctypes.windll.user32.LockWorkStation()
 
 
+# ------------------------------------------------------------- volume -------
+def _guid(text):
+    import uuid
+    return ctypes.create_string_buffer(uuid.UUID(text).bytes_le, 16)
+
+
+class _Com:
+    """Minimal COM helper: build an interface pointer, call vtable slots."""
+
+    @staticmethod
+    def create(clsid, iid):
+        ole32 = ctypes.windll.ole32
+        ole32.CoInitialize(None)
+        ptr = ctypes.c_void_p()
+        hr = ole32.CoCreateInstance(_guid(clsid), None, 1,  # CLSCTX_INPROC
+                                    _guid(iid), ctypes.byref(ptr))
+        if hr != 0 or not ptr:
+            raise OSError(f"CoCreateInstance failed: {hr:#x}")
+        return ptr
+
+
+_VOLUME = {"ptr": None}
+
+
+def _endpoint_volume():
+    """IAudioEndpointVolume for the default render device (cached)."""
+    if _VOLUME["ptr"]:
+        return _VOLUME["ptr"]
+    if not IS_WIN:
+        return None
+    enum = _Com.create("{BCDE0395-E52F-467C-8E3D-C4579291692E}",
+                       "{A95664D2-9614-4F35-A746-DE8DB63617E6}")
+    device = ctypes.c_void_p()
+    vtbl = ctypes.cast(enum, ctypes.POINTER(ctypes.c_void_p))[0]
+    get_default = ctypes.cast(
+        ctypes.cast(vtbl, ctypes.POINTER(ctypes.c_void_p))[4],
+        ctypes.WINFUNCTYPE(ctypes.c_long, ctypes.c_void_p, ctypes.c_int,
+                           ctypes.c_int, ctypes.POINTER(ctypes.c_void_p)))
+    if get_default(enum, 0, 0, ctypes.byref(device)) != 0 or not device:
+        raise OSError("no default audio device")
+    vol = ctypes.c_void_p()
+    dtbl = ctypes.cast(device, ctypes.POINTER(ctypes.c_void_p))[0]
+    activate = ctypes.cast(
+        ctypes.cast(dtbl, ctypes.POINTER(ctypes.c_void_p))[3],
+        ctypes.WINFUNCTYPE(ctypes.c_long, ctypes.c_void_p, ctypes.c_void_p,
+                           ctypes.c_ulong, ctypes.c_void_p,
+                           ctypes.POINTER(ctypes.c_void_p)))
+    iid = _guid("{5CDF2C82-841E-4546-9722-0CF74078229A}")
+    if activate(device, iid, 1, None, ctypes.byref(vol)) != 0 or not vol:
+        raise OSError("Activate(IAudioEndpointVolume) failed")
+    _VOLUME["ptr"] = vol
+    return vol
+
+
+def get_volume():
+    """(level 0..1, muted) for the default output device, or None."""
+    if not IS_WIN:
+        return None
+    try:
+        vol = _endpoint_volume()
+        level = ctypes.c_float()
+        vtbl = ctypes.cast(vol, ctypes.POINTER(ctypes.c_void_p))[0]
+        get_scalar = ctypes.cast(
+            ctypes.cast(vtbl, ctypes.POINTER(ctypes.c_void_p))[6],
+            ctypes.WINFUNCTYPE(ctypes.c_long, ctypes.c_void_p,
+                               ctypes.POINTER(ctypes.c_float)))
+        if get_scalar(vol, ctypes.byref(level)) != 0:
+            return None
+        muted = ctypes.c_int()
+        get_mute = ctypes.cast(
+            ctypes.cast(vtbl, ctypes.POINTER(ctypes.c_void_p))[12],
+            ctypes.WINFUNCTYPE(ctypes.c_long, ctypes.c_void_p,
+                               ctypes.POINTER(ctypes.c_int)))
+        get_mute(vol, ctypes.byref(muted))
+        return level.value, bool(muted.value)
+    except Exception:
+        _VOLUME["ptr"] = None
+        return None
+
+
+def set_volume(fraction):
+    if not IS_WIN:
+        return
+    try:
+        vol = _endpoint_volume()
+        vtbl = ctypes.cast(vol, ctypes.POINTER(ctypes.c_void_p))[0]
+        set_scalar = ctypes.cast(
+            ctypes.cast(vtbl, ctypes.POINTER(ctypes.c_void_p))[4],
+            ctypes.WINFUNCTYPE(ctypes.c_long, ctypes.c_void_p, ctypes.c_float,
+                               ctypes.c_void_p))
+        set_scalar(vol, ctypes.c_float(max(0.0, min(1.0, fraction))), None)
+    except Exception:
+        _VOLUME["ptr"] = None
+
+
+def set_mute(muted):
+    if not IS_WIN:
+        return
+    try:
+        vol = _endpoint_volume()
+        vtbl = ctypes.cast(vol, ctypes.POINTER(ctypes.c_void_p))[0]
+        setm = ctypes.cast(
+            ctypes.cast(vtbl, ctypes.POINTER(ctypes.c_void_p))[11],
+            ctypes.WINFUNCTYPE(ctypes.c_long, ctypes.c_void_p, ctypes.c_int,
+                               ctypes.c_void_p))
+        setm(vol, ctypes.c_int(1 if muted else 0), None)
+    except Exception:
+        _VOLUME["ptr"] = None
+
+
+# ---------------------------------------------------- power / keep awake ----
+def set_keep_awake(on):
+    """Stop the display/system sleeping while `on` (cleared with off).
+    Applies to the calling thread; call from the UI thread."""
+    if not IS_WIN:
+        return
+    try:
+        ES_CONTINUOUS = 0x80000000
+        flags = ES_CONTINUOUS | (0x1 | 0x2 if on else 0)  # SYSTEM|DISPLAY
+        ctypes.windll.kernel32.SetThreadExecutionState(ctypes.c_ulong(flags))
+    except Exception:
+        pass
+
+
+def power_action(action):
+    """lock | sleep | signout | restart | shutdown (restart/shutdown are
+    immediate -- the caller confirms first)."""
+    if not IS_WIN:
+        return
+    import subprocess
+    try:
+        if action == "lock":
+            lock_screen()
+        elif action == "sleep":
+            ctypes.windll.powrprof.SetSuspendState(0, 1, 0)
+        elif action == "signout":
+            subprocess.run(["shutdown", "/l"], check=False)
+        elif action == "restart":
+            subprocess.run(["shutdown", "/r", "/t", "0"], check=False)
+        elif action == "shutdown":
+            subprocess.run(["shutdown", "/s", "/t", "0"], check=False)
+    except Exception:
+        pass
+
+
+def close_window(hwnd):
+    if IS_WIN and hwnd:
+        try:
+            ctypes.windll.user32.PostMessageW(
+                wintypes.HWND(hwnd), 0x0010, 0, 0)  # WM_CLOSE
+        except Exception:
+            pass
+
+
+def minimize_window(hwnd):
+    if IS_WIN and hwnd:
+        try:
+            ctypes.windll.user32.ShowWindow(wintypes.HWND(hwnd), 6)  # SW_MINIMIZE
+        except Exception:
+            pass
+
+
+def open_window_processes():
+    """{exe_name_lower: hwnd} for taskbar windows -- which pinned apps are
+    currently running, and where to focus them."""
+    if not IS_WIN:
+        return {}
+    try:
+        import psutil
+    except Exception:
+        return {}
+    user32 = ctypes.windll.user32
+    out = {}
+    wins = list_open_windows(64)
+    for hwnd, _title in wins:
+        try:
+            pid = wintypes.DWORD()
+            user32.GetWindowThreadProcessId(wintypes.HWND(hwnd),
+                                            ctypes.byref(pid))
+            name = psutil.Process(pid.value).name().lower()
+            out.setdefault(name, hwnd)
+        except Exception:
+            continue
+    return out
+
+
 # ------------------------------------------------------- windows / startup --
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 

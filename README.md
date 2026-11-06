@@ -19,25 +19,34 @@ python windowsbar.py
 Right-click the dock for the menu: choose widgets, position, and options.
 Settings live in `%APPDATA%\Windows Bar\config.json`.
 
-## Widgets (20)
+## Widgets (28)
 
 | Widget | How it works |
 |---|---|
-| App launcher | edit `apps` in config.json |
+| App launcher | pinned apps, edit `apps` in config.json. Running apps get a dot: click focuses (or minimises) instead of relaunching; right-click for Open new / Focus / Minimize / Close. `Win+1`…`Win+9` open or switch to them (`Alt+number` where Windows refuses the Win key) |
 | Open windows | buttons for your open windows; click one to bring it to front |
 | Clock, CPU/RAM/network, Battery | built in |
 | Weather | Open-Meteo, no API key; asks for your city |
 | Now playing | Windows media session; click = play/pause (needs `winsdk`) |
 | Next event | paste your calendar's secret iCal link (Google, Outlook, iCloud) |
-| Quick actions | Lock, Dark/Light theme, Empty Recycle Bin (with confirmation), Open any file/folder path |
+| Quick actions | Lock, Dark/Light theme, Empty Recycle Bin (with confirmation), Open any file/folder path, Power menu (Sleep, Sign out, Restart, Shut down) |
 | Recycle Bin | item count; click to empty |
 | Downloads | files added in the last 24h and the newest file; click to open the folder |
 | Screenshots | same idea for `Pictures\Screenshots` |
 | Screen time | seconds per focused app today; idle time not counted; data kept 14 days |
 | GitHub | public repos and followers; set your username from the menu |
 | Stripe revenue | available balance; set your key in the `WINDOWSBAR_STRIPE_KEY` environment variable |
-| Notes | click to edit |
-| Focus / Stopwatch / Todos | click to use; double-click resets; right-click a todo completes it |
+| Notes | several notes; click opens the notes panel (pick, edit, add, delete) |
+| Focus / Stopwatch / Todos | click to use; double-click resets. Todos open a full panel: check to complete, completed ones sink below, delete per row |
+| Timer | plain countdown; click start/pause, double-click sets the minutes |
+| World clocks | up to three IANA time zones (menu sets them) |
+| Day / week / year progress | rotating progress bars for the period |
+| Storage | disk used % and free space for the system drive |
+| Network | Wi-Fi name, local IP, live up/down speeds |
+| Volume | output volume; click mutes, scroll adjusts |
+| Quick toggles | Wi-Fi, Bluetooth and airplane mode (needs `winsdk`, same as Now playing), keep-awake, mute |
+| Script | first two lines of your own shell command's output, refreshed on a timer; optional click command. Menu: "Set script command…" (`script_command`, `script_interval`, `script_click_command` in config) |
+| Calendar popup | click the Next event card for a month view with event days marked |
 
 ## Options
 
@@ -50,6 +59,8 @@ Settings live in `%APPDATA%\Windows Bar\config.json`.
 - **Quiet hours** (e.g. `23:00-07:00`) — the focus timer finishes silently
 - **Start with Windows** — adds/removes a Run key for the current user
 - **Auto-hide dock** — slides off screen after a few seconds away from it (delay settable, default 5s), and immediately when a fullscreen app (game, video, presentation) takes the screen; the reserved space is released while it is hidden, and it slides back when you touch the screen edge where it sits
+- **Clock style** — digital, or an analogue face (menu toggle)
+- **Presets** — one-click widget sets: Essentials, Focus, Creator, Everything
 
 ## Launcher, themes and accent (Seelen-style)
 
@@ -74,9 +85,9 @@ Settings live in `%APPDATA%\Windows Bar\config.json`.
 - `launcher.py` — the Alt+Space launcher and global hotkey
 - `theme.py` — themes, QSS builder, wallpaper accent (pure Python)
 - `search.py` — fuzzy search, Start Menu scan, hotkey parsing, safe calculator (pure Python)
-- `services.py` — background sources: weather, calendar (iCal + recurrence), media session
-- `extras.py` — screen time, GitHub, Stripe, folder stats, background poller
-- `winapi.py` — Windows-only native helpers (AppBar reservation, glass, taskbar state, open windows, autostart); safe no-ops elsewhere
+- `services.py` — background sources: weather, calendar (iCal + recurrence), media session, Wi-Fi/Bluetooth radios
+- `extras.py` — screen time, GitHub, Stripe, folder stats, disk/progress/script/network helpers, background poller
+- `winapi.py` — Windows-only native helpers (AppBar reservation, glass, taskbar state, open windows, volume, power, autostart); safe no-ops elsewhere
 - `tests/` — parser/recurrence/folder tests that run anywhere: `pytest -q`
 
 

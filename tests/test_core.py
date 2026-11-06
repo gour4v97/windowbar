@@ -2,12 +2,14 @@
 the iCal parser and recurrence expansion, weather codes, and folder stats.
 Run:  pip install pytest && pytest -q
 """
+import ast
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+import extras
 from extras import downloads_summary, fmt_dur
 from services import occurrences, parse_ics, wmo_text
 
@@ -129,3 +131,62 @@ def test_hotkey_and_calc():
     assert search.safe_calc("5") is None
     assert search.safe_calc("__import__('os')") is None
     assert search.safe_calc("9**9**9") is None
+
+
+# ------------------------------------------------------- dockyard parity ----
+def test_period_progress_bounds():
+    from datetime import datetime
+    p = extras.period_progress(datetime(2026, 6, 15, 12, 0))
+    assert set(p) == {"day", "week", "year"}
+    assert all(0.0 <= v <= 1.0 for v in p.values())
+    assert abs(p["day"] - 0.5) < 0.01
+    assert abs(extras.period_progress(
+        datetime(2026, 1, 1, 0, 0))["year"]) < 0.01
+
+
+def test_disk_summary_shape(tmp_path):
+    pct, free, total = extras.disk_summary(str(tmp_path))
+    assert 0 <= pct <= 100 and 0 <= free <= total
+
+
+def test_run_script_echo_and_errors():
+    import pytest
+    assert extras.run_script("echo hello") == "hello"
+    with pytest.raises(ValueError):
+        extras.run_script("")
+    with pytest.raises(ValueError):
+        extras.run_script("exit 3")
+
+
+def test_network_info_shape():
+    name, ip = extras.network_info()
+    assert isinstance(name, str) and isinstance(ip, str)
+
+
+def test_normalize_todos_migrates_strings():
+    out = extras.normalize_todos(["a", {"t": "b", "done": True}, {"x": 1}])
+    assert out == [{"t": "a", "done": False}, {"t": "b", "done": True}]
+
+
+def test_normalize_notes_migrates_legacy_text():
+    notes, cur = extras.normalize_notes("old note", None)
+    assert notes == ["old note"] and cur == 0
+    notes, cur = extras.normalize_notes("", ["x", "y"], 9)
+    assert notes == ["x", "y"] and cur == 1
+    notes, cur = extras.normalize_notes("", [], 0)
+    assert notes == [""]
+
+
+def test_exe_of():
+    # same logic as windowsbar._exe_of, kept Qt-free for the test env
+    src = Path(__file__).resolve().parents[1] / "windowsbar.py"
+    tree = ast.parse(src.read_text(encoding="utf-8"))
+    fn = next(n for n in tree.body
+              if isinstance(n, ast.FunctionDef) and n.name == "_exe_of")
+    ns = {}
+    exec(compile(ast.Module(body=[fn], type_ignores=[]), "_exe_of", "exec"),
+         ns)
+    exe_of = ns["_exe_of"]
+    assert exe_of("notepad.exe") == "notepad.exe"
+    assert exe_of(r'"C:\Apps\Visual Studio Code\Code.exe" .') == "code.exe"
+    assert exe_of("") == ""

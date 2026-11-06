@@ -1,4 +1,4 @@
-Windows Bar v0.4 - complete bundle (app + installer)
+Windows Bar v0.5 - complete bundle (app + installer)
 ===========================================
 1. Unzip this folder anywhere.
 2. Double-click setup.bat   (needs Python 3.9+ on Windows 10/11).

@@ -210,6 +210,22 @@ class CalendarService:
                 return dt, title
         return None
 
+    def events_in_month(self, year, month):
+        """{day: [(time, title)]} for the given month -- month popup."""
+        start = datetime(year, month, 1)
+        if month == 12:
+            end = datetime(year + 1, 1, 1)
+        else:
+            end = datetime(year, month + 1, 1)
+        out = {}
+        for ev in self._events:
+            for t in occurrences(ev, start, end - timedelta(seconds=1)):
+                out.setdefault(t.day, []).append(
+                    (t, ev.get("summary", "(no title)")))
+        for day in out:
+            out[day].sort()
+        return out
+
     def _run(self):
         while True:
             if not self.active:
@@ -320,3 +336,79 @@ class MediaService:
             if s:
                 await s.try_pause_async()
         self._submit(go)
+
+
+# ---------------------------------------------------------------- radios ----
+def _radios_api():
+    """(Radio, RadioKind, RadioState) from winsdk or winrt; None if absent."""
+    for root in ("winsdk", "winrt"):
+        try:
+            try:
+                importlib.import_module(f"{root}.windows.foundation.collections")
+            except Exception:
+                pass
+            mod = importlib.import_module(f"{root}.windows.devices.radios")
+            return mod.Radio, mod.RadioKind, mod.RadioState
+        except Exception:
+            continue
+    return None
+
+
+class RadioService:
+    """Wi-Fi / Bluetooth radio states via WinRT (the Quick toggles widget).
+    `states` maps 'wifi' / 'bluetooth' -> True/False; missing keys mean the
+    radio (or the API) is not available, and the toggle hides itself."""
+
+    def __init__(self):
+        self.available = False
+        self.states = {}
+        self.active = True
+        self.loop = None
+        self._api = _radios_api()
+        self._radios = {}
+        if self._api:
+            self.available = True
+            threading.Thread(target=self._run, daemon=True).start()
+
+    def _run(self):
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.loop)
+        self.loop.run_until_complete(self._poll())
+
+    async def _poll(self):
+        Radio, RadioKind, RadioState = self._api
+        while True:
+            if self.active:
+                try:
+                    await Radio.request_access_async()
+                    radios = await Radio.get_radios_async()
+                    found = {}
+                    for r in radios:
+                        key = None
+                        if r.kind == RadioKind.WIFI:
+                            key = "wifi"
+                        elif r.kind == RadioKind.BLUETOOTH:
+                            key = "bluetooth"
+                        if key:
+                            self._radios[key] = r
+                            found[key] = r.state == RadioState.ON
+                    self.states = found
+                except Exception:
+                    self.states = {}
+            await asyncio.sleep(4)
+
+    def set(self, key, on):
+        """Toggle one radio; airplane=True turns every radio off/on."""
+        async def go():
+            _R, _K, RadioState = self._api
+            targets = list(self._radios.values()) if key == "airplane" \
+                else [self._radios.get(key)]
+            for r in targets:
+                if r is not None:
+                    try:
+                        await r.set_state_async(
+                            RadioState.ON if on else RadioState.OFF)
+                    except Exception:
+                        pass
+        if self.loop:
+            asyncio.run_coroutine_threadsafe(go(), self.loop)

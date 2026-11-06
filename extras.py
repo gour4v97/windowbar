@@ -91,6 +91,106 @@ def fmt_dur(seconds):
     return f"{h}h {m:02d}m" if h else f"{m}m"
 
 
+# ------------------------------------------------------- dockyard parity ----
+def disk_summary(path=None):
+    """(percent_used, free_bytes, total_bytes) for a drive (default C:)."""
+    import psutil
+    u = psutil.disk_usage(path or os.environ.get("SystemDrive", "C:") + "\\")
+    return u.percent, u.free, u.total
+
+
+def fmt_bytes(n):
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if n < 1024:
+            return f"{n:.0f} {unit}" if unit in ("B", "KB") else f"{n:.1f} {unit}"
+        n /= 1024
+    return f"{n:.1f} PB"
+
+
+def period_progress(now=None):
+    """{'day': 0..1, 'week': 0..1, 'year': 0..1} -- how far through each
+    period we are. Week starts on Monday."""
+    from datetime import datetime
+    now = now or datetime.now()
+    day = (now.hour * 3600 + now.minute * 60 + now.second) / 86400
+    week = (now.weekday() + day) / 7
+    start = now.replace(month=1, day=1, hour=0, minute=0, second=0,
+                        microsecond=0)
+    nxt = start.replace(year=start.year + 1)
+    year = (now - start).total_seconds() / (nxt - start).total_seconds()
+    return {"day": day, "week": week, "year": year}
+
+
+def run_script(command, timeout=30):
+    """Run a shell command and return its stdout (the Script widget's data).
+    A command that hangs is killed after `timeout` seconds."""
+    import subprocess
+    if not (command or "").strip():
+        raise ValueError("Set a script command")
+    out = subprocess.run(command, shell=True, capture_output=True,
+                         timeout=timeout)
+    text = out.stdout.decode("utf-8", errors="replace").strip()
+    if not text and out.returncode != 0:
+        err = out.stderr.decode("utf-8", errors="replace").strip()
+        raise ValueError(err.splitlines()[-1][:60] if err
+                         else f"exit {out.returncode}")
+    return text
+
+
+def network_info():
+    """(ssid_or_adapter, ipv4) for the active connection, best effort."""
+    import subprocess
+    name = ""
+    try:
+        out = subprocess.run(["netsh", "wlan", "show", "interfaces"],
+                             capture_output=True, timeout=8).stdout
+        for line in out.decode("utf-8", errors="replace").splitlines():
+            if line.strip().lower().startswith("ssid") and ":" in line \
+                    and "bssid" not in line.lower():
+                name = line.split(":", 1)[1].strip()
+                break
+    except Exception:
+        pass
+    ip = ""
+    try:
+        import psutil
+        for _iface, addrs in psutil.net_if_addrs().items():
+            for a in addrs:
+                if a.family == 2 and not a.address.startswith(("127.", "169.")):
+                    ip = a.address
+                    break
+            if ip:
+                break
+    except Exception:
+        pass
+    return name, ip
+
+
+def normalize_todos(raw):
+    """Todos used to be a list of strings; now they are {'t', 'done'} dicts.
+    Accepts both, returns the new shape (open items first is NOT enforced
+    here -- order is the user's)."""
+    out = []
+    for item in raw or []:
+        if isinstance(item, str):
+            out.append({"t": item, "done": False})
+        elif isinstance(item, dict) and item.get("t"):
+            out.append({"t": str(item["t"]), "done": bool(item.get("done"))})
+    return out
+
+
+def normalize_notes(legacy_text, raw_list, current=0):
+    """Notes used to be one big string; now a list of note strings.
+    Returns (notes, current_index) with the legacy text as the first note."""
+    notes = [str(n) for n in (raw_list or [])]
+    if not notes and (legacy_text or "").strip():
+        notes = [legacy_text]
+    if not notes:
+        notes = [""]
+    current = min(max(int(current or 0), 0), len(notes) - 1)
+    return notes, current
+
+
 class ScreenTime:
     """Counts seconds per focused app per day. Idle time is not counted.
     `sampler` and `idle` are injectable so this can be tested anywhere."""

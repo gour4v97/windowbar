@@ -18,19 +18,22 @@ from datetime import datetime
 from pathlib import Path
 
 import psutil
-from PySide6.QtCore import QPropertyAnimation, QRectF, QSize, Qt, QTimer
+from PySide6.QtCore import (QAbstractNativeEventFilter, QPoint,
+                            QPropertyAnimation, QRectF, QSize, Qt, QTimer)
 from PySide6.QtGui import (QAction, QActionGroup, QColor, QCursor, QFont,
                            QImageReader, QPainter, QPainterPath, QPixmap)
 from PySide6.QtWidgets import (
-    QApplication, QFrame, QHBoxLayout, QInputDialog, QLabel, QMenu,
-    QMessageBox, QPushButton, QVBoxLayout, QWidget,
+    QApplication, QCalendarWidget, QFrame, QHBoxLayout, QInputDialog, QLabel,
+    QLineEdit, QListWidget, QListWidgetItem, QMenu, QMessageBox,
+    QPlainTextEdit, QPushButton, QVBoxLayout, QWidget,
 )
 
 import extras
 import theme
 import winapi
 from launcher import HotkeyFilter, Launcher
-from services import CalendarService, MediaService, WeatherService
+from services import (CalendarService, MediaService, RadioService,
+                      WeatherService)
 
 APP_DIR = Path(os.environ.get("APPDATA", Path.home())) / "Windows Bar"
 CONFIG = APP_DIR / "config.json"
@@ -60,11 +63,23 @@ DEFAULTS = {
         "stopwatch": False, "downloads": False, "notes": False,
         "screentime": False, "github": False, "revenue": False,
         "recycle": False, "windows": False, "shots": False,
+        "storage": False, "world": False, "progress": False,
+        "timer": False, "script": False, "network": False,
+        "volume": False, "toggles": False,
     },
     "todos": [],
     "apps": {"Notepad": "notepad.exe", "Calc": "calc.exe",
              "Explorer": "explorer.exe"},
     "pomodoro_minutes": 25,
+    "timer_minutes": 5,
+    "clock_style": "digital",
+    "world_zones": ["America/New_York", "Europe/London", "Asia/Kolkata"],
+    "script_command": "",
+    "script_interval": 60,
+    "script_click_command": "",
+    "notes_list": [],
+    "notes_current": 0,
+    "keep_awake": False,
     "theme": "midnight",
     "dynamic_accent": True,
     "launcher": True,
@@ -79,6 +94,10 @@ WIDGET_LABELS = {
     "notes": "Notes", "screentime": "Screen time", "github": "GitHub",
     "revenue": "Stripe revenue", "recycle": "Recycle Bin",
     "windows": "Open windows", "shots": "Screenshots",
+    "storage": "Storage", "world": "World clocks",
+    "progress": "Day / year progress", "timer": "Timer",
+    "script": "Script output", "network": "Network", "volume": "Volume",
+    "toggles": "Quick toggles",
 }
 
 
@@ -294,12 +313,16 @@ class CalendarCard(Card):
     def __init__(self, calendar, ask_link):
         super().__init__("Next event")
         self.calendar, self.ask_link = calendar, ask_link
+        self.open_popup = None
         self.setCursor(Qt.PointingHandCursor)
-        self.setToolTip("Click to set your calendar's secret iCal link")
+        self.setToolTip("Click: month view")
 
     def mousePressEvent(self, e):
         if e.button() == Qt.LeftButton:
-            self.ask_link()
+            if self.open_popup:
+                self.open_popup()
+            else:
+                self.ask_link()
 
     def tick(self):
         cal = self.calendar
@@ -336,6 +359,10 @@ class QuickCard(QFrame):
                 self.theme_btn = b
             b.clicked.connect(fn)
             lay.addWidget(b)
+        power = QPushButton("Power")
+        power.setCursor(Qt.PointingHandCursor)
+        power.clicked.connect(self.power_menu)
+        lay.addWidget(power)
         self.tick()
 
     def toggle_theme(self):
@@ -344,6 +371,30 @@ class QuickCard(QFrame):
         except Exception:
             pass
         self.tick()
+
+    def power_menu(self):
+        m = QMenu(self)
+        for label, action in [("Lock", "lock"), ("Sleep", "sleep"),
+                              ("Sign out", "signout")]:
+            a = QAction(label, self)
+            a.triggered.connect(
+                lambda _=False, act=action: winapi.power_action(act))
+            m.addAction(a)
+        m.addSeparator()
+        for label, action in [("Restart…", "restart"),
+                              ("Shut down…", "shutdown")]:
+            a = QAction(label, self)
+            a.triggered.connect(
+                lambda _=False, act=action, lab=label: self._confirm_power(
+                    lab, act))
+            m.addAction(a)
+        m.exec(self.mapToGlobal(QPoint(0, 0)))
+
+    def _confirm_power(self, label, action):
+        verb = "Restart" if action == "restart" else "Shut down"
+        if QMessageBox.question(self, verb, f"{verb} the PC now?"
+                                ) == QMessageBox.Yes:
+            winapi.power_action(action)
 
     def open_path(self):
         text, ok = QInputDialog.getText(
@@ -451,26 +502,37 @@ class TodoCard(Card):
     def __init__(self, cfg):
         super().__init__("Todos")
         self.cfg = cfg
+        self.open_panel = None
         self.setCursor(Qt.PointingHandCursor)
-        self.setToolTip("Click: add todo   Right-click: complete first todo")
+        self.setToolTip("Click: open the list   Right-click: complete first")
 
     def mousePressEvent(self, e):
         if e.button() == Qt.LeftButton:
-            text, ok = QInputDialog.getText(self, "New todo", "Todo:")
-            if ok and text.strip():
-                self.cfg["todos"].append(text.strip())
-                save_config(self.cfg)
-        elif e.button() == Qt.RightButton and self.cfg["todos"]:
-            self.cfg["todos"].pop(0)
-            save_config(self.cfg)
+            if self.open_panel:
+                self.open_panel()
+            else:
+                text, ok = QInputDialog.getText(self, "New todo", "Todo:")
+                if ok and text.strip():
+                    self.cfg["todos"].append({"t": text.strip(),
+                                               "done": False})
+                    save_config(self.cfg)
+        elif e.button() == Qt.RightButton:
+            for t in self.cfg["todos"]:
+                if not t["done"]:
+                    t["done"] = True
+                    save_config(self.cfg)
+                    break
 
     def contextMenuEvent(self, e):
         e.accept()
 
     def tick(self):
         todos = self.cfg["todos"]
-        return self.set_texts(f"TODOS ({len(todos)})",
-                              clip(todos[0], 24) if todos else "All clear")
+        open_ = [t["t"] for t in todos if not t["done"]]
+        return self.set_texts(
+            f"TODOS ({len(open_)})",
+            clip(open_[0], 24) if open_ else
+            ("All done" if todos else "All clear"))
 
 
 class NotesCard(Card):
@@ -479,21 +541,22 @@ class NotesCard(Card):
     def __init__(self, cfg):
         super().__init__("Notes")
         self.cfg = cfg
+        self.open_panel = None
         self.setCursor(Qt.PointingHandCursor)
-        self.setToolTip("Click to edit notes")
+        self.setToolTip("Click: open notes")
 
     def mousePressEvent(self, e):
-        if e.button() == Qt.LeftButton:
-            text, ok = QInputDialog.getMultiLineText(
-                self, "Notes", "Notes:", self.cfg["notes"])
-            if ok:
-                self.cfg["notes"] = text
-                save_config(self.cfg)
+        if e.button() == Qt.LeftButton and self.open_panel:
+            self.open_panel()
 
     def tick(self):
-        first = (self.cfg["notes"].strip().splitlines() or [""])[0]
+        notes = self.cfg["notes_list"]
+        cur = notes[self.cfg["notes_current"]] if notes else ""
+        first = (cur.strip().splitlines() or [""])[0]
+        n = len(notes)
         return self.set_texts(
-            body=clip(first, 26) if first else "Click to write")
+            f"NOTES · {n}" if n > 1 else "NOTES",
+            clip(first, 26) if first else "Click to write")
 
 
 class ScreenTimeCard(Card):
@@ -630,20 +693,45 @@ class RecycleCard(Card):
             body="—" if n is None else f"{n} item{'s' if n != 1 else ''}")
 
 
+def _exe_of(cmd):
+    """'C:\\…\\Code.exe --flag' / 'notepad.exe' -> 'code.exe' / 'notepad.exe'."""
+    text = (cmd or "").strip()
+    if not text:
+        return ""
+    if text.startswith('"'):
+        first = text[1:].split('"')[0]
+    else:
+        first = text.split()[0]
+    return first.replace("/", "\\").rsplit("\\", 1)[-1].lower()
+
+
 class AppsCard(QFrame):
-    def __init__(self, apps):
+    """Pinned apps (Dockyard-style): a dot marks the running ones; clicking
+    a running app focuses it (or minimises it when already focused),
+    clicking a stopped one launches it. Right-click an app for more."""
+
+    INTERVAL = 2
+
+    def __init__(self, apps, poll):
         super().__init__()
         self.setObjectName("card")
+        self.poll = poll
+        self.apps = apps
         lay = QHBoxLayout(self)
         lay.setContentsMargins(8, 6, 8, 6)
         lay.setSpacing(6)
+        self.btns = {}
         for name, cmd in apps.items():
             b = QPushButton(name)
             b.setCursor(Qt.PointingHandCursor)
-            b.clicked.connect(lambda _=False, c=cmd: self.launch(c))
+            b.setToolTip(name + "  (Win/Alt+number opens or switches)")
+            b.clicked.connect(lambda _=False, n=name: self.activate(n))
+            b.setContextMenuPolicy(Qt.CustomContextMenu)
+            b.customContextMenuRequested.connect(
+                lambda pos, n=name, btn=b: self._menu(n, btn, pos))
             lay.addWidget(b)
-
-    INTERVAL = 3600
+            self.btns[name] = b
+        self._running = None
 
     @staticmethod
     def launch(cmd):
@@ -652,9 +740,663 @@ class AppsCard(QFrame):
         except Exception:
             pass
 
+    def _hwnd(self, name):
+        state = self.poll.value or {}
+        return state.get(_exe_of(self.apps[name]))
+
+    def activate(self, name):
+        hwnd = self._hwnd(name)
+        if hwnd:
+            if winapi.foreground_hwnd() == hwnd:
+                winapi.minimize_window(hwnd)
+            else:
+                winapi.focus_window(hwnd)
+        else:
+            self.launch(self.apps[name])
+
+    def _menu(self, name, btn, pos):
+        hwnd = self._hwnd(name)
+        m = QMenu(self)
+        a = QAction("Open new window", self)
+        a.triggered.connect(lambda: self.launch(self.apps[name]))
+        m.addAction(a)
+        if hwnd:
+            for label, fn in [("Focus", lambda: winapi.focus_window(hwnd)),
+                              ("Minimize",
+                               lambda: winapi.minimize_window(hwnd)),
+                              ("Close window",
+                               lambda: winapi.close_window(hwnd))]:
+                a = QAction(label, self)
+                a.triggered.connect(fn)
+                m.addAction(a)
+        m.exec(btn.mapToGlobal(pos))
+
     def tick(self):
+        state = self.poll.value
+        if state is None:
+            return False
+        running = {name: (_exe_of(cmd) in state)
+                   for name, cmd in self.apps.items()}
+        if running == self._running:
+            return False
+        self._running = running
+        for name, on in running.items():
+            b = self.btns[name]
+            b.setText(name + " ●" if on else name)
+            prop = "true" if on else "false"
+            if b.property("active") != prop:
+                b.setProperty("active", prop)
+                b.style().unpolish(b)
+                b.style().polish(b)
+        return True
+
+
+# ------------------------------------------------------- dockyard cards ----
+class StorageCard(Card):
+    INTERVAL = 10
+
+    def __init__(self, poll):
+        super().__init__("Storage")
+        self.poll = poll
+
+    def tick(self):
+        if self.poll.value is None:
+            return self.set_texts(body=self.poll.error or "Loading…")
+        pct, free, total = self.poll.value
+        self.setToolTip(f"{extras.fmt_bytes(total - free)} of "
+                        f"{extras.fmt_bytes(total)} used")
+        return self.set_texts(f"DISK · {pct:.0f}% USED",
+                              f"{extras.fmt_bytes(free)} free")
+
+
+class WorldClockCard(Card):
+    INTERVAL = 5
+    STICKY = True
+
+    def __init__(self, zones):
+        super().__init__("World")
+        self.zones = zones
+
+    def tick(self):
+        from zoneinfo import ZoneInfo
+        parts = []
+        for z in self.zones[:3]:
+            try:
+                t = datetime.now(ZoneInfo(z))
+            except Exception:
+                continue
+            label = z.split("/")[-1].replace("_", " ")[:5].upper()
+            parts.append(f"{label} {t.strftime('%H:%M')}")
+        return self.set_texts(
+            body=" · ".join(parts) if parts else "Bad time zone")
+
+
+class ProgressCard(Card):
+    """How far through the day / week / year -- rotates every tick."""
+
+    INTERVAL = 5
+    STICKY = True
+    ORDER = ("day", "week", "year")
+
+    def __init__(self):
+        super().__init__("Day")
+        self._i = 0
+
+    def tick(self):
+        p = extras.period_progress()
+        key = self.ORDER[self._i % len(self.ORDER)]
+        self._i += 1
+        v = p[key]
+        filled = int(round(v * 10))
+        bar = "█" * filled + "░" * (10 - filled)
+        return self.set_texts(key.upper(), f"{bar} {v * 100:.0f}%")
+
+
+class TimerCard(Card):
+    """Plain countdown timer (the Focus timer's simpler sibling)."""
+
+    ALWAYS = True
+    STICKY = True
+
+    def __init__(self, cfg, quiet=None):
+        super().__init__("Timer")
+        self.cfg = cfg
+        self.quiet = quiet or (lambda: False)
+        self.remaining = cfg["timer_minutes"] * 60.0
+        self.running = False
+        self._t = time.monotonic()
+        self.setCursor(Qt.PointingHandCursor)
+        self.setToolTip("Click: start/pause   Double-click: set minutes")
+
+    def _advance(self):
+        now = time.monotonic()
+        if self.running:
+            self.remaining -= now - self._t
+        self._t = now
+
+    def mousePressEvent(self, e):
+        if e.button() == Qt.LeftButton:
+            self._advance()
+            self.running = not self.running
+
+    def mouseDoubleClickEvent(self, e):
+        val, ok = QInputDialog.getInt(self, "Timer", "Minutes:",
+                                      int(self.cfg["timer_minutes"]), 1, 480)
+        if ok:
+            self.cfg["timer_minutes"] = val
+            save_config(self.cfg)
+            self.running = False
+            self.remaining = val * 60.0
+
+    def tick(self):
+        self._advance()
+        if self.running and self.remaining <= 0:
+            self.running = False
+            self.remaining = self.cfg["timer_minutes"] * 60.0
+            if not self.quiet():
+                QApplication.beep()
+        return self.set_texts(
+            "TIMER" + (" ▶" if self.running else " ❚❚"),
+            fmt_hms(math.ceil(self.remaining)))
+
+
+class ScriptCard(Card):
+    """First line of your own command's output, big; second line small."""
+
+    INTERVAL = 5
+
+    def __init__(self, poll, cfg):
+        super().__init__("Script")
+        self.poll, self.cfg = poll, cfg
+        if cfg.get("script_click_command"):
+            self.setCursor(Qt.PointingHandCursor)
+            self.setToolTip("Click to run the click command")
+
+    def mousePressEvent(self, e):
+        cmd = self.cfg.get("script_click_command", "")
+        if e.button() == Qt.LeftButton and cmd:
+            try:
+                subprocess.Popen(cmd, shell=True)
+            except Exception:
+                pass
+
+    def tick(self):
+        if self.poll.value is None:
+            return self.set_texts(
+                "SCRIPT", self.poll.error or "Loading…")
+        text = str(self.poll.value)
+        lines = text.splitlines() or [""]
+        if text != self.toolTip():
+            self.setToolTip(text)
+        return self.set_texts(
+            clip(lines[1].upper(), 30) if len(lines) > 1 else "SCRIPT",
+            clip(lines[0], 30))
+
+
+class NetworkCard(Card):
+    INTERVAL = 1
+    STICKY = True
+
+    def __init__(self, info_poll):
+        super().__init__("Network")
+        self.info = info_poll
+        self._last = psutil.net_io_counters()
+        self._last_t = time.time()
+
+    def tick(self):
+        now = psutil.net_io_counters()
+        t = time.time()
+        dt = max(t - self._last_t, 0.001)
+        down = (now.bytes_recv - self._last.bytes_recv) / dt
+        up = (now.bytes_sent - self._last.bytes_sent) / dt
+        self._last, self._last_t = now, t
+        name, ip = self.info.value or ("", "")
+        title = (name or "NETWORK").upper()
+        if ip:
+            title += " · " + ip
+        return self.set_texts(
+            title, f"↓{fmt_speed(down)} ↑{fmt_speed(up)}")
+
+
+class VolumeCard(Card):
+    INTERVAL = 2
+    STICKY = True
+
+    def __init__(self):
+        super().__init__("Volume")
+        self.setCursor(Qt.PointingHandCursor)
+        self.setToolTip("Click: mute / unmute   Scroll: volume")
+
+    def mousePressEvent(self, e):
+        if e.button() == Qt.LeftButton:
+            v = winapi.get_volume()
+            if v:
+                winapi.set_mute(not v[1])
+            self.tick()
+
+    def wheelEvent(self, e):
+        v = winapi.get_volume()
+        if v:
+            step = 0.05 if e.angleDelta().y() > 0 else -0.05
+            winapi.set_volume(v[0] + step)
+        self.tick()
+
+    def tick(self):
+        v = winapi.get_volume()
+        if v is None:
+            return self.set_texts(body="No device")
+        level, muted = v
+        return self.set_texts(body="Muted" if muted else f"{level * 100:.0f}%")
+
+
+class TogglesCard(QFrame):
+    """Quick toggles: Wi-Fi, Bluetooth, airplane mode, keep awake, mute.
+    Radio buttons only appear when the WinRT radios API is available."""
+
+    INTERVAL = 4
+
+    def __init__(self, radios, cfg, save):
+        super().__init__()
+        self.setObjectName("card")
+        self.radios, self.cfg, self.save = radios, cfg, save
+        lay = QHBoxLayout(self)
+        lay.setContentsMargins(8, 6, 8, 6)
+        lay.setSpacing(6)
+        self.btns = {}
+        for key, label in [("wifi", "Wi-Fi"), ("bluetooth", "BT"),
+                           ("airplane", "Plane"), ("awake", "Awake"),
+                           ("mute", "Mute")]:
+            b = QPushButton(label)
+            b.setCursor(Qt.PointingHandCursor)
+            b.clicked.connect(lambda _=False, k=key: self.toggle(k))
+            lay.addWidget(b)
+            self.btns[key] = b
+        self.tick()
+
+    def toggle(self, key):
+        if key in ("wifi", "bluetooth"):
+            cur = self.radios.states.get(key)
+            if cur is not None:
+                self.radios.set(key, not cur)
+        elif key == "airplane":
+            states = self.radios.states
+            if states:
+                # airplane on = every radio off, and back
+                self.radios.set("airplane", not any(states.values()))
+        elif key == "awake":
+            on = not self.cfg.get("keep_awake", False)
+            self.cfg["keep_awake"] = on
+            self.save()
+            winapi.set_keep_awake(on)
+        elif key == "mute":
+            v = winapi.get_volume()
+            if v:
+                winapi.set_mute(not v[1])
+        QTimer.singleShot(600, self.tick)
+
+    def _set_btn(self, key, text, active):
+        b = self.btns[key]
+        changed = False
+        if b.text() != text:
+            b.setText(text)
+            changed = True
+        prop = "true" if active else "false"
+        if b.property("active") != prop:
+            b.setProperty("active", prop)
+            b.style().unpolish(b)
+            b.style().polish(b)
+            changed = True
+        return changed
+
+    def tick(self):
+        changed = False
+        states = self.radios.states if self.radios else {}
+        for key, label in [("wifi", "Wi-Fi"), ("bluetooth", "BT")]:
+            on = states.get(key)
+            self.btns[key].setVisible(on is not None)
+            if on is not None:
+                changed = self._set_btn(
+                    key, f"{label} {'On' if on else 'Off'}", on) or changed
+        all_off = bool(states) and not any(states.values())
+        self.btns["airplane"].setVisible(bool(states))
+        if states:
+            changed = self._set_btn(
+                "airplane", "Plane On" if all_off else "Plane", all_off) \
+                or changed
+        awake = bool(self.cfg.get("keep_awake"))
+        changed = self._set_btn(
+            "awake", "Awake On" if awake else "Awake", awake) or changed
+        v = winapi.get_volume()
+        muted = bool(v and v[1])
+        changed = self._set_btn(
+            "mute", "Muted" if muted else "Mute", muted) or changed
+        return changed
+
+
+class AnalogClockCard(QFrame):
+    """Clock style: analogue face (the digital card is the other style)."""
+
+    INTERVAL = 1
+
+    def __init__(self, get_accent):
+        super().__init__()
+        self.setObjectName("card")
+        self.get_accent = get_accent
+        self.setFixedSize(62, 58)
+
+    def tick(self):
+        self.update()
         return False
 
+    def paintEvent(self, _):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+        accent = QColor(self.get_accent() or "#ffffff")
+        cx, cy, r = self.width() / 2, self.height() / 2, 24
+        p.setPen(QColor(255, 255, 255, 90))
+        p.setBrush(Qt.NoBrush)
+        p.drawEllipse(QRectF(cx - r, cy - r, 2 * r, 2 * r))
+        now = datetime.now()
+        for i in range(12):
+            a = math.radians(i * 30 - 90)
+            p.drawLine(QPoint(int(cx + 20 * math.cos(a)),
+                              int(cy + 20 * math.sin(a))),
+                       QPoint(int(cx + 23 * math.cos(a)),
+                              int(cy + 23 * math.sin(a))))
+
+        def hand(angle_deg, length, color, width):
+            a = math.radians(angle_deg - 90)
+            pen = p.pen()
+            pen.setColor(color)
+            pen.setWidth(width)
+            p.setPen(pen)
+            p.drawLine(QPoint(int(cx), int(cy)),
+                       QPoint(int(cx + length * math.cos(a)),
+                              int(cy + length * math.sin(a))))
+
+        hand(now.hour % 12 * 30 + now.minute / 2, 13,
+             QColor(255, 255, 255), 3)
+        hand(now.minute * 6, 19, QColor(255, 255, 255), 2)
+        hand(now.second * 6, 21, accent, 1)
+
+
+# ------------------------------------------------------------- popups --------
+class Popup(QWidget):
+    """A small panel that opens over its card (Dockyard-style tile popup)
+    and closes when you click elsewhere."""
+
+    def __init__(self, dock):
+        super().__init__(dock)
+        self.dock = dock
+        self.setWindowFlags(Qt.Popup | Qt.FramelessWindowHint
+                            | Qt.WindowStaysOnTopHint)
+        self.setStyleSheet(dock.styleSheet())
+
+    def show_near(self, widget):
+        self.adjustSize()
+        anchor = widget.mapToGlobal(QPoint(0, 0))
+        x = max(0, anchor.x() + widget.width() // 2 - self.width() // 2)
+        if self.dock.cfg["position"] == "top":
+            y = self.dock.y() + self.dock.height() + 6
+        else:
+            y = self.dock.y() - self.height() - 6
+        screen = QApplication.primaryScreen().availableGeometry()
+        x = min(x, max(0, screen.width() - self.width() - 4))
+        self.move(int(x), int(y))
+        self.show()
+
+
+class CalendarPopup(Popup):
+    def __init__(self, dock, calendar, ask_link):
+        super().__init__(dock)
+        self.calendar = calendar
+        lay = QVBoxLayout(self)
+        self.cal = QCalendarWidget()
+        self.cal.setGridVisible(True)
+        lay.addWidget(self.cal)
+        self.list = QListWidget()
+        self.list.setMaximumHeight(110)
+        lay.addWidget(self.list)
+        link = QPushButton("Set calendar link…")
+        link.clicked.connect(lambda: (self.close(), ask_link()))
+        lay.addWidget(link)
+        self.cal.currentPageChanged.connect(lambda *_: self._mark())
+        self.cal.selectionChanged.connect(self._fill)
+        self._mark()
+        self._fill()
+
+    def _mark(self):
+        from PySide6.QtCore import QDate
+        from PySide6.QtGui import QTextCharFormat
+        fmt = QTextCharFormat()
+        fmt.setFontWeight(700)
+        year, month = self.cal.yearShown(), self.cal.monthShown()
+        for day in self.calendar.events_in_month(year, month):
+            self.cal.setDateTextFormat(QDate(year, month, day), fmt)
+        self._fill()
+
+    def _fill(self):
+        self.list.clear()
+        d = self.cal.selectedDate()
+        events = self.calendar.events_in_month(d.year(), d.month()).get(
+            d.day(), [])
+        if not events:
+            self.list.addItem("No events")
+        for when, title in events:
+            self.list.addItem(f"{when.strftime('%H:%M')}  {title}")
+
+
+class TodosPanel(Popup):
+    """Full todo list: check to complete, completed section below,
+    bin button deletes the selected row."""
+
+    def __init__(self, dock, cfg, save):
+        super().__init__(dock)
+        self.cfg, self.save = cfg, save
+        lay = QVBoxLayout(self)
+        self.list = QListWidget()
+        self.list.itemChanged.connect(self._toggled)
+        lay.addWidget(self.list)
+        row = QHBoxLayout()
+        self.edit = QLineEdit()
+        self.edit.setPlaceholderText("New todo… (Enter adds)")
+        self.edit.returnPressed.connect(self._add)
+        row.addWidget(self.edit)
+        del_btn = QPushButton("Delete")
+        del_btn.clicked.connect(self._delete)
+        row.addWidget(del_btn)
+        lay.addLayout(row)
+        self.setFixedWidth(300)
+        self._fill()
+
+    def _fill(self):
+        self.list.blockSignals(True)
+        self.list.clear()
+        todos = self.cfg["todos"]
+        ordered = [t for t in todos if not t["done"]] \
+            + [t for t in todos if t["done"]]
+        for t in ordered:
+            item = QListWidgetItem(t["t"])
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.Checked if t["done"] else Qt.Unchecked)
+            self.list.addItem(item)
+        self.list.blockSignals(False)
+
+    def _sync_from_list(self):
+        todos = []
+        for i in range(self.list.count()):
+            item = self.list.item(i)
+            todos.append({"t": item.text(),
+                          "done": item.checkState() == Qt.Checked})
+        self.cfg["todos"] = todos
+        self.save()
+
+    def _toggled(self, _item):
+        self._sync_from_list()
+        self._fill()
+
+    def _add(self):
+        text = self.edit.text().strip()
+        if text:
+            self.cfg["todos"].append({"t": text, "done": False})
+            self.save()
+            self.edit.clear()
+            self._fill()
+
+    def _delete(self):
+        item = self.list.currentItem()
+        if item:
+            done = item.checkState() == Qt.Checked
+            for i, t in enumerate(self.cfg["todos"]):
+                if t["t"] == item.text() and t["done"] == done:
+                    del self.cfg["todos"][i]
+                    break
+            self.save()
+            self._fill()
+
+
+class NotesPanel(Popup):
+    """Several notes: pick from the list, edit in place, add or delete."""
+
+    def __init__(self, dock, cfg, save):
+        super().__init__(dock)
+        self.cfg, self.save = cfg, save
+        lay = QVBoxLayout(self)
+        self.list = QListWidget()
+        self.list.setMaximumHeight(90)
+        self.list.currentRowChanged.connect(self._select)
+        lay.addWidget(self.list)
+        self.edit = QPlainTextEdit()
+        self.edit.textChanged.connect(self._edited)
+        lay.addWidget(self.edit)
+        row = QHBoxLayout()
+        new_btn = QPushButton("New note")
+        new_btn.clicked.connect(self._new)
+        row.addWidget(new_btn)
+        del_btn = QPushButton("Delete note")
+        del_btn.clicked.connect(self._delete)
+        row.addWidget(del_btn)
+        lay.addLayout(row)
+        self.setFixedWidth(320)
+        self._fill()
+        self.list.setCurrentRow(self.cfg["notes_current"])
+
+    def _fill(self):
+        self.list.blockSignals(True)
+        self.list.clear()
+        for note in self.cfg["notes_list"]:
+            first = (note.strip().splitlines() or ["(empty)"])[0]
+            self.list.addItem(clip(first, 34))
+        self.list.blockSignals(False)
+
+    def _select(self, row):
+        if row < 0:
+            return
+        self.cfg["notes_current"] = row
+        self.edit.blockSignals(True)
+        self.edit.setPlainText(self.cfg["notes_list"][row])
+        self.edit.blockSignals(False)
+        self.save()
+
+    def _edited(self):
+        row = self.cfg["notes_current"]
+        text = self.edit.toPlainText()
+        self.cfg["notes_list"][row] = text
+        self.cfg["notes"] = text
+        self.save()
+        item = self.list.item(row)
+        if item:
+            first = (text.strip().splitlines() or ["(empty)"])[0]
+            if item.text() != clip(first, 34):
+                item.setText(clip(first, 34))
+
+    def _new(self):
+        self.cfg["notes_list"].append("")
+        self.cfg["notes_current"] = len(self.cfg["notes_list"]) - 1
+        self.save()
+        self._fill()
+        self.list.setCurrentRow(self.cfg["notes_current"])
+        self.edit.setFocus()
+
+    def _delete(self):
+        if len(self.cfg["notes_list"]) <= 1:
+            self.cfg["notes_list"] = [""]
+        else:
+            del self.cfg["notes_list"][self.cfg["notes_current"]]
+        self.cfg["notes_current"] = 0
+        self.save()
+        self._fill()
+        self.list.setCurrentRow(0)
+
+
+class AppHotkeyFilter(QAbstractNativeEventFilter):
+    """Win+1..Win+9 for the pinned apps (Alt+digit fallback: Windows itself
+    owns Win+number for the taskbar and usually refuses the registration,
+    the same reason Dockyard needs a KWin script on KDE)."""
+
+    BASE = 0xC00
+    WM_HOTKEY = 0x0312
+
+    def __init__(self, callback):
+        super().__init__()
+        self.callback = callback
+        self.count = 0
+
+    def register_all(self):
+        self.unregister()
+        if not winapi.IS_WIN:
+            return 0
+        import ctypes
+        user32 = ctypes.windll.user32
+        MOD_WIN, MOD_ALT, MOD_NOREPEAT = 0x8, 0x1, 0x4000
+        for i in range(9):
+            vk = 0x31 + i
+            ok = user32.RegisterHotKey(None, self.BASE + i,
+                                       MOD_WIN | MOD_NOREPEAT, vk)
+            if not ok:
+                ok = user32.RegisterHotKey(None, self.BASE + i,
+                                           MOD_ALT | MOD_NOREPEAT, vk)
+            if ok:
+                self.count += 1
+        return self.count
+
+    def unregister(self):
+        if winapi.IS_WIN and self.count:
+            import ctypes
+            for i in range(9):
+                try:
+                    ctypes.windll.user32.UnregisterHotKey(None, self.BASE + i)
+                except Exception:
+                    pass
+        self.count = 0
+
+    def nativeEventFilter(self, event_type, message):
+        if self.count and event_type in (b"windows_generic_MSG",
+                                         "windows_generic_MSG"):
+            try:
+                from ctypes import wintypes
+                msg = wintypes.MSG.from_address(int(message))
+                if msg.message == self.WM_HOTKEY \
+                        and self.BASE <= msg.wParam < self.BASE + 9:
+                    idx = int(msg.wParam) - self.BASE
+                    QTimer.singleShot(0, lambda i=idx: self.callback(i))
+                    return True, 0
+            except Exception:
+                pass
+        return False, 0
+
+
+
+
+PRESETS = {
+    "Essentials": ["apps", "clock", "weather", "system", "battery",
+                   "media", "calendar", "quick"],
+    "Focus": ["clock", "calendar", "pomodoro", "timer", "todos", "notes",
+              "progress"],
+    "Creator": ["apps", "clock", "weather", "media", "github", "revenue",
+                "downloads", "shots", "screentime", "quick"],
+    "Everything": list(DEFAULTS["widgets"]),
+}
 
 MARGIN = 8
 
@@ -664,12 +1406,20 @@ class Dock(QWidget):
     def __init__(self):
         super().__init__()
         self.cfg = load_config()
+        self.cfg["todos"] = extras.normalize_todos(self.cfg.get("todos"))
+        notes, cur = extras.normalize_notes(
+            self.cfg.get("notes", ""), self.cfg.get("notes_list"),
+            self.cfg.get("notes_current", 0))
+        self.cfg["notes_list"], self.cfg["notes_current"] = notes, cur
+        if self.cfg.get("keep_awake"):
+            winapi.set_keep_awake(True)
         winapi.restore_taskbar(self.cfg)   # undo auto-hide left by a crash
         save_config(self.cfg)
 
         self.weather = WeatherService(self.cfg, lambda: save_config(self.cfg))
         self.calendar = CalendarService(self.cfg)
         self.media = MediaService()
+        self.radios = RadioService()
         self.screen_time = extras.ScreenTime(SCREEN_TIME_FILE)
         self.polls = {}            # created on demand, stopped when the widget is off
         self._poll_makers = {
@@ -682,6 +1432,11 @@ class Dock(QWidget):
             "windows": (lambda: winapi.list_open_windows(
                 6, exclude=[self.appbar.hwnd]), 2),
             "recycle": (winapi.recycle_count, 30),
+            "storage": (lambda: extras.disk_summary(), 60),
+            "network": (lambda: extras.network_info(), 30),
+            "script": (lambda: extras.run_script(self.cfg["script_command"]),
+                       None),   # interval filled in poll()
+            "apps": (winapi.open_window_processes, 2),
         }
         self.appbar = winapi.AppBar()
         self.glass_active = False
@@ -727,6 +1482,20 @@ class Dock(QWidget):
         self.hotkey = HotkeyFilter(self.launcher.toggle)
         QApplication.instance().installNativeEventFilter(self.hotkey)
         self.sync_hotkey()
+        self.app_hotkeys = AppHotkeyFilter(self._app_hotkey)
+        QApplication.instance().installNativeEventFilter(self.app_hotkeys)
+        self.app_hotkeys.register_all()
+
+    def _app_hotkey(self, index):
+        names = list(self.cfg["apps"])
+        if index < len(names):
+            name = names[index]
+            state = self.polls.get("apps")
+            hwnd = (state.value or {}).get(_exe_of(self.cfg["apps"][name]))                 if state else None
+            if hwnd:
+                winapi.focus_window(hwnd)
+            else:
+                AppsCard.launch(self.cfg["apps"][name])
 
     # -- build ---------------------------------------------------------------
     def rebuild(self):
@@ -736,8 +1505,10 @@ class Dock(QWidget):
         self.cards = []
         w = self.cfg["widgets"]
         makers = [
-            ("apps", lambda: AppsCard(self.cfg["apps"])),
-            ("clock", ClockCard),
+            ("apps", lambda: AppsCard(self.cfg["apps"], self.poll("apps"))),
+            ("clock", self._clock_card),
+            ("world", lambda: WorldClockCard(self.cfg["world_zones"])),
+            ("progress", ProgressCard),
             ("weather", lambda: WeatherCard(self.weather, self.ask_city)),
             ("downloads", lambda: DownloadsCard(self.poll("downloads"))),
             ("shots", lambda: DownloadsCard(
@@ -745,21 +1516,30 @@ class Dock(QWidget):
                 Path.home() / "Pictures" / "Screenshots")),
             ("windows", lambda: WindowsCard(self.poll("windows"))),
             ("system", SystemCard),
+            ("network", lambda: NetworkCard(self.poll("network"))),
+            ("storage", lambda: StorageCard(self.poll("storage"))),
             ("battery", BatteryCard),
             ("media", lambda: MediaCard(self.media)),
-            ("calendar", lambda: CalendarCard(self.calendar, self.ask_calendar)),
+            ("volume", VolumeCard),
+            ("toggles", lambda: TogglesCard(
+                self.radios, self.cfg, lambda: save_config(self.cfg))),
+            ("calendar", self._calendar_card),
             ("quick", lambda: QuickCard(self)),
             ("recycle", lambda: RecycleCard(self.poll("recycle"))),
             ("screentime", lambda: ScreenTimeCard(self.screen_time)),
             ("github", lambda: PollCard("GitHub", self.poll("github"),
                                         self.ask_github)),
             ("revenue", lambda: PollCard("Revenue", self.poll("revenue"))),
-            ("notes", lambda: NotesCard(self.cfg)),
+            ("notes", self._notes_card),
             ("pomodoro", lambda: PomodoroCard(
                 self.cfg["pomodoro_minutes"],
                 quiet=lambda: in_quiet_hours(self.cfg["quiet_hours"]))),
+            ("timer", lambda: TimerCard(
+                self.cfg,
+                quiet=lambda: in_quiet_hours(self.cfg["quiet_hours"]))),
             ("stopwatch", StopwatchCard),
-            ("todos", lambda: TodoCard(self.cfg)),
+            ("script", lambda: ScriptCard(self.poll("script"), self.cfg)),
+            ("todos", self._todo_card),
         ]
         for key, make in makers:
             if w.get(key):
@@ -771,9 +1551,34 @@ class Dock(QWidget):
         self.tick()
         self.place()
 
+    def _clock_card(self):
+        if self.cfg.get("clock_style") == "analog":
+            return AnalogClockCard(lambda: self.cfg.get("_accent"))
+        return ClockCard()
+
+    def _calendar_card(self):
+        card = CalendarCard(self.calendar, self.ask_calendar)
+        card.open_popup = lambda: CalendarPopup(
+            self, self.calendar, self.ask_calendar).show_near(card)
+        return card
+
+    def _todo_card(self):
+        card = TodoCard(self.cfg)
+        card.open_panel = lambda: TodosPanel(
+            self, self.cfg, lambda: save_config(self.cfg)).show_near(card)
+        return card
+
+    def _notes_card(self):
+        card = NotesCard(self.cfg)
+        card.open_panel = lambda: NotesPanel(
+            self, self.cfg, lambda: save_config(self.cfg)).show_near(card)
+        return card
+
     def poll(self, key):
         if key not in self.polls:
             fetch, every = self._poll_makers[key]
+            if every is None:
+                every = max(5, int(self.cfg.get("script_interval", 60)))
             self.polls[key] = extras.Poll(fetch, every)
         return self.polls[key]
 
@@ -784,6 +1589,7 @@ class Dock(QWidget):
         self.weather.active = bool(w.get("weather"))
         self.calendar.active = bool(w.get("calendar")) or meeting
         self.media.active = bool(w.get("media")) or meeting
+        self.radios.active = bool(w.get("toggles"))
         for key in list(self.polls):
             if not w.get(key):
                 self.polls.pop(key).stop()
@@ -1191,11 +1997,61 @@ class Dock(QWidget):
             a = QAction(label, self)
             a.triggered.connect(fn)
             m.addAction(a)
+        presets = m.addMenu("Presets")
+        for label, keys in PRESETS.items():
+            a = QAction(label, presets)
+            a.triggered.connect(
+                lambda _=False, ks=keys: self.apply_preset(ks))
+            presets.addAction(a)
+        style = QAction("Clock style: analogue", self, checkable=True)
+        style.setChecked(self.cfg.get("clock_style") == "analog")
+        style.toggled.connect(
+            lambda on: self.set_clock_style("analog" if on else "digital"))
+        m.addAction(style)
+        script = QAction("Set script command…", self)
+        script.triggered.connect(self.ask_script)
+        m.addAction(script)
+        zones = QAction("Set world clock zones…", self)
+        zones.triggered.connect(self.ask_zones)
+        m.addAction(zones)
         m.addSeparator()
         q = QAction("Quit", self)
         q.triggered.connect(QApplication.quit)
         m.addAction(q)
         m.exec(e.globalPos())
+
+    def apply_preset(self, keys):
+        for key in self.cfg["widgets"]:
+            self.cfg["widgets"][key] = key in keys
+        save_config(self.cfg)
+        self.rebuild()
+
+    def set_clock_style(self, style):
+        self.cfg["clock_style"] = style
+        save_config(self.cfg)
+        self.rebuild()
+
+    def ask_script(self):
+        def refresh():
+            poll = self.polls.get("script")
+            if poll:
+                poll.refresh()
+            self.rebuild()
+        self.ask_text("script_command", "Script widget",
+                      "Shell command whose output the Script widget shows:",
+                      refresh)
+
+    def ask_zones(self):
+        text, ok = QInputDialog.getText(
+            self, "World clocks",
+            "IANA zones, comma-separated (e.g. Europe/London, Asia/Tokyo):",
+            text=", ".join(self.cfg["world_zones"]))
+        if ok:
+            self.cfg["world_zones"] = [z.strip() for z in text.split(",")
+                                       if z.strip()][:3] or DEFAULTS[
+                                           "world_zones"]
+            save_config(self.cfg)
+            self.rebuild()
 
     def toggle_position(self):
         if self._hidden:
@@ -1253,6 +2109,8 @@ class Dock(QWidget):
 
     def shutdown(self):
         self.hotkey.unregister()
+        self.app_hotkeys.unregister()
+        winapi.set_keep_awake(False)
         self.screen_time.flush()
         self.appbar.remove()
         winapi.set_taskbar_autohide(False, self.appbar.hwnd, self.cfg)
