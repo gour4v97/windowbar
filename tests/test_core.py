@@ -268,6 +268,7 @@ def test_first_widgets_are_in_separate_modules():
     assert (ClockCard.id, NotesCard.id, WeatherCard.id) == (
         "clock", "notes", "weather")
 
+
 def test_screen_time_worker_starts_and_stops_with_widget(tmp_path):
     import threading
     from extras import ScreenTime
@@ -422,3 +423,22 @@ def test_temperature_reader_handles_supported_and_missing_sensors(monkeypatch):
         raise NotImplementedError
     monkeypatch.setattr(psutil, "sensors_temperatures", unavailable, raising=False)
     assert temperature_readings() == []
+
+
+def test_widget_theme_overrides_are_validated_and_scoped():
+    import theme
+
+    base = theme.resolve("midnight")
+    tokens = theme.widget_tokens(base, {
+        "accent": "#ff0000",
+        "card": [10, 20, 30, 180],
+        "radius": 90,
+        "text": "invalid",
+        "panel": "#000000",
+    })
+    assert tokens["accent"] == "#ff0000"
+    assert tokens["card"] == [10, 20, 30, 180]
+    assert tokens["radius"] == 48
+    assert tokens["text"] == base["text"]
+    assert tokens["panel"] == base["panel"]
+    assert "rgba(255,0,0,150)" in theme.build_widget_qss(tokens)
