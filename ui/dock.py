@@ -613,6 +613,15 @@ class Dock(QWidget):
         self.place()
 
     # -- menu ----------------------------------------------------------------
+    def open_settings(self):
+        if not getattr(self, "_settings_window", None):
+            from ui.settings import SettingsWindow
+            self._settings_window = SettingsWindow(self)
+        self._settings_window.refresh()
+        self._settings_window.show()
+        self._settings_window.raise_()
+        self._settings_window.activateWindow()
+
     def contextMenuEvent(self, e):
         self._menu_open = True
         try:
@@ -626,6 +635,9 @@ class Dock(QWidget):
                       else "Move to bottom", self)
         pos.triggered.connect(self.toggle_position)
         m.addAction(pos)
+        settings = QAction("Settings…", self)
+        settings.triggered.connect(self.open_settings)
+        m.addAction(settings)
         m.addSeparator()
         for key, label in WIDGET_LABELS.items():
             a = QAction(label, self, checkable=True)
@@ -803,6 +815,9 @@ class Dock(QWidget):
 
     def shutdown(self):
         _log.info("Windows Bar shutting down")
+        settings = getattr(self, "_settings_window", None)
+        if settings is not None:
+            settings.close()
         self._widget_registry.stop_all()
         for poll in self.polls.values():
             poll.stop()
