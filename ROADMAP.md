@@ -151,14 +151,14 @@ Rules: widgets never touch Win32 directly (go through `native/`); all native hoo
 **Done when:** every Dockyard feature in section 3 is either shipped or documented as unsupported on Windows.
 
 ### Phase 3: Shell basics, Seelen tier 1 *(L)*
-- [ ] **Theming engine:** JSON tokens (colors, radius, font, blur, spacing) → QSS; built-in themes (default, glass, light, dark); theme files loadable from `%APPDATA%\Windows Bar\themes`
-- [ ] Dynamic accent colour from the current wallpaper (dominant-colour extraction, live update)
-- [ ] Per-widget style overrides
+- [🟡] **Theming engine:** JSON theme files, colors, radius, font and QSS are present; add blur/spacing tokens and the default/glass/light/dark built-ins
+- [x] Dynamic accent colour from the current wallpaper (dominant-colour extraction, live update)
+- [x] Per-widget style overrides for accent, card background, text, button color, and radius
 - [ ] Split **Toolbar** (top: workspaces, active window, tray-style widgets, clock) and **Dock** (bottom: pinned apps + running)
 - [ ] Multi-monitor: a bar per display with independent config
-- [ ] **Settings app** (separate window): widgets, layout, themes, hotkeys, live preview
-- [ ] **Launcher:** global hotkey, fuzzy search over apps, files, commands, calculator
-- [ ] Volume and brightness flyouts (brightness via WMI/DDC where supported)
+- [🟡] Right-click menu exposes widgets, layout, themes, hotkeys, and per-widget styles; separate settings window with live preview remains
+- [x] **Launcher:** global hotkey, fuzzy search over apps, files, commands, calculator
+- [🟡] Volume control exists; custom volume and brightness flyouts remain (brightness via WMI/DDC where supported)
 - [ ] Optional Windows-notification-centre integration
 
 **Done when:** a non-programmer can restyle and rearrange everything from the Settings app without editing JSON.
