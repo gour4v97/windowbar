@@ -11,6 +11,7 @@ THEMES_DIR = APP_DIR / "themes"
 CUSTOM_QSS = APP_DIR / "custom.qss"
 DEFAULTS = {
     "position": "bottom",
+    "shell_layout": "combined",
     "reserve_space": True,
     "hide_taskbar": False,
     "glass": True,
@@ -117,3 +118,4 @@ MARGIN = 8
 
 
 # ------------------------------------------------------------------ dock ----
+
