@@ -235,6 +235,15 @@ class Dock(QWidget):
         if QApplication.font().family() != font:
             QApplication.setFont(QFont(font, 10))
         self.setStyleSheet(css)
+        if hasattr(self, "row"):
+            self.row.setSpacing(self.tokens["spacing"])
+        if getattr(self, "appbar", None) and self.appbar.hwnd:
+            want_glass = bool(self.cfg["glass"] and self.tokens["blur"])
+            if want_glass and not self.glass_active:
+                self.glass_active = winapi.enable_glass(self.appbar.hwnd)
+            elif not want_glass and self.glass_active:
+                winapi.disable_glass(self.appbar.hwnd)
+                self.glass_active = False
         self._apply_widget_styles()
         self._bg = None
         self.update()
@@ -358,7 +367,7 @@ class Dock(QWidget):
     def apply_native(self):
         hwnd = int(self.winId())
         self.appbar.hwnd = hwnd
-        self.glass_active = bool(self.cfg["glass"]) and winapi.enable_glass(hwnd)
+        self.glass_active = bool(self.cfg["glass"] and self.tokens["blur"]) and winapi.enable_glass(hwnd)
         winapi.set_taskbar_autohide(self.cfg["hide_taskbar"], hwnd, self.cfg)
         save_config(self.cfg)
         self.place()
@@ -786,7 +795,7 @@ class Dock(QWidget):
             self.setMinimumWidth(0)
             self.setMaximumWidth(16777215)
         elif key == "glass":
-            if on:
+            if on and self.tokens.get("blur", 0):
                 self.glass_active = winapi.enable_glass(self.appbar.hwnd)
             else:
                 winapi.disable_glass(self.appbar.hwnd)
