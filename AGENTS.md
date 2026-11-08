@@ -17,4 +17,4 @@ The repository is `gour4v97/windowbar`; the product is **Windows Bar**. It is a 
 - New features need a platform-independent test where practical.
 
 ## Session handoff
-Phase 1 has versioned config storage in `core/config.py`, a registry and lifecycle adapter in `core/registry.py`, and standalone modules for Clock, Weather, and Notes under `widgets/`. The current 28 cards are registered through the compatibility adapter. Config migration and registry lifecycle tests are present. Next: tighten hidden/disabled widget shutdown behavior and move data-source ownership into widget lifecycle hooks; then port the remaining cards module by module.
+Phase 1 now has schema-v1 config storage, a widget registry with lifecycle adapter, standalone Clock/Weather/Notes modules, and workers that stop when the owning widget is inactive. Tests cover config migration, registry lifecycle, and Screen Time/Weather/Calendar worker start-stop. Next roadmap item: add the detail-popup component, then logging and a crash-safe taskbar restore test. The remaining cards still need to move out of `windowsbar.py` over time.
