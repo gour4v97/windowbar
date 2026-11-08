@@ -62,6 +62,11 @@ class SettingsWindow(QDialog):
         self.position.addItems(["bottom", "top"])
         self.position.currentTextChanged.connect(self._set_position)
         form.addRow("Bar position", self.position)
+        self.shell_layout = QComboBox()
+        self.shell_layout.addItem("Combined bar", "combined")
+        self.shell_layout.addItem("Separate top toolbar and app dock", "split")
+        self.shell_layout.currentIndexChanged.connect(self._set_shell_layout)
+        form.addRow("Shell layout", self.shell_layout)
         self.option_checks = {}
         for key, label in (
             ("full_width", "Full width"),
@@ -137,6 +142,12 @@ class SettingsWindow(QDialog):
             save_config(self.dock.cfg)
             self.dock.place()
 
+    def _set_shell_layout(self, index):
+        value = self.shell_layout.itemData(index)
+        if value:
+            self.dock.set_shell_layout(value)
+            self.refresh()
+
     def _set_theme(self, value):
         if value and value != self.dock.cfg.get("theme"):
             self.dock.set_theme(value)
@@ -178,6 +189,12 @@ class SettingsWindow(QDialog):
         self.position.blockSignals(True)
         self.position.setCurrentText(cfg.get("position", "bottom"))
         self.position.blockSignals(False)
+        self.shell_layout.blockSignals(True)
+        layout_index = self.shell_layout.findData(
+            cfg.get("shell_layout", "combined"))
+        self.shell_layout.setCurrentIndex(max(0, layout_index))
+        self.shell_layout.blockSignals(False)
+        self.position.setEnabled(cfg.get("shell_layout") != "split")
         for key, check in self.option_checks.items():
             check.blockSignals(True)
             check.setChecked(bool(cfg.get(key, False)))
@@ -195,3 +212,4 @@ class SettingsWindow(QDialog):
         self.app_modifier.setCurrentText(modifier)
         self.app_modifier.blockSignals(False)
         self._refresh_preview()
+
