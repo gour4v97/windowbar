@@ -204,11 +204,19 @@ def window_title(hwnd=0):
             get_foreground = user32.GetForegroundWindow
             get_foreground.restype = wintypes.HWND
             hwnd = get_foreground()
-        length = user32.GetWindowTextLengthW(hwnd)
+        handle_value = (hwnd.value if hasattr(hwnd, "value")
+                        else int(hwnd or 0))
+        handle = wintypes.HWND(handle_value)
+        user32.GetWindowTextLengthW.argtypes = (wintypes.HWND,)
+        user32.GetWindowTextLengthW.restype = ctypes.c_int
+        length = user32.GetWindowTextLengthW(handle)
         if not length:
             return ""
         buf = ctypes.create_unicode_buffer(length + 1)
-        user32.GetWindowTextW(hwnd, buf, length + 1)
+        user32.GetWindowTextW.argtypes = (
+            wintypes.HWND, wintypes.LPWSTR, ctypes.c_int)
+        user32.GetWindowTextW.restype = ctypes.c_int
+        user32.GetWindowTextW(handle, buf, length + 1)
         return buf.value.strip()
     except Exception:
         return ""
