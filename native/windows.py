@@ -205,6 +205,40 @@ def window_is_minimized(hwnd):
         return False
 
 
+def is_window(hwnd):
+    try:
+        return bool(IS_WIN and hwnd and ctypes.windll.user32.IsWindow(
+            wintypes.HWND(int(hwnd))))
+    except Exception:
+        return False
+
+
+def window_process_name(hwnd):
+    """Lowercase executable basename for per-app window rules."""
+    if not IS_WIN or not hwnd:
+        return ""
+    try:
+        import psutil
+        pid = wintypes.DWORD()
+        ctypes.windll.user32.GetWindowThreadProcessId(
+            wintypes.HWND(int(hwnd)), ctypes.byref(pid))
+        return psutil.Process(pid.value).name().lower()
+    except Exception:
+        return ""
+
+
+def window_class_name(hwnd):
+    if not IS_WIN or not hwnd:
+        return ""
+    try:
+        buf = ctypes.create_unicode_buffer(256)
+        length = ctypes.windll.user32.GetClassNameW(
+            wintypes.HWND(int(hwnd)), buf, len(buf))
+        return buf.value[:length].lower()
+    except Exception:
+        return ""
+
+
 def window_state(hwnd):
     """Capture a window's rectangle and show state for safe restoration."""
     if not IS_WIN:
@@ -245,11 +279,6 @@ def window_work_area(hwnd):
         user32.GetMonitorInfoW.argtypes = (wintypes.HANDLE,
                                            ctypes.POINTER(MONITORINFO))
         user32.GetMonitorInfoW.restype = wintypes.BOOL
-        user32.MonitorFromWindow.argtypes = (wintypes.HWND, wintypes.DWORD)
-        user32.MonitorFromWindow.restype = wintypes.HANDLE
-        user32.GetMonitorInfoW.argtypes = (wintypes.HANDLE,
-                                           ctypes.POINTER(MONITORINFO))
-        user32.GetMonitorInfoW.restype = wintypes.BOOL
         monitor = user32.MonitorFromWindow(wintypes.HWND(int(hwnd)), 2)
         info = MONITORINFO()
         info.cbSize = ctypes.sizeof(info)
@@ -280,7 +309,7 @@ def move_window_rect(hwnd, rect):
 
 
 def restore_window_state(hwnd, state):
-    if not IS_WIN or not state:
+    if not IS_WIN or not state or not is_window(hwnd):
         return False
     rect, was_maximized, was_minimized = state
     move_window_rect(hwnd, rect)

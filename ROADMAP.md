@@ -39,8 +39,8 @@ From the README and the source audit in `AUDIT.md`:
 | Desktop widgets on wallpaper layer | 🟡 draggable clock/system panel implemented; Windows desktop-layer visibility check remains | P4 | L |
 | Custom flyouts (volume, brightness, system) | ✅ volume and WMI internal-panel brightness; system detail popups | — | — |
 | Start menu / keyboard launcher (fuzzy search) | ✅ Alt+Space launcher searches apps, files, commands, and calculator | — | — |
-| Tiling window manager (BSP, columns, stacks) | 🟡 Phase 5 window-event tracking foundation started | P5 | XL |
-| Per-app rules, floating mode, gaps | ⬜ | P5 | L |
+| Tiling window manager (BSP, columns, stacks) | 🟡 BSP, per-monitor geometry, keyboard controls, and restoration implemented; host hotkey registration denied here | P5 | XL |
+| Per-app rules, floating mode, gaps | 🟡 executable/class/title rules, floating toggle, and spacing controls implemented | P5 | L |
 | Custom Alt+Tab | 🟡 hook installs and switcher is implemented; real key-navigation/latency check remains | P4 | L |
 | Virtual desktops + workspace viewer | 🟡 control and named/icon viewer implemented; interactive COM access is unavailable in this session | P4 | L |
 | Wallpaper per workspace, named workspaces | 🟡 names/icons and Windows 11 wallpaper action implemented; live COM verification remains | P4 | M |
@@ -177,13 +177,14 @@ Rules: widgets never touch Win32 directly (go through `native/`); all native hoo
 ### Phase 5: Tiling window manager *(XL)*
 - [🟡] Dedicated-thread `SetWinEventHook` and debounced top-level window snapshots; filtered taskbar windows feed the opt-in tiler
 - [🟡] BSP layout engine, per-monitor work areas, configurable gaps and padding; columns/stacks remain
-- [🟡] Keyboard focus cycle and BSP slot swap (`Ctrl+Alt+J/K`); resize and move-to-workspace remain
-- [🟡] Floating mode toggle (`Ctrl+Alt+F`); per-app rules (exe / class / title regex) remain
+- [🟡] Keyboard focus cycle, BSP slot swap, and focused-branch resize (`Ctrl+Alt+J/K/H/L`)
+- [🟡] Floating mode toggle (`Ctrl+Alt+F`) and per-app executable, class, and title-regex rules
 - [🟡] Original window rectangles and show state are restored when tiling is disabled
-- [ ] Per-workspace layout persistence across restarts
-- [🟡] Ctrl+Alt+Esc safe release hotkey restores managed windows; live edge cases and interactive UI validation remain
+- [🟡] BSP order and split-ratio persistence keyed by virtual desktop ID when COM is accessible
+- [🟡] Move focused window to previous/next desktop (`Ctrl+Alt+Shift+Left/Right`) via pyvda; COM access denied in this session
+- [🟡] Ctrl+Alt+Esc safe release path implemented; host `RegisterHotKey` calls return Win32 error 5, so the app correctly refuses to enable tiling here
 
-Phase 5 currently provides opt-in BSP tiling from Settings → Window manager. It arranges eligible top-level windows in each monitor work area, supports keyboard focus/swap and floating mode, and stores original position and show state. Ctrl+Alt+Esc releases managed windows and restores those positions. Phase 5 remains in progress while resize controls, per-app rules, workspace persistence, and live Windows validation are outstanding.
+Phase 5 implements opt-in BSP tiling, keyboard focus/swap/resize, floating mode and executable/class/title-regex rules, original-position restoration, per-monitor layouts, and per-desktop order/ratio persistence when virtual desktop IDs are available. Adjacent-desktop movement uses pyvda. Native HWND tiling and restoration have been smoke-checked with temporary windows. This session cannot validate the safety and workspace controls: pyvda COM activation is denied, and `RegisterHotKey` returns Win32 error 5 for all attempted combinations; tiling stays disabled if the release key cannot register.
 ### Phase 6: Ecosystem and release *(M–L)*
 - [ ] Public widget SDK docs + example widget repo template
 - [ ] Theme sharing format and a `themes/` gallery in the repo

@@ -3,7 +3,8 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QDialog, QFormLayout, QFrame, QGridLayout,
     QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem, QPushButton,
-    QScrollArea, QSpinBox, QTabWidget, QVBoxLayout, QWidget, QMessageBox,
+    QPlainTextEdit, QScrollArea, QSpinBox, QTabWidget, QVBoxLayout, QWidget,
+    QMessageBox,
 )
 
 import theme
@@ -214,11 +215,29 @@ class SettingsWindow(QDialog):
         self.tiling_padding.setSuffix(" px")
         self.tiling_padding.valueChanged.connect(self._set_tiling_spacing)
         form.addRow("Screen edge padding", self.tiling_padding)
+        self.floating_apps = QLineEdit()
+        self.floating_apps.setPlaceholderText("One executable per line, e.g. spotify.exe")
+        form.addRow("Float executable names", self.floating_apps)
+        self.floating_classes = QLineEdit()
+        self.floating_classes.setPlaceholderText("One window class per line")
+        form.addRow("Float window classes", self.floating_classes)
+        self.floating_titles = QPlainTextEdit()
+        self.floating_titles.setPlaceholderText(
+            "One case-insensitive title regular expression per line")
+        self.floating_titles.setMaximumHeight(72)
+        form.addRow("Float title patterns", self.floating_titles)
+        self.save_floating_rules = QPushButton("Save floating rules")
+        self.save_floating_rules.clicked.connect(self._save_floating_rules)
+        form.addRow(self.save_floating_rules)
+        self.tiling_status = QLabel()
+        form.addRow(self.tiling_status)
         form.addRow(QLabel(
-            "BSP tiling moves visible taskbar windows on the primary monitor. "
+            "BSP tiling moves visible taskbar windows on each monitor. "
             "Ctrl+Alt+J focuses the next tiled window, Ctrl+Alt+K swaps its "
-            "slot, and Ctrl+Alt+F toggles floating. Ctrl+Alt+Esc releases "
-            "windows and restores their saved positions."))
+            "slot, Ctrl+Alt+H/L resizes the focused BSP branch, Ctrl+Alt+F "
+            "toggles floating, and Ctrl+Alt+Shift+Left/Right moves the "
+            "focused window to the previous/next virtual desktop. Ctrl+Alt+Esc "
+            "releases windows. Per-workspace order and split sizes are saved."))
         if not self.dock.is_primary_display:
             page.setEnabled(False)
             form.addRow(QLabel(
@@ -287,6 +306,12 @@ class SettingsWindow(QDialog):
         self.dock.set_tiling_spacing(self.tiling_gap.value(),
                                      self.tiling_padding.value())
 
+    def _save_floating_rules(self):
+        self.dock.set_tiling_floating_rules(
+            self.floating_apps.text(), self.floating_classes.text(),
+            self.floating_titles.toPlainText())
+        self.refresh()
+
     def _refresh_preview(self):
         self.setStyleSheet(theme.build_qss(self.dock.tokens))
         overrides = self.dock.cfg.get("widget_styles", {}).get("clock", {})
@@ -338,6 +363,43 @@ class SettingsWindow(QDialog):
         self.tiling_padding.setValue(int(cfg.get("tiling_padding", 16)))
         self.tiling_padding.setEnabled(self.dock.is_primary_display)
         self.tiling_padding.blockSignals(False)
+        rules = cfg.get("tiling_floating_rules", {})
+        self.floating_apps.setText("\n".join(
+            rules.get("executables") or cfg.get("tiling_floating_apps", [])))
+        self.floating_classes.setText("\n".join(rules.get("classes", [])))
+        self.floating_titles.setPlainText(
+            "\n".join(rules.get("title_regex", [])))
+        unavailable = getattr(self.dock, "_tiling_hotkey_unavailable", [])
+        messages = []
+        if unavailable and cfg.get("tiling_enabled"):
+            messages.append("Shortcut conflict/unavailable: "
+                            + ", ".join(unavailable))
+            errors = getattr(self.dock, "_tiling_hotkey_errors", {})
+            if errors:
+                messages[-1] += " (Win32 error(s): " + ", ".join(
+                    f"{name}={code}" for name, code in errors.items()) + ")"
+        manager = getattr(self.dock, "_tiling_manager", None)
+        invalid_patterns = (manager.invalid_title_patterns if manager is not None
+                            else getattr(self.dock,
+                                         "_tiling_invalid_title_patterns", []))
+        if invalid_patterns:
+            messages.append("Invalid title regex ignored: "
+                            + ", ".join(invalid_patterns))
+        if cfg.get("tiling_enabled"):
+            try:
+                from native import vdesktop
+                if not vdesktop.available():
+                    messages.append(
+                        "Virtual desktop COM is unavailable in this session; "
+                        "window moves and separate per-desktop layouts may not work.")
+            except Exception:
+                messages.append("Virtual desktop controls are unavailable.")
+        runtime_error = getattr(self.dock, "_tiling_runtime_error", "")
+        if runtime_error:
+            messages.append(runtime_error)
+        self.tiling_status.setText("\n".join(messages) or
+                                   ("Tiling is off." if not cfg.get(
+                                       "tiling_enabled") else ""))
         modifier = cfg.get("app_hotkey_modifier", "alt").title()
         if self.app_modifier.findText(modifier) < 0:
             modifier = "Alt"
