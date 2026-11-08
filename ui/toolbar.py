@@ -4,6 +4,7 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QWidget
 
 import winapi
 from core.app_config import MARGIN
+from native import vdesktop
 
 
 class Toolbar(QWidget):
@@ -31,7 +32,8 @@ class Toolbar(QWidget):
         self._add_desktop_button("‹", "Previous desktop", "previous")
         self._add_desktop_button("›", "Next desktop", "next")
         self._add_desktop_button("+", "Create desktop", "new")
-        self._add_desktop_button("▦", "Virtual desktop overview", "overview")
+        self._add_desktop_button("▦", "Open Windows Bar workspace viewer",
+                                 "viewer")
         self._window_timer = QTimer(self)
         self._window_timer.timeout.connect(self._refresh_active_window)
         self._window_timer.start(1000)
@@ -39,12 +41,19 @@ class Toolbar(QWidget):
 
     def _add_desktop_button(self, label, tip, action):
         button = QPushButton(label)
-        button.setToolTip(f"{tip} (Windows+Ctrl keyboard shortcut)")
+        button.setToolTip(tip)
         button.setFixedWidth(28)
-        button.clicked.connect(
-            lambda _checked=False, name=action:
-            winapi.virtual_desktop_action(name))
+        button.clicked.connect(lambda _checked=False, name=action:
+                               self._workspace_action(name))
         self.row.addWidget(button)
+
+    def _workspace_action(self, action):
+        if action in ("previous", "next"):
+            vdesktop.switch_relative(-1 if action == "previous" else 1)
+        elif action == "new":
+            vdesktop.create()
+        elif action == "viewer":
+            self.dock.open_workspaces()
 
     def _refresh_active_window(self):
         title = winapi.window_title()
