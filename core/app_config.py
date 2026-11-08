@@ -59,6 +59,7 @@ DEFAULTS = {
     "launcher_hotkey": "alt+space",
     "app_hotkey_modifier": "alt",
     "display_profiles": {},
+    "workspace_metadata": {},
 }
 
 WIDGET_LABELS = {
