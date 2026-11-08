@@ -31,7 +31,7 @@ Line counts use newline-delimited source; generated/install artifacts excluded.
 
 ## Roadmap reconciliation
 
-The README originally claimed 28 widgets, but the config contains 27 widget IDs; the calendar popup is a detail panel, not a separate widget. The README now reflects the 27 configurable widgets and already documents a launcher, theme JSON/QSS, custom CSS, wallpaper-derived accent, pinned-app running indicators/hotkeys, world clocks, timer, disk/storage, volume, quick toggles, and background polling. Therefore several Phase 2/3 roadmap bullets are already partially or fully present. The architecture split, widget registry/contract, versioned config migration, popup framework, independent per-monitor bars, and separate settings window remain plausible work areas, but need a source review before issue creation.
+The README originally claimed 28 widgets, but the config contains 27 widget IDs; the calendar popup is a detail panel, not a separate widget. The README now reflects the 27 configurable widgets and already documents a launcher, theme JSON/QSS, custom CSS, wallpaper-derived accent, pinned-app running indicators/hotkeys, world clocks, timer, disk/storage, volume, quick toggles, and background polling. Therefore several Phase 2/3 roadmap bullets are already partially or fully present. Phase 1 has now delivered the architecture split, widget registry/contract, versioned config migration, and popup framework. Independent per-monitor bars and a separate settings window remain future work.
 
 The source, config path, installer, README, and Stripe environment variable now consistently use the product name **Windows Bar**. The roadmap naming decision is to keep the repository `windowbar` and the product name Windows Bar.
 
