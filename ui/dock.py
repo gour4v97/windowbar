@@ -27,6 +27,7 @@ from core.app_config import (APP_DIR, SCREEN_TIME_FILE, THEMES_DIR, CUSTOM_QSS,
 from core.registry import WidgetRegistry
 from launcher import HotkeyFilter, Launcher
 from ui.hotkeys import AppHotkeyFilter
+from ui.toolbar import Toolbar
 from ui.panels import (CalendarPopup, TodosPanel, NotesPanel,
                        WidgetDetailPopup)
 from services import CalendarService, MediaService, RadioService, WeatherService
@@ -103,6 +104,8 @@ class Dock(QWidget):
         self.row.setContentsMargins(14, 10, 14, 10)
         self.row.setSpacing(10)
         self.cards = []
+        self._cards_by_id = {}
+        self.toolbar = None
         self._widget_registry = WidgetRegistry()
         self.rebuild()
 
@@ -150,6 +153,8 @@ class Dock(QWidget):
     # -- build ---------------------------------------------------------------
     def rebuild(self):
         self._widget_registry.stop_all()
+        if self.toolbar:
+            self.toolbar.replace_cards([])
         for c in self.cards:
             self.row.removeWidget(c)
             c.deleteLater()
@@ -159,12 +164,29 @@ class Dock(QWidget):
             widgets, self, DEFAULTS["widgets"], WIDGET_LABELS)
         active = registry.start_enabled(self.cfg)
         self._widget_registry = registry
-        self.cards = [widget.card() for widget in active.values()]
+        self._cards_by_id = {widget_id: widget.card()
+                             for widget_id, widget in active.items()}
+        self.cards = list(self._cards_by_id.values())
         for widget_id, widget in active.items():
             widget.card().setProperty("widgetId", widget_id)
         self._apply_widget_styles()
-        for c in self.cards:
+        split = self.cfg.get("shell_layout", "combined") == "split"
+        if split and self.toolbar is None:
+            self.toolbar = Toolbar(self)
+        if not split and self.toolbar is not None:
+            self.toolbar.shutdown()
+            self.toolbar.deleteLater()
+            self.toolbar = None
+        dock_cards = ([self._cards_by_id[k] for k in ("apps",)
+                       if k in self._cards_by_id] if split else self.cards)
+        for c in dock_cards:
             self.row.addWidget(c)
+        if split:
+            self.toolbar.replace_cards(
+                [card for key, card in self._cards_by_id.items()
+                 if key != "apps"])
+            self.toolbar.show()
+        for c in self.cards:
             c.tick()
         self._sync_services()
         self.tick()
@@ -381,7 +403,8 @@ class Dock(QWidget):
         dpr = screen.devicePixelRatio()
         full = screen.geometry()
         w, h = self.width(), self.height()
-        top = self.cfg["position"] == "top"
+        top = (False if self.cfg.get("shell_layout") == "split"
+               else self.cfg["position"] == "top")
         y = None
         if self.cfg["reserve_space"] and winapi.IS_WIN and self.appbar.hwnd:
             rect = (int(full.x() * dpr), int(full.y() * dpr),
@@ -407,6 +430,9 @@ class Dock(QWidget):
         else:
             self.move(int(full.x() + (full.width() - w) // 2), int(y))
         self._shown_pos = self.pos()
+        if self.toolbar is not None:
+            self.toolbar.setStyleSheet(self.styleSheet())
+            self.toolbar.place()
         if self._hidden:
             self.move(self._hidden_pos())
 
@@ -769,6 +795,8 @@ class Dock(QWidget):
             self.rebuild()
 
     def toggle_position(self):
+        if self.cfg.get("shell_layout") == "split":
+            return
         if self._hidden:
             self._hidden = False
             self._anim.stop()
@@ -810,7 +838,19 @@ class Dock(QWidget):
         elif key == "pause_before_meeting":
             self._sync_services()
         save_config(self.cfg)
+        if self.toolbar is not None:
+            self.toolbar.place()
         self.place()
+
+    def set_shell_layout(self, value):
+        if value not in ("combined", "split") or value == self.cfg.get(
+                "shell_layout", "combined"):
+            return
+        self.cfg["shell_layout"] = value
+        if value == "split":
+            self.cfg["position"] = "bottom"
+        save_config(self.cfg)
+        self.rebuild()
 
     def open_themes_folder(self):
         THEMES_DIR.mkdir(parents=True, exist_ok=True)
@@ -841,4 +881,6 @@ class Dock(QWidget):
         self.appbar.remove()
         winapi.set_taskbar_autohide(False, self.appbar.hwnd, self.cfg)
         save_config(self.cfg)
+
+
 
