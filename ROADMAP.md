@@ -34,7 +34,7 @@ From the README and the source audit in `AUDIT.md`:
 
 | Seelen feature | Windows Bar now | Target phase | Effort |
 |---|---|---|---|
-| Custom toolbar (replaces taskbar) | 🟡 bar can sit on top | P3: separate Toolbar + Dock | M |
+| Custom toolbar (replaces taskbar) | 🟡 optional split toolbar + pinned-app dock; workspaces and notification-area tray remain | P3 | M |
 | Dock with launch / focus / badges | ✅ pinned apps show running dots and focus or launch on click | — | — |
 | Desktop widgets on wallpaper layer | ⬜ | P4 | L |
 | Custom flyouts (volume, brightness, system) | ⬜ | P3 | M |
@@ -154,7 +154,7 @@ Rules: widgets never touch Win32 directly (go through `native/`); all native hoo
 - [x] **Theming engine:** JSON theme files, color/radius/font/spacing/blur tokens, QSS, and default/glass/light/dark built-ins
 - [x] Dynamic accent colour from the current wallpaper (dominant-colour extraction, live update)
 - [x] Per-widget style overrides for accent, card background, text, button color, and radius
-- [ ] Split **Toolbar** (top: workspaces, active window, tray-style widgets, clock) and **Dock** (bottom: pinned apps + running)
+- [🟡] Split **Toolbar** (top: enabled information widgets) and **Dock** (bottom: pinned apps + running); workspace controls, active-window summary, and notification-area tray integration remain
 - [ ] Multi-monitor: a bar per display with independent config
 - [x] Separate Settings window for widgets, layout, themes, hotkeys, and live preview
 - [x] **Launcher:** global hotkey, fuzzy search over apps, files, commands, calculator
@@ -211,6 +211,8 @@ Rules: widgets never touch Win32 directly (go through `native/`); all native hoo
 5. **Tag milestones:** `v0.1.0` (today) → `v0.2.0` (P1) → `v0.3.0` (P2) → `v0.4.0` (P3, first "shell" release) → …
 6. **Keep `AGENTS.md` current:** its "Current state" section is the handoff note. Any AI assistant (or you in a month) starts there.
 7. **Never commit secrets:** the Stripe key stays in `WINDOWSBAR_STRIPE_KEY`; check `.gitignore` before each push.
+
+
 
 
 
