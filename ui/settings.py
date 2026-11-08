@@ -2,8 +2,8 @@
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QDialog, QFormLayout, QFrame, QGridLayout,
-    QHBoxLayout, QLabel, QLineEdit, QPushButton, QScrollArea, QTabWidget,
-    QVBoxLayout, QWidget, QMessageBox,
+    QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem, QPushButton,
+    QScrollArea, QTabWidget, QVBoxLayout, QWidget, QMessageBox,
 )
 
 import theme
@@ -18,7 +18,10 @@ class SettingsWindow(QDialog):
         super().__init__(dock)
         self.dock = dock
         self.setWindowFlag(Qt.Window, True)
-        self.setWindowTitle("Windows Bar Settings")
+        display_name = (dock.target_screen.name()
+                        if dock.target_screen is not None
+                        else "Primary display")
+        self.setWindowTitle(f"Windows Bar Settings — {display_name}")
         self.setMinimumSize(620, 480)
         self.tabs = QTabWidget(self)
         root = QVBoxLayout(self)
@@ -53,11 +56,64 @@ class SettingsWindow(QDialog):
             self.widget_checks[key] = check
         scroll.setWidget(content)
         layout.addWidget(scroll)
+        order_button = QPushButton("Arrange widget order…")
+        order_button.clicked.connect(self._arrange_widgets)
+        layout.addWidget(order_button)
         self.tabs.addTab(page, "Widgets")
+
+    def _arrange_widgets(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Arrange widgets")
+        dialog.setMinimumSize(360, 420)
+        layout = QVBoxLayout(dialog)
+        listing = QListWidget(dialog)
+        stored = self.dock.cfg.get("widget_order", [])
+        fallback = list(WIDGET_LABELS)
+        order = sorted(fallback, key=lambda key: stored.index(key)
+                       if key in stored else len(stored) + fallback.index(key))
+        for key in order:
+            item = QListWidgetItem(WIDGET_LABELS[key])
+            item.setData(Qt.UserRole, key)
+            listing.addItem(item)
+        layout.addWidget(listing)
+        move_row = QHBoxLayout()
+        up = QPushButton("Move up")
+        down = QPushButton("Move down")
+        move_row.addWidget(up)
+        move_row.addWidget(down)
+        layout.addLayout(move_row)
+
+        def move_item(delta):
+            source = listing.currentRow()
+            target = source + delta
+            if 0 <= source < listing.count() and 0 <= target < listing.count():
+                item = listing.takeItem(source)
+                listing.insertItem(target, item)
+                listing.setCurrentRow(target)
+
+        up.clicked.connect(lambda: move_item(-1))
+        down.clicked.connect(lambda: move_item(1))
+        buttons = QHBoxLayout()
+        save = QPushButton("Save order")
+        cancel = QPushButton("Cancel")
+        save.clicked.connect(dialog.accept)
+        cancel.clicked.connect(dialog.reject)
+        buttons.addStretch(1)
+        buttons.addWidget(save)
+        buttons.addWidget(cancel)
+        layout.addLayout(buttons)
+        if dialog.exec():
+            self.dock.cfg["widget_order"] = [
+                listing.item(i).data(Qt.UserRole)
+                for i in range(listing.count())]
+            save_config(self.dock.cfg)
+            self.dock.rebuild()
 
     def _build_layout_tab(self):
         page = QWidget()
         form = QFormLayout(page)
+        form.addRow(QLabel(
+            "Widget and layout choices are saved independently per display."))
         self.position = QComboBox()
         self.position.addItems(["bottom", "top"])
         self.position.currentTextChanged.connect(self._set_position)
@@ -126,6 +182,9 @@ class SettingsWindow(QDialog):
         self.app_modifier.currentTextChanged.connect(self._set_app_modifier)
         form.addRow("Pinned apps 1–9", self.app_modifier)
         form.addRow(QLabel("Pinned shortcuts open or focus the first nine apps."))
+        if not self.dock.is_primary_display:
+            page.setEnabled(False)
+            form.addRow(QLabel("Global hotkeys are configured on the primary display."))
         self.tabs.addTab(page, "Hotkeys")
 
     def _edit_widget_style(self):
