@@ -1,6 +1,8 @@
 """Small widget registry and lifecycle bridge for Windows Bar."""
 
 from dataclasses import dataclass
+import importlib
+import pkgutil
 from typing import Callable, Protocol, runtime_checkable
 
 
@@ -46,6 +48,32 @@ class WidgetRegistry:
         if not definition.id or definition.id in self._definitions:
             raise ValueError(f"duplicate or empty widget id: {definition.id!r}")
         self._definitions[definition.id] = definition
+
+    def register_package(self, package, context, widget_defaults, labels):
+        """Discover widget modules that export WIDGET_ID and make_card()."""
+        discovered = []
+        for item in pkgutil.iter_modules(package.__path__):
+            module = importlib.import_module(
+                f"{package.__name__}.{item.name}")
+            widget_id = getattr(module, "WIDGET_ID", None)
+            make_card = getattr(module, "make_card", None)
+            if not widget_id or not callable(make_card):
+                continue
+            order = getattr(module, "WIDGET_ORDER", 10_000)
+            discovered.append((order, widget_id, module, make_card))
+
+        for _, widget_id, _module, make_card in sorted(discovered):
+            name = labels.get(widget_id, widget_id.title())
+            default = bool(widget_defaults.get(widget_id, False))
+            self.register(WidgetDefinition(
+                id=widget_id,
+                name=name,
+                default_config=default,
+                factory=lambda mid=widget_id, label=name, enabled=default,
+                              maker=make_card: CardWidgetAdapter(
+                    mid, label, enabled, lambda: maker(context)),
+            ))
+        return self.definitions
 
     def start_enabled(self, config):
         """Start enabled widgets and stop disabled ones; return active widgets."""
@@ -97,6 +125,7 @@ class CardWidgetAdapter:
     def popup(self):
         popup = getattr(self._card, "popup", None)
         return popup() if callable(popup) else None
+
     def on_click(self):
         callback = getattr(self._card, "on_click", None)
         if callable(callback):
