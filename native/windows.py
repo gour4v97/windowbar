@@ -55,6 +55,46 @@ def power_action(action):
         pass
 
 
+def open_notification_center():
+    """Open the native Windows notification surface using its built-in key."""
+    if not IS_WIN:
+        return
+    try:
+        user32 = ctypes.windll.user32
+        vk_win, vk_n, vk_a = 0x5B, 0x4E, 0x41
+        key = vk_n if sys.getwindowsversion().build >= 22000 else vk_a
+        keybd_event = user32.keybd_event
+        keybd_event(vk_win, 0, 0, 0)
+        keybd_event(key, 0, 0, 0)
+        keybd_event(key, 0, 0x0002, 0)
+        keybd_event(vk_win, 0, 0x0002, 0)
+    except Exception:
+        _log.exception("Could not open Windows notification center")
+
+
+def virtual_desktop_action(action):
+    """Use supported shell hotkeys for virtual desktop navigation."""
+    if not IS_WIN:
+        return
+    shortcuts = {
+        "previous": (0x5B, 0x11, 0x25),
+        "next": (0x5B, 0x11, 0x27),
+        "new": (0x5B, 0x11, 0x44),
+        "overview": (0x5B, 0x09),
+    }
+    keys = shortcuts.get(action)
+    if not keys:
+        return
+    user32 = ctypes.windll.user32
+    try:
+        for key in keys:
+            user32.keybd_event(key, 0, 0, 0)
+        for key in reversed(keys):
+            user32.keybd_event(key, 0, 0x0002, 0)
+    except Exception:
+        _log.exception("Could not invoke virtual desktop shortcut: %s", action)
+
+
 def close_window(hwnd):
     if IS_WIN and hwnd:
         try:
@@ -147,9 +187,31 @@ def foreground_hwnd():
     if not IS_WIN:
         return 0
     try:
-        return int(ctypes.windll.user32.GetForegroundWindow() or 0)
+        get_foreground = ctypes.windll.user32.GetForegroundWindow
+        get_foreground.restype = wintypes.HWND
+        return int(get_foreground() or 0)
     except Exception:
         return 0
+
+
+def window_title(hwnd=0):
+    """Return the title of a window handle, or an empty string."""
+    if not IS_WIN:
+        return ""
+    try:
+        user32 = ctypes.windll.user32
+        if not hwnd:
+            get_foreground = user32.GetForegroundWindow
+            get_foreground.restype = wintypes.HWND
+            hwnd = get_foreground()
+        length = user32.GetWindowTextLengthW(hwnd)
+        if not length:
+            return ""
+        buf = ctypes.create_unicode_buffer(length + 1)
+        user32.GetWindowTextW(hwnd, buf, length + 1)
+        return buf.value.strip()
+    except Exception:
+        return ""
 
 
 def wallpaper_path():
@@ -206,3 +268,4 @@ def set_autostart(enable, name, command):
                 winreg.DeleteValue(k, name)
             except OSError:
                 pass
+
