@@ -31,6 +31,7 @@ DEFAULTS = {
         "screentime": False, "github": False, "revenue": False,
         "recycle": False, "windows": False, "shots": False,
         "storage": False, "world": False, "progress": False,
+        "temperature": False,
         "timer": False, "script": False, "network": False,
         "volume": False, "toggles": False,
     },
@@ -51,6 +52,7 @@ DEFAULTS = {
     "dynamic_accent": True,
     "launcher": True,
     "launcher_hotkey": "alt+space",
+    "app_hotkey_modifier": "alt",
 }
 
 WIDGET_LABELS = {
@@ -62,6 +64,7 @@ WIDGET_LABELS = {
     "revenue": "Stripe revenue", "recycle": "Recycle Bin",
     "windows": "Open windows", "shots": "Screenshots",
     "storage": "Storage", "world": "World clocks",
+    "temperature": "Temperature",
     "progress": "Day / year progress", "timer": "Timer",
     "script": "Script output", "network": "Network", "volume": "Volume",
     "toggles": "Quick toggles",
@@ -96,6 +99,7 @@ def autostart_command():
     if pw.exists():
         exe = pw
     return f'"{exe}" "{Path(sys.argv[0]).resolve()}"' 
+
 
 # ----------------------------------------------------------------- cards ----
 PRESETS = {
