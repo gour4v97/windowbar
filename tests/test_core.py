@@ -157,7 +157,6 @@ def test_run_script_echo_and_errors():
     with pytest.raises(ValueError):
         extras.run_script("exit 3")
 
-
 def test_network_info_shape():
     name, ip = extras.network_info()
     assert isinstance(name, str) and isinstance(ip, str)
@@ -190,3 +189,71 @@ def test_exe_of():
     assert exe_of("notepad.exe") == "notepad.exe"
     assert exe_of(r'"C:\Apps\Visual Studio Code\Code.exe" .') == "code.exe"
     assert exe_of("") == ""
+
+
+def test_config_v1_migrates_legacy_settings_and_keeps_defaults(tmp_path):
+    import json
+    from core.config import CURRENT_SCHEMA_VERSION, load
+
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps({
+        "position": "top",
+        "widgets": {"weather": False},
+    }), encoding="utf-8")
+    defaults = {"position": "bottom", "theme": "midnight",
+                "widgets": {"weather": True, "clock": True}}
+
+    cfg = load(path, defaults)
+
+    assert cfg["schema_version"] == CURRENT_SCHEMA_VERSION == 1
+    assert cfg["position"] == "top"
+    assert cfg["theme"] == "midnight"
+    assert cfg["widgets"] == {"weather": False, "clock": True}
+    assert "schema_version" not in json.loads(path.read_text(encoding="utf-8"))
+
+
+def test_config_save_is_versioned_and_round_trips(tmp_path):
+    import json
+    from core.config import load, save
+
+    path = tmp_path / "nested" / "config.json"
+    save(path, {"position": "top", "widgets": {"clock": False}})
+    written = json.loads(path.read_text(encoding="utf-8"))
+    assert written["schema_version"] == 1
+    assert not path.with_suffix(".json.tmp").exists()
+    assert load(path, {"position": "bottom", "widgets": {"clock": True}}) == {
+        "position": "top", "widgets": {"clock": False}, "schema_version": 1}
+
+
+def test_widget_registry_starts_and_stops_enabled_widgets():
+    from core.registry import WidgetDefinition, WidgetRegistry
+
+    events = []
+
+    class FakeWidget:
+        id = "clock"
+        name = "Clock"
+        default_config = {"enabled": True}
+
+        def start(self):
+            events.append("start")
+
+        def stop(self):
+            events.append("stop")
+
+        def card(self):
+            return "clock-card"
+
+        def popup(self):
+            return None
+
+        def on_click(self):
+            pass
+
+    registry = WidgetRegistry()
+    registry.register(WidgetDefinition("clock", "Clock", True, FakeWidget))
+    assert registry.start_enabled({"widgets": {}})["clock"].card() == "clock-card"
+    registry.start_enabled({"widgets": {"clock": True}})
+    assert events == ["start"]
+    assert registry.start_enabled({"widgets": {"clock": False}}) == {}
+    assert events == ["start", "stop"]
