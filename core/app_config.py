@@ -49,6 +49,7 @@ DEFAULTS = {
     "notes_current": 0,
     "keep_awake": False,
     "theme": "midnight",
+    "widget_styles": {},
     "dynamic_accent": True,
     "launcher": True,
     "launcher_hotkey": "alt+space",
