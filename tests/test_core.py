@@ -266,3 +266,48 @@ def test_first_widgets_are_in_separate_modules():
 
     assert (ClockCard.id, NotesCard.id, WeatherCard.id) == (
         "clock", "notes", "weather")
+
+
+def test_screen_time_worker_starts_and_stops_with_widget(tmp_path):
+    import threading
+    from extras import ScreenTime
+
+    sampled = threading.Event()
+
+    def sampler():
+        sampled.set()
+        return "test-app.exe"
+
+    tracker = ScreenTime(tmp_path / "screen-time.json", sampler=sampler,
+                         idle=lambda: 0, start=False)
+    assert tracker._thread is None
+    tracker.start()
+    assert sampled.wait(2)
+    tracker.stop()
+    assert tracker._thread is None
+    assert tracker.today()[0] >= 1
+
+
+def test_weather_and_calendar_workers_only_run_while_active():
+    import time
+    from services import CalendarService, WeatherService
+
+    weather = WeatherService({"weather_city": ""}, lambda: None)
+    calendar = CalendarService({"calendar_url": ""})
+    assert weather._thread is None and calendar._thread is None
+
+    weather.start()
+    calendar.start()
+    weather_thread, calendar_thread = weather._thread, calendar._thread
+    deadline = time.monotonic() + 2
+    while time.monotonic() < deadline and calendar.status != "Set link":
+        time.sleep(0.01)
+    assert weather.text == "Click to set city"
+    assert calendar.status == "Set link"
+
+    weather.stop()
+    calendar.stop()
+    weather_thread.join(timeout=1)
+    calendar_thread.join(timeout=1)
+    assert not weather_thread.is_alive()
+    assert not calendar_thread.is_alive()
