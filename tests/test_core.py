@@ -157,7 +157,6 @@ def test_run_script_echo_and_errors():
     with pytest.raises(ValueError):
         extras.run_script("exit 3")
 
-
 def test_network_info_shape():
     name, ip = extras.network_info()
     assert isinstance(name, str) and isinstance(ip, str)
@@ -190,3 +189,125 @@ def test_exe_of():
     assert exe_of("notepad.exe") == "notepad.exe"
     assert exe_of(r'"C:\Apps\Visual Studio Code\Code.exe" .') == "code.exe"
     assert exe_of("") == ""
+
+
+def test_config_v1_migrates_legacy_settings_and_keeps_defaults(tmp_path):
+    import json
+    from core.config import CURRENT_SCHEMA_VERSION, load
+
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps({
+        "position": "top",
+        "widgets": {"weather": False},
+    }), encoding="utf-8")
+    defaults = {"position": "bottom", "theme": "midnight",
+                "widgets": {"weather": True, "clock": True}}
+
+    cfg = load(path, defaults)
+
+    assert cfg["schema_version"] == CURRENT_SCHEMA_VERSION == 1
+    assert cfg["position"] == "top"
+    assert cfg["theme"] == "midnight"
+    assert cfg["widgets"] == {"weather": False, "clock": True}
+    assert "schema_version" not in json.loads(path.read_text(encoding="utf-8"))
+
+
+def test_config_save_is_versioned_and_round_trips(tmp_path):
+    import json
+    from core.config import load, save
+
+    path = tmp_path / "nested" / "config.json"
+    save(path, {"position": "top", "widgets": {"clock": False}})
+    written = json.loads(path.read_text(encoding="utf-8"))
+    assert written["schema_version"] == 1
+    assert not path.with_suffix(".json.tmp").exists()
+    assert load(path, {"position": "bottom", "widgets": {"clock": True}}) == {
+        "position": "top", "widgets": {"clock": False}, "schema_version": 1}
+
+
+def test_widget_registry_starts_and_stops_enabled_widgets():
+    from core.registry import WidgetDefinition, WidgetRegistry
+
+    events = []
+
+    class FakeWidget:
+        id = "clock"
+        name = "Clock"
+        default_config = {"enabled": True}
+
+        def start(self):
+            events.append("start")
+
+        def stop(self):
+            events.append("stop")
+
+        def card(self):
+            return "clock-card"
+
+        def popup(self):
+            return None
+
+        def on_click(self):
+            pass
+
+    registry = WidgetRegistry()
+    registry.register(WidgetDefinition("clock", "Clock", True, FakeWidget))
+    assert registry.start_enabled({"widgets": {}})["clock"].card() == "clock-card"
+    registry.start_enabled({"widgets": {"clock": True}})
+    assert events == ["start"]
+    assert registry.start_enabled({"widgets": {"clock": False}}) == {}
+    assert events == ["start", "stop"]
+
+
+def test_first_widgets_are_in_separate_modules():
+    from widgets.clock import ClockCard
+    from widgets.notes import NotesCard
+    from widgets.weather import WeatherCard
+
+    assert (ClockCard.id, NotesCard.id, WeatherCard.id) == (
+        "clock", "notes", "weather")
+
+
+def test_screen_time_worker_starts_and_stops_with_widget(tmp_path):
+    import threading
+    from extras import ScreenTime
+
+    sampled = threading.Event()
+
+    def sampler():
+        sampled.set()
+        return "test-app.exe"
+
+    tracker = ScreenTime(tmp_path / "screen-time.json", sampler=sampler,
+                         idle=lambda: 0, start=False)
+    assert tracker._thread is None
+    tracker.start()
+    assert sampled.wait(2)
+    tracker.stop()
+    assert tracker._thread is None
+    assert tracker.today()[0] >= 1
+
+
+def test_weather_and_calendar_workers_only_run_while_active():
+    import time
+    from services import CalendarService, WeatherService
+
+    weather = WeatherService({"weather_city": ""}, lambda: None)
+    calendar = CalendarService({"calendar_url": ""})
+    assert weather._thread is None and calendar._thread is None
+
+    weather.start()
+    calendar.start()
+    weather_thread, calendar_thread = weather._thread, calendar._thread
+    deadline = time.monotonic() + 2
+    while time.monotonic() < deadline and calendar.status != "Set link":
+        time.sleep(0.01)
+    assert weather.text == "Click to set city"
+    assert calendar.status == "Set link"
+
+    weather.stop()
+    calendar.stop()
+    weather_thread.join(timeout=1)
+    calendar_thread.join(timeout=1)
+    assert not weather_thread.is_alive()
+    assert not calendar_thread.is_alive()

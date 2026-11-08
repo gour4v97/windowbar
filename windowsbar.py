@@ -31,17 +31,21 @@ from PySide6.QtWidgets import (
 import extras
 import theme
 import winapi
+from core import config as config_store
+from core.registry import WidgetDefinition, WidgetRegistry
 from launcher import HotkeyFilter, Launcher
 from services import (CalendarService, MediaService, RadioService,
                       WeatherService)
+from widgets.base import Card, clip
+from widgets.clock import ClockCard
+from widgets.notes import NotesCard
+from widgets.weather import WeatherCard
 
 APP_DIR = Path(os.environ.get("APPDATA", Path.home())) / "Windows Bar"
 CONFIG = APP_DIR / "config.json"
 SCREEN_TIME_FILE = APP_DIR / "screentime.json"
 THEMES_DIR = APP_DIR / "themes"
 CUSTOM_QSS = APP_DIR / "custom.qss"
-_save_lock = threading.Lock()
-
 DEFAULTS = {
     "position": "bottom",
     "reserve_space": True,
@@ -102,25 +106,11 @@ WIDGET_LABELS = {
 
 
 def load_config():
-    cfg = json.loads(json.dumps(DEFAULTS))
-    try:
-        data = json.loads(CONFIG.read_text(encoding="utf-8"))
-        cfg.update({k: v for k, v in data.items() if k != "widgets"})
-        cfg["widgets"].update(data.get("widgets", {}))
-    except Exception:
-        pass
-    return cfg
+    return config_store.load(CONFIG, DEFAULTS)
 
 
 def save_config(cfg):
-    with _save_lock:  # widgets save from background threads too
-        try:
-            APP_DIR.mkdir(parents=True, exist_ok=True)
-            tmp = CONFIG.with_suffix(".tmp")
-            tmp.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
-            os.replace(tmp, CONFIG)
-        except Exception:
-            pass
+    config_store.save(CONFIG, cfg)
 
 
 def fmt_hms(seconds):
@@ -149,10 +139,6 @@ def fmt_delta(seconds):
     return f"in {h}h {m:02d}m" if h < 24 else f"in {h // 24}d"
 
 
-def clip(text, n):
-    return text if len(text) <= n else text[: n - 1] + "…"
-
-
 def in_quiet_hours(spec, now=None):
     """spec is "23:00-07:00" (may wrap midnight). Empty/invalid -> False."""
     try:
@@ -176,77 +162,6 @@ def autostart_command():
 
 
 # ----------------------------------------------------------------- cards ----
-class Card(QFrame):
-    """A titled card. INTERVAL is how many seconds between refreshes --
-    slow sources (Recycle Bin, open windows) must not run every second.
-    tick() returns True only when the displayed text actually changed,
-    so the dock can skip relayout/repaint work on quiet seconds."""
-
-    INTERVAL = 1
-    ALWAYS = False   # True: keeps ticking while the dock is slid away
-    STICKY = False   # True: never shrinks, so changing digits can't make the dock jitter
-
-    def __init__(self, title):
-        super().__init__()
-        self.setObjectName("card")
-        self._wmax = 0
-        lay = QVBoxLayout(self)
-        lay.setContentsMargins(12, 6, 12, 6)
-        lay.setSpacing(0)
-        self.title = QLabel(title.upper())
-        self.title.setObjectName("cardtitle")
-        self.body = QLabel("")
-        self.body.setObjectName("cardbody")
-        lay.addWidget(self.title)
-        lay.addWidget(self.body)
-
-    def set_texts(self, title=None, body=None):
-        changed = False
-        if title is not None and title != self.title.text():
-            self.title.setText(title)
-            changed = True
-        if body is not None and body != self.body.text():
-            self.body.setText(body)
-            changed = True
-        if changed and self.STICKY:
-            w = max(self.body.sizeHint().width(), self.title.sizeHint().width())
-            if w > self._wmax:
-                self._wmax = w
-                self.setMinimumWidth(w + 24)
-        return changed
-
-    def tick(self):
-        return False
-
-
-class ClockCard(Card):
-    STICKY = True
-
-    def __init__(self):
-        super().__init__("Time")
-
-    def tick(self):
-        return self.set_texts(time.strftime("%a %d %b").upper(),
-                              time.strftime("%I:%M %p").lstrip("0"))
-
-
-class WeatherCard(Card):
-    INTERVAL = 5
-
-    def __init__(self, weather, ask_city):
-        super().__init__("Weather")
-        self.weather, self.ask_city = weather, ask_city
-        self.setCursor(Qt.PointingHandCursor)
-        self.setToolTip("Click to change city")
-
-    def mousePressEvent(self, e):
-        if e.button() == Qt.LeftButton:
-            self.ask_city()
-
-    def tick(self):
-        return self.set_texts(self.weather.label, self.weather.text)
-
-
 class SystemCard(Card):
     STICKY = True
 
@@ -533,30 +448,6 @@ class TodoCard(Card):
             f"TODOS ({len(open_)})",
             clip(open_[0], 24) if open_ else
             ("All done" if todos else "All clear"))
-
-
-class NotesCard(Card):
-    INTERVAL = 5
-
-    def __init__(self, cfg):
-        super().__init__("Notes")
-        self.cfg = cfg
-        self.open_panel = None
-        self.setCursor(Qt.PointingHandCursor)
-        self.setToolTip("Click: open notes")
-
-    def mousePressEvent(self, e):
-        if e.button() == Qt.LeftButton and self.open_panel:
-            self.open_panel()
-
-    def tick(self):
-        notes = self.cfg["notes_list"]
-        cur = notes[self.cfg["notes_current"]] if notes else ""
-        first = (cur.strip().splitlines() or [""])[0]
-        n = len(notes)
-        return self.set_texts(
-            f"NOTES · {n}" if n > 1 else "NOTES",
-            clip(first, 26) if first else "Click to write")
 
 
 class ScreenTimeCard(Card):
@@ -1387,7 +1278,6 @@ class AppHotkeyFilter(QAbstractNativeEventFilter):
 
 
 
-
 PRESETS = {
     "Essentials": ["apps", "clock", "weather", "system", "battery",
                    "media", "calendar", "quick"],
@@ -1399,6 +1289,38 @@ PRESETS = {
 }
 
 MARGIN = 8
+
+
+class CardWidgetAdapter:
+    """Expose an existing card through the new internal widget contract."""
+
+    def __init__(self, widget_id, name, default_config, card_factory):
+        self.id = widget_id
+        self.name = name
+        self.default_config = {"enabled": bool(default_config)}
+        self._card = card_factory()
+
+    def start(self):
+        start = getattr(self._card, "start", None)
+        if callable(start):
+            start()
+
+    def stop(self):
+        stop = getattr(self._card, "stop", None)
+        if callable(stop):
+            stop()
+
+    def card(self):
+        return self._card
+
+    def popup(self):
+        popup = getattr(self._card, "popup", None)
+        return popup() if callable(popup) else None
+
+    def on_click(self):
+        callback = getattr(self._card, "on_click", None)
+        if callable(callback):
+            callback()
 
 
 # ------------------------------------------------------------------ dock ----
@@ -1420,7 +1342,7 @@ class Dock(QWidget):
         self.calendar = CalendarService(self.cfg)
         self.media = MediaService()
         self.radios = RadioService()
-        self.screen_time = extras.ScreenTime(SCREEN_TIME_FILE)
+        self.screen_time = extras.ScreenTime(SCREEN_TIME_FILE, start=False)
         self.polls = {}            # created on demand, stopped when the widget is off
         self._poll_makers = {
             "github": (lambda: extras.github_summary(self.cfg["github_user"]), 1800),
@@ -1468,6 +1390,7 @@ class Dock(QWidget):
         self.row.setContentsMargins(14, 10, 14, 10)
         self.row.setSpacing(10)
         self.cards = []
+        self._widget_registry = WidgetRegistry()
         self.rebuild()
 
         self.timer = QTimer(self)
@@ -1499,11 +1422,11 @@ class Dock(QWidget):
 
     # -- build ---------------------------------------------------------------
     def rebuild(self):
+        self._widget_registry.stop_all()
         for c in self.cards:
             self.row.removeWidget(c)
             c.deleteLater()
         self.cards = []
-        w = self.cfg["widgets"]
         makers = [
             ("apps", lambda: AppsCard(self.cfg["apps"], self.poll("apps"))),
             ("clock", self._clock_card),
@@ -1541,9 +1464,19 @@ class Dock(QWidget):
             ("script", lambda: ScriptCard(self.poll("script"), self.cfg)),
             ("todos", self._todo_card),
         ]
+        registry = WidgetRegistry()
         for key, make in makers:
-            if w.get(key):
-                self.cards.append(make())
+            registry.register(WidgetDefinition(
+                id=key,
+                name=WIDGET_LABELS.get(key, key.title()),
+                default_config=DEFAULTS["widgets"].get(key, False),
+                factory=lambda k=key, f=make: CardWidgetAdapter(
+                    k, WIDGET_LABELS.get(k, k.title()),
+                    DEFAULTS["widgets"].get(k, False), f),
+            ))
+        active = registry.start_enabled(self.cfg)
+        self._widget_registry = registry
+        self.cards = [widget.card() for widget in active.values()]
         for c in self.cards:
             self.row.addWidget(c)
             c.tick()
@@ -1586,6 +1519,10 @@ class Dock(QWidget):
         """Background work only runs for widgets that are switched on."""
         w = self.cfg["widgets"]
         meeting = bool(self.cfg["pause_before_meeting"])
+        if w.get("screentime"):
+            self.screen_time.start()
+        else:
+            self.screen_time.stop()
         self.weather.active = bool(w.get("weather"))
         self.calendar.active = bool(w.get("calendar")) or meeting
         self.media.active = bool(w.get("media")) or meeting
@@ -1819,7 +1756,6 @@ class Dock(QWidget):
                 c.tick()
             self.place()           # re-reserve space, settle exact position
         self._last_hover = time.monotonic()
-
     def enterEvent(self, e):
         self._last_hover = time.monotonic()
         super().enterEvent(e)
@@ -2108,10 +2044,17 @@ class Dock(QWidget):
         os.startfile(str(THEMES_DIR))
 
     def shutdown(self):
+        self._widget_registry.stop_all()
+        for poll in self.polls.values():
+            poll.stop()
+        self.weather.stop()
+        self.calendar.stop()
+        self.media.stop()
+        self.radios.stop()
         self.hotkey.unregister()
         self.app_hotkeys.unregister()
         winapi.set_keep_awake(False)
-        self.screen_time.flush()
+        self.screen_time.stop()
         self.appbar.remove()
         winapi.set_taskbar_autohide(False, self.appbar.hwnd, self.cfg)
         save_config(self.cfg)

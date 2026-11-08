@@ -202,8 +202,36 @@ class ScreenTime:
         self.lock = threading.Lock()
         self.data = self._load()
         self._n = 0
+        self._stop = threading.Event()
+        self._thread = None
         if start:
-            threading.Thread(target=self._run, daemon=True).start()
+            self.start()
+
+    def start(self):
+        """Start sampling once; safe to call whenever the widget is enabled."""
+        if self._thread and self._thread.is_alive():
+            if not self._stop.is_set():
+                return
+            self._thread.join(timeout=2)
+            if self._thread.is_alive():
+                return
+            self._thread = None
+        self._stop.clear()
+        self._thread = threading.Thread(
+            target=self._run, name="windowsbar-screen-time", daemon=True)
+        self._thread.start()
+
+    def stop(self):
+        """Stop sampling promptly and persist accumulated data."""
+        self._stop.set()
+        thread = self._thread
+        if thread is None:
+            return
+        if thread and thread is not threading.current_thread():
+            thread.join(timeout=2)
+        if thread and not thread.is_alive():
+            self._thread = None
+        self.flush()
 
     def _load(self):
         try:
@@ -245,9 +273,9 @@ class ScreenTime:
         return total, top
 
     def _run(self):
-        while True:
+        while not self._stop.is_set():
             try:
                 self.sample()
             except Exception:
                 pass
-            time.sleep(1)
+            self._stop.wait(1)
