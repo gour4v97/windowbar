@@ -57,7 +57,7 @@ The calendar popup is a detail panel on the Next event widget, not a separate wi
 
 ## Options
 
-- **Top or bottom** — from the menu, or just drag the dock to a screen edge and it snaps there
+- **Top or bottom** — in the combined layout, use the menu or drag the dock to a screen edge
 - **Multiple displays** — one bar and independent widget/layout profile per connected display; profiles are keyed by the Windows display name
 - **Arrange widgets** — Settings → Widgets → Arrange widget order
 - **Virtual desktops** — split toolbar buttons use Windows' built-in shortcuts to switch/create desktops or open the overview; Windows provides the desktop count and animation
