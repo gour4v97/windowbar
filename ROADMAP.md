@@ -136,7 +136,7 @@ Rules: widgets never touch Win32 directly (go through `native/`); all native hoo
 - [x] Versioned config with migration from the current `config.json` (schema v1, legacy migration, and focused tests; export/import is a later enhancement)
 - [x] Widgets stop their work when hidden or disabled (poll workers stop, Screen Time sampler is opt-in, and weather/calendar/media/radio workers stop when inactive)
 - [x] Detail-popup component (`ui/popup.py`, shared by calendar, notes, and todos panels)
-- [ ] Logging to `%APPDATA%\Windows Bar\logs`, plus a crash-safe restore test for the taskbar state
+- [x] Rotating logging to `%APPDATA%\Windows Bar\logs` and a crash-recovery test for saved taskbar auto-hide state
 
 **Done when:** all 28 widgets run through the registry; adding a widget = one file + one config key.
 
@@ -210,6 +210,7 @@ Rules: widgets never touch Win32 directly (go through `native/`); all native hoo
 5. **Tag milestones:** `v0.1.0` (today) → `v0.2.0` (P1) → `v0.3.0` (P2) → `v0.4.0` (P3, first "shell" release) → …
 6. **Keep `AGENTS.md` current:** its "Current state" section is the handoff note. Any AI assistant (or you in a month) starts there.
 7. **Never commit secrets:** the Stripe key stays in `WINDOWSBAR_STRIPE_KEY`; check `.gitignore` before each push.
+
 
 
 
