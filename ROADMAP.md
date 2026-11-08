@@ -186,8 +186,8 @@ Rules: widgets never touch Win32 directly (go through `native/`); all native hoo
 
 Phase 5 implements opt-in BSP, columns, and master/stack tiling, keyboard focus/swap/resize, floating mode and executable/class/title-regex rules, original-position restoration, per-monitor layouts, and per-desktop order/ratio persistence when virtual desktop IDs are available. Adjacent-desktop movement uses pyvda. Native HWND tiling and restoration have been smoke-checked with temporary windows. This session cannot validate the safety and workspace controls: pyvda COM activation is denied, and `RegisterHotKey` returns Win32 error 5 for all attempted combinations; tiling stays disabled if the release key cannot register.
 ### Phase 6: Ecosystem and release *(M–L)*
-- [ ] Public widget SDK docs + example widget repo template
-- [ ] Theme sharing format and a `themes/` gallery in the repo
+- [🟡] Source-level widget contract docs + copyable contribution template; stable runtime plugin API/loader remains
+- [x] Theme JSON sharing format documented and starter gallery added under `themes/gallery/`
 - [ ] i18n with a translation workflow
 - [ ] Installer (Inno Setup / MSIX), code signing if feasible, GitHub Releases, winget manifest
 - [ ] Screenshots, GIFs, a proper README, contribution guide
