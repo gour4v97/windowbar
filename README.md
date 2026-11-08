@@ -58,6 +58,7 @@ The calendar popup is a detail panel on the Next event widget, not a separate wi
 - **Full width** or a centred pill
 - **Auto-hide the Windows taskbar** while the dock runs — the taskbar's original state is restored on quit, and on the next start after a crash
 - **Glass effect** — acrylic / DWM backdrop on Windows 11, acrylic accent on older builds
+- **Widget styles** — use the Widget styles menu to set each widget’s accent, card background, text, button color, and corner radius
 - **Pause music before meetings** — pauses playback one minute before your next calendar event
 - **Quiet hours** (e.g. `23:00-07:00`) — the focus timer finishes silently
 - **Start with Windows** — adds/removes a Run key for the current user
