@@ -132,7 +132,7 @@ Rules: widgets never touch Win32 directly (go through `native/`); all native hoo
 
 ### Phase 1: Modular core *(M)*
 - [ ] Split `windowsbar.py` / `winapi.py` into the structure in section 4, with no behaviour change
-- [ ] Widget registry + the widget contract; registry and compatibility adapter are in place for all 28 cards; port Clock, Weather, and Notes to standalone modules next
+- [x] Widget registry + the widget contract; all 28 cards register through the compatibility adapter, and Clock, Weather, and Notes now live in standalone modules
 - [x] Versioned config with migration from the current `config.json` (schema v1, legacy migration, and focused tests; export/import is a later enhancement)
 - [ ] Widgets stop their work when hidden or disabled
 - [ ] Detail-popup component
@@ -210,5 +210,6 @@ Rules: widgets never touch Win32 directly (go through `native/`); all native hoo
 5. **Tag milestones:** `v0.1.0` (today) → `v0.2.0` (P1) → `v0.3.0` (P2) → `v0.4.0` (P3, first "shell" release) → …
 6. **Keep `AGENTS.md` current:** its "Current state" section is the handoff note. Any AI assistant (or you in a month) starts there.
 7. **Never commit secrets:** the Stripe key stays in `WINDOWSBAR_STRIPE_KEY`; check `.gitignore` before each push.
+
 
 
