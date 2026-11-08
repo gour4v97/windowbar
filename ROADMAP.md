@@ -177,13 +177,13 @@ Rules: widgets never touch Win32 directly (go through `native/`); all native hoo
 ### Phase 5: Tiling window manager *(XL)*
 - [🟡] Dedicated-thread `SetWinEventHook` and debounced top-level window snapshots; filtered taskbar windows feed the opt-in tiler
 - [🟡] BSP layout engine, per-monitor work areas, configurable gaps and padding; columns/stacks remain
-- [ ] Keyboard focus/swap/resize/move-to-workspace
-- [ ] Floating mode toggle and per-app rules (exe / class / title regex)
+- [🟡] Keyboard focus cycle and BSP slot swap (`Ctrl+Alt+J/K`); resize and move-to-workspace remain
+- [🟡] Floating mode toggle (`Ctrl+Alt+F`); per-app rules (exe / class / title regex) remain
 - [🟡] Original window rectangles and show state are restored when tiling is disabled
 - [ ] Per-workspace layout persistence across restarts
 - [🟡] Ctrl+Alt+Esc safe release hotkey restores managed windows; live edge cases and interactive UI validation remain
 
-Phase 5 currently provides opt-in BSP tiling from Settings → Window manager. It arranges eligible top-level windows in each monitor work area and stores their original position and show state. Ctrl+Alt+Esc releases managed windows and restores those positions. Phase 5 remains in progress while navigation controls, floating rules, workspace persistence, and live Windows validation are outstanding.
+Phase 5 currently provides opt-in BSP tiling from Settings → Window manager. It arranges eligible top-level windows in each monitor work area, supports keyboard focus/swap and floating mode, and stores original position and show state. Ctrl+Alt+Esc releases managed windows and restores those positions. Phase 5 remains in progress while resize controls, per-app rules, workspace persistence, and live Windows validation are outstanding.
 ### Phase 6: Ecosystem and release *(M–L)*
 - [ ] Public widget SDK docs + example widget repo template
 - [ ] Theme sharing format and a `themes/` gallery in the repo

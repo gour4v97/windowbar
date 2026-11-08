@@ -1018,7 +1018,12 @@ class Dock(QWidget):
                 return False
             if self._tiling_manager is None:
                 from wm.tiling import EmergencyReleaseHotkey, TilingManager
-                release_hotkey = EmergencyReleaseHotkey(self._release_tiled_windows)
+                release_hotkey = EmergencyReleaseHotkey({
+                    "release": self._release_tiled_windows,
+                    "focus": self._focus_next_tiled_window,
+                    "swap": self._swap_focused_tiled_window,
+                    "floating": self._toggle_focused_floating,
+                })
                 if not release_hotkey.registered:
                     self.cfg["tiling_enabled"] = False
                     release_hotkey.close()
@@ -1053,6 +1058,18 @@ class Dock(QWidget):
         if settings is not None:
             settings.refresh()
         return self.cfg.get("tiling_enabled", False) == enabled
+
+    def _focus_next_tiled_window(self):
+        if self._tiling_manager is not None:
+            self._tiling_manager.focus_next()
+
+    def _swap_focused_tiled_window(self):
+        if self._tiling_manager is not None:
+            self._tiling_manager.swap_focused()
+
+    def _toggle_focused_floating(self):
+        if self._tiling_manager is not None:
+            self._tiling_manager.toggle_floating()
 
     def _release_tiled_windows(self):
         if self._tiling_manager is not None:

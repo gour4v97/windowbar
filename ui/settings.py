@@ -216,7 +216,9 @@ class SettingsWindow(QDialog):
         form.addRow("Screen edge padding", self.tiling_padding)
         form.addRow(QLabel(
             "BSP tiling moves visible taskbar windows on the primary monitor. "
-            "Ctrl+Alt+Esc releases them and restores their saved positions."))
+            "Ctrl+Alt+J focuses the next tiled window, Ctrl+Alt+K swaps its "
+            "slot, and Ctrl+Alt+F toggles floating. Ctrl+Alt+Esc releases "
+            "windows and restores their saved positions."))
         if not self.dock.is_primary_display:
             page.setEnabled(False)
             form.addRow(QLabel(
