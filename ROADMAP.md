@@ -188,9 +188,9 @@ Phase 5 implements opt-in BSP, columns, and master/stack tiling, keyboard focus/
 ### Phase 6: Ecosystem and release *(M–L)*
 - [🟡] Source-level widget contract docs + copyable contribution template; stable runtime plugin API/loader remains
 - [x] Theme JSON sharing format documented and starter gallery added under `themes/gallery/`
-- [ ] i18n with a translation workflow
+- [🟡] Localization conventions and rollout checklist documented in `docs/localization.md`; runtime extraction, locale selection, and CI parity checks remain
 - [ ] Installer (Inno Setup / MSIX), code signing if feasible, GitHub Releases, winget manifest
-- [ ] Screenshots, GIFs, a proper README, contribution guide
+- [🟡] Contributor guide added in `CONTRIBUTING.md`; current README, screenshots/GIFs, and release-ready visuals still need work
 
 ---
 
