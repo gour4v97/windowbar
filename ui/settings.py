@@ -130,6 +130,7 @@ class SettingsWindow(QDialog):
             ("auto_hide", "Auto-hide dock"),
             ("glass", "Glass effect"),
             ("dynamic_accent", "Dynamic wallpaper accent"),
+            ("desktop_widgets", "Show draggable desktop widgets"),
         ):
             check = QCheckBox(label)
             check.toggled.connect(
@@ -182,6 +183,12 @@ class SettingsWindow(QDialog):
         self.app_modifier.currentTextChanged.connect(self._set_app_modifier)
         form.addRow("Pinned apps 1–9", self.app_modifier)
         form.addRow(QLabel("Pinned shortcuts open or focus the first nine apps."))
+        self.custom_alt_tab = QCheckBox("Use Windows Bar window switcher for Alt+Tab")
+        self.custom_alt_tab.toggled.connect(self._set_custom_alt_tab)
+        form.addRow(self.custom_alt_tab)
+        form.addRow(QLabel(
+            "Use Alt+Tab / Alt+Shift+Tab to browse. Arrow keys also navigate; "
+            "release Alt or press Enter to switch, Esc to cancel."))
         if not self.dock.is_primary_display:
             page.setEnabled(False)
             form.addRow(QLabel("Global hotkeys are configured on the primary display."))
@@ -233,6 +240,9 @@ class SettingsWindow(QDialog):
             self.dock.app_hotkeys.register_all(key)
             save_config(self.dock.cfg)
 
+    def _set_custom_alt_tab(self, enabled):
+        self.dock.set_custom_alt_tab(enabled)
+
     def _refresh_preview(self):
         self.setStyleSheet(theme.build_qss(self.dock.tokens))
         overrides = self.dock.cfg.get("widget_styles", {}).get("clock", {})
@@ -264,6 +274,10 @@ class SettingsWindow(QDialog):
         self.theme_choice.setCurrentText(cfg.get("theme", "midnight"))
         self.theme_choice.blockSignals(False)
         self.launcher_key.setText(cfg.get("launcher_hotkey", "alt+space"))
+        self.custom_alt_tab.blockSignals(True)
+        self.custom_alt_tab.setChecked(bool(cfg.get("custom_alt_tab", False)))
+        self.custom_alt_tab.setEnabled(self.dock.is_primary_display)
+        self.custom_alt_tab.blockSignals(False)
         modifier = cfg.get("app_hotkey_modifier", "alt").title()
         if self.app_modifier.findText(modifier) < 0:
             modifier = "Alt"
@@ -271,4 +285,3 @@ class SettingsWindow(QDialog):
         self.app_modifier.setCurrentText(modifier)
         self.app_modifier.blockSignals(False)
         self._refresh_preview()
-

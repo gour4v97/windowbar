@@ -57,6 +57,9 @@ DEFAULTS = {
     "dynamic_accent": True,
     "launcher": True,
     "launcher_hotkey": "alt+space",
+    "custom_alt_tab": False,
+    "desktop_widgets": False,
+    "desktop_widgets_geometry": {},
     "app_hotkey_modifier": "alt",
     "display_profiles": {},
     "workspace_metadata": {},
@@ -146,4 +149,3 @@ MARGIN = 8
 
 
 # ------------------------------------------------------------------ dock ----
-

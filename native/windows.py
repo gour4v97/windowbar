@@ -251,6 +251,28 @@ def focus_window(hwnd):
         pass
 
 
+def pin_behind_windows(hwnd):
+    """Place a desktop widget HWND at the bottom without activating it."""
+    if not IS_WIN:
+        return False
+    try:
+        user32 = ctypes.windll.user32
+        set_pos = user32.SetWindowPos
+        set_pos.argtypes = (wintypes.HWND, wintypes.HWND, ctypes.c_int,
+                            ctypes.c_int, ctypes.c_int, ctypes.c_int,
+                            wintypes.UINT)
+        set_pos.restype = wintypes.BOOL
+        HWND_BOTTOM = wintypes.HWND(1)
+        SWP_NOSIZE, SWP_NOMOVE, SWP_NOACTIVATE, SWP_SHOWWINDOW = (
+            0x0001, 0x0002, 0x0010, 0x0040)
+        return bool(set_pos(wintypes.HWND(int(hwnd)), HWND_BOTTOM, 0, 0, 0, 0,
+                            SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE
+                            | SWP_SHOWWINDOW))
+    except Exception:
+        _log.exception("Could not place desktop widgets behind windows")
+        return False
+
+
 def autostart_enabled(name="Windows Bar"):
     if not IS_WIN:
         return False
@@ -276,4 +298,3 @@ def set_autostart(enable, name, command):
                 winreg.DeleteValue(k, name)
             except OSError:
                 pass
-
