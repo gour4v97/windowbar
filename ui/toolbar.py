@@ -1,6 +1,6 @@
 """Top toolbar window used by the optional split shell layout."""
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QHBoxLayout, QWidget
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QWidget
 
 import winapi
 from core.app_config import MARGIN
@@ -22,17 +22,47 @@ class Toolbar(QWidget):
         self.row = QHBoxLayout(self)
         self.row.setContentsMargins(14, 8, 14, 8)
         self.row.setSpacing(10)
+        self._cards = []
+        self.active_window = QLabel()
+        self.active_window.setMinimumWidth(100)
+        self.active_window.setMaximumWidth(360)
+        self.active_window.setToolTip("Active window")
+        self.row.addWidget(self.active_window)
+        self._add_desktop_button("‹", "Previous desktop", "previous")
+        self._add_desktop_button("›", "Next desktop", "next")
+        self._add_desktop_button("+", "Create desktop", "new")
+        self._add_desktop_button("▦", "Virtual desktop overview", "overview")
+        self._window_timer = QTimer(self)
+        self._window_timer.timeout.connect(self._refresh_active_window)
+        self._window_timer.start(1000)
+        self._refresh_active_window()
+
+    def _add_desktop_button(self, label, tip, action):
+        button = QPushButton(label)
+        button.setToolTip(f"{tip} (Windows+Ctrl keyboard shortcut)")
+        button.setFixedWidth(28)
+        button.clicked.connect(
+            lambda _checked=False, name=action:
+            winapi.virtual_desktop_action(name))
+        self.row.addWidget(button)
+
+    def _refresh_active_window(self):
+        title = winapi.window_title()
+        self.active_window.setText(title or "Desktop")
+        self.active_window.setToolTip(title or "Active window")
 
     def replace_cards(self, cards):
-        while self.row.count():
-            self.row.takeAt(0)
+        for card in self._cards:
+            self.row.removeWidget(card)
+        self._cards = list(cards)
         for card in cards:
             self.row.addWidget(card)
         self.adjustSize()
         self.place()
 
     def place(self):
-        screen = self.screen() or self.dock.screen()
+        screen = (self.dock.target_screen or self.screen()
+                  or self.dock.screen())
         if screen is None:
             return
         dpr = screen.devicePixelRatio()
