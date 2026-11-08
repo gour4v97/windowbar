@@ -103,6 +103,47 @@ def resolve(name, user_dir=None, accent=None):
     return tokens
 
 
+
+WIDGET_OVERRIDE_KEYS = ("card", "border", "text", "muted", "button",
+                        "accent", "radius")
+
+
+def widget_tokens(base_tokens, overrides):
+    """Return validated theme tokens with safe per-widget overrides applied."""
+    tokens = dict(base_tokens)
+    if not isinstance(overrides, dict):
+        return tokens
+    for key in WIDGET_OVERRIDE_KEYS:
+        if key not in overrides:
+            continue
+        value = overrides[key]
+        if key == "radius":
+            try:
+                tokens[key] = max(0, min(48, int(value)))
+            except (TypeError, ValueError):
+                continue
+        else:
+            try:
+                to_rgba(value)
+            except (TypeError, ValueError):
+                continue
+            tokens[key] = value
+    return tokens
+
+
+def build_widget_qss(tokens):
+    """QSS scoped to one card so widget colors do not bleed to its siblings."""
+    t = tokens
+    return f"""
+QFrame#card {{ background: {qss(t['card'])}; border-radius: {t['radius']}px;
+              border: 1px solid {qss(t['border'])}; }}
+QFrame#card:hover {{ border: 1px solid {qss(t['accent'], 150)}; }}
+QLabel#cardtitle {{ color: {qss(t['muted'])}; }}
+QLabel#cardbody {{ color: {qss(t['text'])}; }}
+QPushButton {{ background: {qss(t['button'])}; color: {qss(t['text'])}; }}
+QPushButton:hover {{ background: {qss(t['accent'], 90)}; }}
+"""
+
 def build_qss(t):
     """QSS for the dock's cards and buttons."""
     return f"""
