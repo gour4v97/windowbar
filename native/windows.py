@@ -183,6 +183,118 @@ def list_open_windows(limit=8, exclude=()):
     return out[:limit]
 
 
+def window_rect(hwnd):
+    if not IS_WIN or not hwnd:
+        return None
+    rect = wintypes.RECT()
+    try:
+        if not ctypes.windll.user32.GetWindowRect(wintypes.HWND(int(hwnd)),
+                                                   ctypes.byref(rect)):
+            return None
+        return (rect.left, rect.top, rect.right - rect.left,
+                rect.bottom - rect.top)
+    except Exception:
+        return None
+
+
+def window_is_minimized(hwnd):
+    try:
+        return bool(IS_WIN and ctypes.windll.user32.IsIconic(
+            wintypes.HWND(int(hwnd))))
+    except Exception:
+        return False
+
+
+def window_state(hwnd):
+    """Capture a window's rectangle and show state for safe restoration."""
+    if not IS_WIN:
+        return None
+    rect = window_rect(hwnd)
+    if not rect:
+        return None
+    user32 = ctypes.windll.user32
+    return (rect, bool(user32.IsZoomed(wintypes.HWND(int(hwnd)))),
+            bool(user32.IsIconic(wintypes.HWND(int(hwnd)))))
+
+
+def primary_work_area():
+    if not IS_WIN:
+        return None
+    rect = wintypes.RECT()
+    try:
+        if ctypes.windll.user32.SystemParametersInfoW(
+                0x0030, 0, ctypes.byref(rect), 0):  # SPI_GETWORKAREA
+            return (rect.left, rect.top, rect.right - rect.left,
+                    rect.bottom - rect.top)
+    except Exception:
+        pass
+    return None
+
+
+def window_work_area(hwnd):
+    """Return the nearest monitor's work area for a window."""
+    if not IS_WIN or not hwnd:
+        return None
+    class MONITORINFO(ctypes.Structure):
+        _fields_ = [("cbSize", wintypes.DWORD), ("rcMonitor", wintypes.RECT),
+                    ("rcWork", wintypes.RECT), ("dwFlags", wintypes.DWORD)]
+    try:
+        user32 = ctypes.windll.user32
+        user32.MonitorFromWindow.argtypes = (wintypes.HWND, wintypes.DWORD)
+        user32.MonitorFromWindow.restype = wintypes.HANDLE
+        user32.GetMonitorInfoW.argtypes = (wintypes.HANDLE,
+                                           ctypes.POINTER(MONITORINFO))
+        user32.GetMonitorInfoW.restype = wintypes.BOOL
+        user32.MonitorFromWindow.argtypes = (wintypes.HWND, wintypes.DWORD)
+        user32.MonitorFromWindow.restype = wintypes.HANDLE
+        user32.GetMonitorInfoW.argtypes = (wintypes.HANDLE,
+                                           ctypes.POINTER(MONITORINFO))
+        user32.GetMonitorInfoW.restype = wintypes.BOOL
+        monitor = user32.MonitorFromWindow(wintypes.HWND(int(hwnd)), 2)
+        info = MONITORINFO()
+        info.cbSize = ctypes.sizeof(info)
+        if not monitor or not user32.GetMonitorInfoW(monitor, ctypes.byref(info)):
+            return None
+        rect = info.rcWork
+        return (rect.left, rect.top, rect.right - rect.left,
+                rect.bottom - rect.top)
+    except Exception:
+        _log.exception("Could not read work area for window %s", hwnd)
+        return None
+
+
+def move_window_rect(hwnd, rect):
+    if not IS_WIN or not hwnd:
+        return False
+    x, y, width, height = (int(value) for value in rect)
+    user32 = ctypes.windll.user32
+    try:
+        handle = wintypes.HWND(int(hwnd))
+        if user32.IsIconic(handle) or user32.IsZoomed(handle):
+            user32.ShowWindow(handle, 9)  # SW_RESTORE
+        return bool(user32.SetWindowPos(handle, None, x, y, width, height,
+                                        0x0004 | 0x0010))  # NOZORDER|NOACTIVATE
+    except Exception:
+        _log.exception("Could not tile window %s", hwnd)
+        return False
+
+
+def restore_window_state(hwnd, state):
+    if not IS_WIN or not state:
+        return False
+    rect, was_maximized, was_minimized = state
+    move_window_rect(hwnd, rect)
+    try:
+        if was_maximized:
+            ctypes.windll.user32.ShowWindow(wintypes.HWND(int(hwnd)), 3)
+        elif was_minimized:
+            ctypes.windll.user32.ShowWindow(wintypes.HWND(int(hwnd)), 6)
+        return True
+    except Exception:
+        _log.exception("Could not restore window %s", hwnd)
+        return False
+
+
 def foreground_hwnd():
     if not IS_WIN:
         return 0

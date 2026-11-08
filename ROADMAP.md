@@ -39,7 +39,7 @@ From the README and the source audit in `AUDIT.md`:
 | Desktop widgets on wallpaper layer | 🟡 draggable clock/system panel implemented; Windows desktop-layer visibility check remains | P4 | L |
 | Custom flyouts (volume, brightness, system) | ✅ volume and WMI internal-panel brightness; system detail popups | — | — |
 | Start menu / keyboard launcher (fuzzy search) | ✅ Alt+Space launcher searches apps, files, commands, and calculator | — | — |
-| Tiling window manager (BSP, columns, stacks) | ⬜ | P5 | XL |
+| Tiling window manager (BSP, columns, stacks) | 🟡 Phase 5 window-event tracking foundation started | P5 | XL |
 | Per-app rules, floating mode, gaps | ⬜ | P5 | L |
 | Custom Alt+Tab | 🟡 hook installs and switcher is implemented; real key-navigation/latency check remains | P4 | L |
 | Virtual desktops + workspace viewer | 🟡 control and named/icon viewer implemented; interactive COM access is unavailable in this session | P4 | L |
@@ -175,13 +175,15 @@ Rules: widgets never touch Win32 directly (go through `native/`); all native hoo
 **Phase 4 implementation status:** all planned feature slices are present. Phase exit is pending interactive checks for the custom switcher, desktop layer, and per-desktop wallpaper. In this session, the isolated app launched with the hook and desktop layer enabled without resetting either option; the virtual-desktop COM activation fails with Windows access denied, and the automation surface could not capture the custom overlay. Keep these items partial until they can be checked in the user's interactive Windows session.
 
 ### Phase 5: Tiling window manager *(XL)*
-- [ ] Window tracking via `SetWinEventHook`; ignore tool windows, dialogs, UWP edge cases
-- [ ] Layout engines: BSP first, then columns/stacks
-- [ ] Gaps/padding, keyboard focus/swap/resize/move-to-workspace
-- [ ] Floating mode toggle, per-app rules (match by exe / class / title regex)
-- [ ] Per-monitor and per-workspace layouts, persistence across restarts
-- [ ] Safe mode: hotkey to release all windows if the WM misbehaves
+- [🟡] Dedicated-thread `SetWinEventHook` and debounced top-level window snapshots; filtered taskbar windows feed the opt-in tiler
+- [🟡] BSP layout engine, per-monitor work areas, configurable gaps and padding; columns/stacks remain
+- [ ] Keyboard focus/swap/resize/move-to-workspace
+- [ ] Floating mode toggle and per-app rules (exe / class / title regex)
+- [🟡] Original window rectangles and show state are restored when tiling is disabled
+- [ ] Per-workspace layout persistence across restarts
+- [🟡] Ctrl+Alt+Esc safe release hotkey restores managed windows; live edge cases and interactive UI validation remain
 
+Phase 5 currently provides opt-in BSP tiling from Settings → Window manager. It arranges eligible top-level windows in each monitor work area and stores their original position and show state. Ctrl+Alt+Esc releases managed windows and restores those positions. Phase 5 remains in progress while navigation controls, floating rules, workspace persistence, and live Windows validation are outstanding.
 ### Phase 6: Ecosystem and release *(M–L)*
 - [ ] Public widget SDK docs + example widget repo template
 - [ ] Theme sharing format and a `themes/` gallery in the repo

@@ -3,7 +3,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QDialog, QFormLayout, QFrame, QGridLayout,
     QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem, QPushButton,
-    QScrollArea, QTabWidget, QVBoxLayout, QWidget, QMessageBox,
+    QScrollArea, QSpinBox, QTabWidget, QVBoxLayout, QWidget, QMessageBox,
 )
 
 import theme
@@ -30,6 +30,7 @@ class SettingsWindow(QDialog):
         self._build_layout_tab()
         self._build_appearance_tab()
         self._build_hotkeys_tab()
+        self._build_window_manager_tab()
         close = QPushButton("Close")
         close.clicked.connect(self.close)
         row = QHBoxLayout()
@@ -194,6 +195,34 @@ class SettingsWindow(QDialog):
             form.addRow(QLabel("Global hotkeys are configured on the primary display."))
         self.tabs.addTab(page, "Hotkeys")
 
+    def _build_window_manager_tab(self):
+        page = QWidget()
+        form = QFormLayout(page)
+        self.window_tracking = QCheckBox("Track open application windows")
+        self.window_tracking.toggled.connect(self._set_window_tracking)
+        form.addRow(self.window_tracking)
+        self.tiling_enabled = QCheckBox("Automatically tile windows (BSP)")
+        self.tiling_enabled.toggled.connect(self._set_tiling_enabled)
+        form.addRow(self.tiling_enabled)
+        self.tiling_gap = QSpinBox()
+        self.tiling_gap.setRange(0, 80)
+        self.tiling_gap.setSuffix(" px")
+        self.tiling_gap.valueChanged.connect(self._set_tiling_spacing)
+        form.addRow("Gap between windows", self.tiling_gap)
+        self.tiling_padding = QSpinBox()
+        self.tiling_padding.setRange(0, 120)
+        self.tiling_padding.setSuffix(" px")
+        self.tiling_padding.valueChanged.connect(self._set_tiling_spacing)
+        form.addRow("Screen edge padding", self.tiling_padding)
+        form.addRow(QLabel(
+            "BSP tiling moves visible taskbar windows on the primary monitor. "
+            "Ctrl+Alt+Esc releases them and restores their saved positions."))
+        if not self.dock.is_primary_display:
+            page.setEnabled(False)
+            form.addRow(QLabel(
+                "Window tracking is configured on the primary display."))
+        self.tabs.addTab(page, "Window manager")
+
     def _edit_widget_style(self):
         self.dock.edit_widget_style()
         self._refresh_preview()
@@ -243,6 +272,19 @@ class SettingsWindow(QDialog):
     def _set_custom_alt_tab(self, enabled):
         self.dock.set_custom_alt_tab(enabled)
 
+    def _set_window_tracking(self, enabled):
+        self.dock.set_window_tracking(enabled)
+
+    def _set_tiling_enabled(self, enabled):
+        if not self.dock.set_tiling_enabled(enabled):
+            self.tiling_enabled.blockSignals(True)
+            self.tiling_enabled.setChecked(False)
+            self.tiling_enabled.blockSignals(False)
+
+    def _set_tiling_spacing(self, _value):
+        self.dock.set_tiling_spacing(self.tiling_gap.value(),
+                                     self.tiling_padding.value())
+
     def _refresh_preview(self):
         self.setStyleSheet(theme.build_qss(self.dock.tokens))
         overrides = self.dock.cfg.get("widget_styles", {}).get("clock", {})
@@ -278,6 +320,22 @@ class SettingsWindow(QDialog):
         self.custom_alt_tab.setChecked(bool(cfg.get("custom_alt_tab", False)))
         self.custom_alt_tab.setEnabled(self.dock.is_primary_display)
         self.custom_alt_tab.blockSignals(False)
+        self.window_tracking.blockSignals(True)
+        self.window_tracking.setChecked(bool(cfg.get("window_tracking", False)))
+        self.window_tracking.setEnabled(self.dock.is_primary_display)
+        self.window_tracking.blockSignals(False)
+        self.tiling_enabled.blockSignals(True)
+        self.tiling_enabled.setChecked(bool(cfg.get("tiling_enabled", False)))
+        self.tiling_enabled.setEnabled(self.dock.is_primary_display)
+        self.tiling_enabled.blockSignals(False)
+        self.tiling_gap.blockSignals(True)
+        self.tiling_gap.setValue(int(cfg.get("tiling_gap", 12)))
+        self.tiling_gap.setEnabled(self.dock.is_primary_display)
+        self.tiling_gap.blockSignals(False)
+        self.tiling_padding.blockSignals(True)
+        self.tiling_padding.setValue(int(cfg.get("tiling_padding", 16)))
+        self.tiling_padding.setEnabled(self.dock.is_primary_display)
+        self.tiling_padding.blockSignals(False)
         modifier = cfg.get("app_hotkey_modifier", "alt").title()
         if self.app_modifier.findText(modifier) < 0:
             modifier = "Alt"

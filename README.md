@@ -91,6 +91,8 @@ To try the custom window switcher, enable **Settings → Hotkeys → Use Windows
 
 Enable **Settings → Layout → Show draggable desktop widgets** to show a small clock and CPU/RAM/network panel on the primary display. Drag the panel to reposition it; its location is saved per display. It is placed at the bottom of the window z-order so ordinary app windows cover it.
 
+Phase 5 now includes opt-in BSP window tiling in **Settings → Window manager**. It arranges visible taskbar windows within each monitor's work area, supports configurable gaps and edge padding, and saves original positions for release. Press **Ctrl+Alt+Esc** to release managed windows and restore their saved positions. Window lifecycle tracking remains available independently.
+
 ## Performance
 
 - Native window-reservation calls are made only when the dock's size/edge actually changes, not on every digit change (this was the main source of lag: it made other windows re-layout).
