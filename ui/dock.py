@@ -39,17 +39,21 @@ from widgets.todos import TodoCard
 
 _log = logging.getLogger("windowsbar")
 class Dock(QWidget):
-    def __init__(self):
+    def __init__(self, screen=None, shared_shell=None):
         super().__init__()
-        self.cfg = load_config()
+        self.target_screen = screen or QApplication.primaryScreen()
+        self.is_primary_display = (shared_shell is None)
+        self.shared_shell = shared_shell
+        self.cfg = load_config(self.target_screen)
         self.cfg["todos"] = extras.normalize_todos(self.cfg.get("todos"))
         notes, cur = extras.normalize_notes(
             self.cfg.get("notes", ""), self.cfg.get("notes_list"),
             self.cfg.get("notes_current", 0))
         self.cfg["notes_list"], self.cfg["notes_current"] = notes, cur
-        if self.cfg.get("keep_awake"):
+        if self.is_primary_display and self.cfg.get("keep_awake"):
             winapi.set_keep_awake(True)
-        winapi.restore_taskbar(self.cfg)   # undo auto-hide left by a crash
+        if self.is_primary_display:
+            winapi.restore_taskbar(self.cfg)   # undo auto-hide left by a crash
         save_config(self.cfg)
 
         self.weather = WeatherService(self.cfg, lambda: save_config(self.cfg))
@@ -117,14 +121,19 @@ class Dock(QWidget):
         self._hover_timer.timeout.connect(self._autohide_check)
         self._sync_autohide_timer()
 
-        self.launcher = Launcher(self.cfg, lambda: self.tokens)
-        self.hotkey = HotkeyFilter(self.launcher.toggle)
-        QApplication.instance().installNativeEventFilter(self.hotkey)
-        self.sync_hotkey()
-        self.app_hotkeys = AppHotkeyFilter(self._app_hotkey)
-        QApplication.instance().installNativeEventFilter(self.app_hotkeys)
-        self.app_hotkeys.register_all(
-            self.cfg.get("app_hotkey_modifier", "alt"))
+        if self.is_primary_display:
+            self.launcher = Launcher(self.cfg, lambda: self.tokens)
+            self.hotkey = HotkeyFilter(self.launcher.toggle)
+            QApplication.instance().installNativeEventFilter(self.hotkey)
+            self.sync_hotkey()
+            self.app_hotkeys = AppHotkeyFilter(self._app_hotkey)
+            QApplication.instance().installNativeEventFilter(self.app_hotkeys)
+            self.app_hotkeys.register_all(
+                self.cfg.get("app_hotkey_modifier", "alt"))
+        else:
+            self.launcher = shared_shell.launcher
+            self.hotkey = shared_shell.hotkey
+            self.app_hotkeys = shared_shell.app_hotkeys
 
     def ask_app_hotkey_modifier(self):
         choices = ["Alt", "Ctrl+Alt", "Win"]
@@ -163,6 +172,13 @@ class Dock(QWidget):
         registry.register_package(
             widgets, self, DEFAULTS["widgets"], WIDGET_LABELS)
         active = registry.start_enabled(self.cfg)
+        configured_order = self.cfg.get("widget_order", [])
+        order_index = {key: index for index, key in enumerate(
+            configured_order)}
+        active = dict(sorted(
+            active.items(),
+            key=lambda pair: order_index.get(
+                pair[0], len(order_index) + list(active).index(pair[0]))))
         self._widget_registry = registry
         self._cards_by_id = {widget_id: widget.card()
                              for widget_id, widget in active.items()}
@@ -257,6 +273,8 @@ class Dock(QWidget):
         if QApplication.font().family() != font:
             QApplication.setFont(QFont(font, 10))
         self.setStyleSheet(css)
+        if getattr(self, "toolbar", None) is not None:
+            self.toolbar.setStyleSheet(css)
         if hasattr(self, "row"):
             self.row.setSpacing(self.tokens["spacing"])
         if getattr(self, "appbar", None) and self.appbar.hwnd:
@@ -390,16 +408,21 @@ class Dock(QWidget):
         hwnd = int(self.winId())
         self.appbar.hwnd = hwnd
         self.glass_active = bool(self.cfg["glass"] and self.tokens["blur"]) and winapi.enable_glass(hwnd)
-        winapi.set_taskbar_autohide(self.cfg["hide_taskbar"], hwnd, self.cfg)
+        if self.is_primary_display:
+            winapi.set_taskbar_autohide(
+                self.cfg["hide_taskbar"], hwnd, self.cfg)
         save_config(self.cfg)
         self.place()
         self._bg = None
         self.update()
-        if not self.cfg["weather_city"] and self.cfg["widgets"]["weather"]:
+        if (self.is_primary_display and not self.cfg["weather_city"]
+                and self.cfg["widgets"]["weather"]):
             QTimer.singleShot(400, self.ask_city)
 
     def place(self):
-        screen = QApplication.primaryScreen()
+        screen = self.target_screen or QApplication.primaryScreen()
+        if screen is None:
+            return
         dpr = screen.devicePixelRatio()
         full = screen.geometry()
         w, h = self.width(), self.height()
@@ -467,7 +490,7 @@ class Dock(QWidget):
 
     def _hidden_pos(self):
         pos = self._shown_pos or self.pos()
-        screen = QApplication.primaryScreen().geometry()
+        screen = (self.target_screen or QApplication.primaryScreen()).geometry()
         if self.cfg["position"] == "top":
             return pos.__class__(pos.x(), screen.y() - self.height()
                                  + self.SLIVER)
@@ -483,7 +506,7 @@ class Dock(QWidget):
         if rect.contains(cur):
             return True
         if self._hidden and self._shown_pos is not None:
-            screen = QApplication.primaryScreen().geometry()
+            screen = (self.target_screen or QApplication.primaryScreen()).geometry()
             in_x = (self._shown_pos.x() - 40 <= cur.x()
                     <= self._shown_pos.x() + self.width() + 40)
             if not in_x:
@@ -635,7 +658,7 @@ class Dock(QWidget):
         self._drag = None
         if not was_drag:
             return
-        geo = QApplication.primaryScreen().geometry()
+        geo = (self.target_screen or QApplication.primaryScreen()).geometry()
         y = e.globalPosition().toPoint().y()
         edge = None
         if y <= geo.y() + 48:
@@ -727,6 +750,9 @@ class Dock(QWidget):
         launch = QAction("Open launcher", self)
         launch.triggered.connect(self.launcher.open)
         m.addAction(launch)
+        notifications = QAction("Open Windows notification center", self)
+        notifications.triggered.connect(winapi.open_notification_center)
+        m.addAction(notifications)
         quiet = QAction("Set quiet hours…", self)
         quiet.triggered.connect(self.ask_quiet_hours)
         m.addAction(quiet)
@@ -820,7 +846,8 @@ class Dock(QWidget):
             if not on and self._hidden:
                 self._slide(False)
         elif key == "hide_taskbar":
-            winapi.set_taskbar_autohide(on, self.appbar.hwnd, self.cfg)
+            if self.is_primary_display:
+                winapi.set_taskbar_autohide(on, self.appbar.hwnd, self.cfg)
         elif key == "full_width" and not on:
             self.setMinimumWidth(0)
             self.setMaximumWidth(16777215)
@@ -876,12 +903,16 @@ class Dock(QWidget):
         self.calendar.stop()
         self.media.stop()
         self.radios.stop()
-        self.hotkey.unregister()
-        self.app_hotkeys.unregister()
-        winapi.set_keep_awake(False)
+        if self.toolbar is not None:
+            self.toolbar.shutdown()
+        if self.is_primary_display:
+            self.hotkey.unregister()
+            self.app_hotkeys.unregister()
+            winapi.set_keep_awake(False)
         self.screen_time.stop()
         self.appbar.remove()
-        winapi.set_taskbar_autohide(False, self.appbar.hwnd, self.cfg)
+        if self.is_primary_display:
+            winapi.set_taskbar_autohide(False, self.appbar.hwnd, self.cfg)
         save_config(self.cfg)
 
 
