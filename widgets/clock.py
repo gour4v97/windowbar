@@ -72,3 +72,11 @@ class AnalogClockCard(QFrame):
 
 
 # ------------------------------------------------------------- popups --------
+
+from core.app_config import save_config, in_quiet_hours
+
+WIDGET_ID = 'clock'
+WIDGET_ORDER = 1
+
+def make_card(dock):
+    return dock._clock_card()
