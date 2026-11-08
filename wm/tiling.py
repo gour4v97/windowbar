@@ -43,6 +43,9 @@ class TilingManager(QObject):
                     continue
                 self._original.setdefault(hwnd, winapi.window_state(hwnd))
                 candidates.setdefault(area, []).append(hwnd)
+        for area in list(self._orders):
+            if area not in candidates:
+                self._orders.pop(area, None)
         for area, hwnds in candidates.items():
             order = self._orders.setdefault(area, [])
             order[:] = [hwnd for hwnd in order if hwnd in hwnds]
