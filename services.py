@@ -18,6 +18,62 @@ def http_get(url, timeout=10):
         return r.read().decode("utf-8", errors="replace")
 
 
+class _LifecycleService:
+    """Run a polling worker only while its owning widget is enabled."""
+
+    def __init__(self, worker_available=True):
+        self._active = False
+        self._worker_available = worker_available
+        self._stop = threading.Event()
+        self._wake = threading.Event()
+        self._thread = None
+        self._lifecycle_lock = threading.Lock()
+
+    @property
+    def active(self):
+        return self._active
+
+    @active.setter
+    def active(self, enabled):
+        enabled = bool(enabled)
+        with self._lifecycle_lock:
+            self._active = enabled
+            if enabled:
+                self._stop.clear()
+                if (self._worker_available
+                        and (self._thread is None or not self._thread.is_alive())):
+                    self._start_worker_locked()
+                self._wake.set()
+            else:
+                self._stop.set()
+                self._wake.set()
+                loop = getattr(self, "loop", None)
+                task = getattr(self, "_task", None)
+                if loop and task and loop.is_running():
+                    loop.call_soon_threadsafe(task.cancel)
+
+    def start(self):
+        self.active = True
+
+    def stop(self):
+        self.active = False
+
+    def _start_worker_locked(self):
+        self._thread = threading.Thread(
+            target=self._thread_main, name=type(self).__name__, daemon=True)
+        self._thread.start()
+
+    def _thread_main(self):
+        try:
+            self._run()
+        finally:
+            with self._lifecycle_lock:
+                self._thread = None
+                if self._active and self._worker_available:
+                    self._stop.clear()
+                    self._start_worker_locked()
+
+
 # -------------------------------------------------------------- weather ----
 def wmo_text(code):
     if code == 0: return "Clear"
@@ -31,30 +87,24 @@ def wmo_text(code):
     return "—"
 
 
-class WeatherService:
+class WeatherService(_LifecycleService):
     def __init__(self, cfg, save):
         self.cfg, self.save = cfg, save
         self.label = "WEATHER"
         self.text = "Set city"
-        self.active = True          # False -> no network while the widget is off
-        self._wake = threading.Event()
-        threading.Thread(target=self._run, daemon=True).start()
+        super().__init__()
 
     def refresh(self):
         self._wake.set()
 
     def _run(self):
-        while True:
-            if not self.active:
-                self._wake.wait(10)
-                self._wake.clear()
-                continue
+        while not self._stop.is_set():
+            self._wake.clear()
             try:
                 self._update()
             except Exception:
                 self.text = "Offline"
             self._wake.wait(900)
-            self._wake.clear()
 
     def _update(self):
         city = self.cfg.get("weather_city", "").strip()
@@ -189,15 +239,13 @@ def occurrences(ev, now, end):
     return out
 
 
-class CalendarService:
+class CalendarService(_LifecycleService):
     def __init__(self, cfg):
         self.cfg = cfg
         self.upcoming = []          # sorted [(datetime, summary)]
         self.status = ""
         self._events, self._url, self._fetched = [], None, 0.0
-        self.active = True
-        self._wake = threading.Event()
-        threading.Thread(target=self._run, daemon=True).start()
+        super().__init__()
 
     def refresh(self):
         self._url = None
@@ -227,11 +275,8 @@ class CalendarService:
         return out
 
     def _run(self):
-        while True:
-            if not self.active:
-                self._wake.wait(10)
-                self._wake.clear()
-                continue
+        while not self._stop.is_set():
+            self._wake.clear()
             try:
                 url = self.cfg.get("calendar_url", "").strip()
                 if url.startswith("webcal://"):
@@ -253,7 +298,6 @@ class CalendarService:
             except Exception:
                 self.status = "Calendar error"
             self._wake.wait(60)
-            self._wake.clear()
 
 
 # ---------------------------------------------------------------- media ----
@@ -273,8 +317,7 @@ def _media_api():
             continue
     return None
 
-
-class MediaService:
+class MediaService(_LifecycleService):
     """Now-playing via the Windows media session (needs winsdk or winrt)."""
 
     def __init__(self):
@@ -282,17 +325,27 @@ class MediaService:
         self.title = self.artist = ""
         self.playing = False
         self.has_session = False
-        self.active = True          # False -> no polling while the widget is off
         self.loop = None
+        self._task = None
         self._api = _media_api()
+        super().__init__(worker_available=bool(self._api))
         if self._api:
             self.available = True
-            threading.Thread(target=self._run, daemon=True).start()
+        else:
+            self.available = False
 
     def _run(self):
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
-        self.loop.run_until_complete(self._poll())
+        self._task = self.loop.create_task(self._poll())
+        try:
+            self.loop.run_until_complete(self._task)
+        except asyncio.CancelledError:
+            pass
+        finally:
+            self.loop.close()
+            self.loop = None
+            self._task = None
 
     async def _session(self):
         Mgr = self._api[0]
@@ -300,10 +353,7 @@ class MediaService:
 
     async def _poll(self):
         PS = self._api[1]
-        while True:
-            if not self.active:
-                await asyncio.sleep(3)
-                continue
+        while not self._stop.is_set():
             try:
                 s = await self._session()
                 if s is None:
@@ -320,7 +370,7 @@ class MediaService:
             await asyncio.sleep(2)
 
     def _submit(self, coro_fn):
-        if self.loop:
+        if self.active and self.loop:
             asyncio.run_coroutine_threadsafe(coro_fn(), self.loop)
 
     def toggle(self):
@@ -354,7 +404,7 @@ def _radios_api():
     return None
 
 
-class RadioService:
+class RadioService(_LifecycleService):
     """Wi-Fi / Bluetooth radio states via WinRT (the Quick toggles widget).
     `states` maps 'wifi' / 'bluetooth' -> True/False; missing keys mean the
     radio (or the API) is not available, and the toggle hides itself."""
@@ -362,39 +412,48 @@ class RadioService:
     def __init__(self):
         self.available = False
         self.states = {}
-        self.active = True
         self.loop = None
+        self._task = None
         self._api = _radios_api()
         self._radios = {}
+        super().__init__(worker_available=bool(self._api))
         if self._api:
             self.available = True
-            threading.Thread(target=self._run, daemon=True).start()
+        else:
+            self.available = False
 
     def _run(self):
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
-        self.loop.run_until_complete(self._poll())
+        self._task = self.loop.create_task(self._poll())
+        try:
+            self.loop.run_until_complete(self._task)
+        except asyncio.CancelledError:
+            pass
+        finally:
+            self.loop.close()
+            self.loop = None
+            self._task = None
 
     async def _poll(self):
         Radio, RadioKind, RadioState = self._api
-        while True:
-            if self.active:
-                try:
-                    await Radio.request_access_async()
-                    radios = await Radio.get_radios_async()
-                    found = {}
-                    for r in radios:
-                        key = None
-                        if r.kind == RadioKind.WIFI:
-                            key = "wifi"
-                        elif r.kind == RadioKind.BLUETOOTH:
-                            key = "bluetooth"
-                        if key:
-                            self._radios[key] = r
-                            found[key] = r.state == RadioState.ON
-                    self.states = found
-                except Exception:
-                    self.states = {}
+        while not self._stop.is_set():
+            try:
+                await Radio.request_access_async()
+                radios = await Radio.get_radios_async()
+                found = {}
+                for r in radios:
+                    key = None
+                    if r.kind == RadioKind.WIFI:
+                        key = "wifi"
+                    elif r.kind == RadioKind.BLUETOOTH:
+                        key = "bluetooth"
+                    if key:
+                        self._radios[key] = r
+                        found[key] = r.state == RadioState.ON
+                self.states = found
+            except Exception:
+                self.states = {}
             await asyncio.sleep(4)
 
     def set(self, key, on):
@@ -410,5 +469,5 @@ class RadioService:
                             RadioState.ON if on else RadioState.OFF)
                     except Exception:
                         pass
-        if self.loop:
+        if self.active and self.loop:
             asyncio.run_coroutine_threadsafe(go(), self.loop)
