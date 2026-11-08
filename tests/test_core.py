@@ -157,6 +157,7 @@ def test_run_script_echo_and_errors():
     with pytest.raises(ValueError):
         extras.run_script("exit 3")
 
+
 def test_network_info_shape():
     name, ip = extras.network_info()
     assert isinstance(name, str) and isinstance(ip, str)
@@ -177,8 +178,8 @@ def test_normalize_notes_migrates_legacy_text():
 
 
 def test_exe_of():
-    # same logic as windowsbar._exe_of, kept Qt-free for the test env
-    src = Path(__file__).resolve().parents[1] / "windowsbar.py"
+    # same logic as widgets.taskbar._exe_of, kept Qt-free for the test env
+    src = Path(__file__).resolve().parents[1] / "widgets" / "taskbar.py"
     tree = ast.parse(src.read_text(encoding="utf-8"))
     fn = next(n for n in tree.body
               if isinstance(n, ast.FunctionDef) and n.name == "_exe_of")
@@ -316,6 +317,7 @@ def test_weather_and_calendar_workers_only_run_while_active():
 def test_detail_popup_position_respects_edge_and_screen_bounds():
     from PySide6.QtCore import QPoint, QRect, QSize
     from ui.popup import popup_position
+
     screen = QRect(0, 0, 800, 800)
     anchor = QRect(500, 500, 100, 30)
     size = QSize(200, 100)
@@ -352,6 +354,7 @@ def test_logging_creates_rotating_log_in_app_logs(tmp_path):
 
 def test_taskbar_auto_hide_state_restores_after_restart(tmp_path, monkeypatch):
     import json
+    from native import appbar
     import winapi
 
     calls = []
@@ -362,8 +365,8 @@ def test_taskbar_auto_hide_state_restores_after_restart(tmp_path, monkeypatch):
         calls.append((message, data.lParam))
         return 1
 
-    monkeypatch.setattr(winapi, "IS_WIN", True)
-    monkeypatch.setattr(winapi, "_appbar", fake_appbar)
+    monkeypatch.setattr(appbar, "IS_WIN", True)
+    monkeypatch.setattr(appbar, "_appbar", fake_appbar)
     config = {"hide_taskbar": True}
     winapi.set_taskbar_autohide(True, 123, config)
     assert config["_taskbar_original"] == 0
