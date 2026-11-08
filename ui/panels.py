@@ -2,7 +2,7 @@
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QCalendarWidget, QHBoxLayout, QListWidget,
                                QListWidgetItem, QLineEdit, QPlainTextEdit,
-                               QPushButton, QVBoxLayout)
+                               QPushButton, QVBoxLayout, QLabel)
 from ui.popup import DetailPopup
 from widgets.base import clip
 class Popup(DetailPopup):
@@ -14,6 +14,29 @@ class Popup(DetailPopup):
     def show_near(self, widget):
         return super().show_near(
             widget, edge=self.dock.cfg.get("position", "bottom"))
+
+
+class WidgetDetailPopup(Popup):
+    """Compact detail view shared by the Phase 2 data widgets."""
+
+    def __init__(self, dock, title, details, actions=()):
+        super().__init__(dock)
+        layout = QVBoxLayout(self)
+        heading = QLabel(title)
+        heading.setObjectName("cardtitle")
+        layout.addWidget(heading)
+        for detail in details:
+            label = QLabel(str(detail))
+            label.setWordWrap(True)
+            label.setObjectName("cardbody")
+            layout.addWidget(label)
+        for label, callback in actions:
+            button = QPushButton(label)
+            button.clicked.connect(
+                lambda _checked=False, fn=callback: fn())
+            layout.addWidget(button)
+        self.setMinimumWidth(220)
+        self.setMaximumWidth(340)
 
 
 class CalendarPopup(Popup):
