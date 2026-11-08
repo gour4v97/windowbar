@@ -2,33 +2,35 @@
 from PySide6.QtCore import QAbstractNativeEventFilter, QTimer
 import winapi
 class AppHotkeyFilter(QAbstractNativeEventFilter):
-    """Win+1..Win+9 for the pinned apps (Alt+digit fallback: Windows itself
-    owns Win+number for the taskbar and usually refuses the registration,
-    so the Alt variant is registered as a fallback)."""
+    """Global number hotkeys for pinned apps, with a configurable modifier."""
 
     BASE = 0xC00
     WM_HOTKEY = 0x0312
+    MODIFIERS = {"alt": 0x0001, "ctrl+alt": 0x0001 | 0x0002,
+                 "win": 0x0008}
+    MOD_NOREPEAT = 0x4000
 
     def __init__(self, callback):
         super().__init__()
         self.callback = callback
         self.count = 0
+        self.modifier = "alt"
 
-    def register_all(self):
+    @classmethod
+    def modifier_flags(cls, modifier):
+        return cls.MODIFIERS.get(str(modifier).lower(), cls.MODIFIERS["alt"])
+
+    def register_all(self, modifier="alt"):
         self.unregister()
+        modifier = str(modifier).lower()
+        self.modifier = modifier if modifier in self.MODIFIERS else "alt"
         if not winapi.IS_WIN:
             return 0
         import ctypes
         user32 = ctypes.windll.user32
-        MOD_WIN, MOD_ALT, MOD_NOREPEAT = 0x8, 0x1, 0x4000
+        flags = self.modifier_flags(self.modifier) | self.MOD_NOREPEAT
         for i in range(9):
-            vk = 0x31 + i
-            ok = user32.RegisterHotKey(None, self.BASE + i,
-                                       MOD_WIN | MOD_NOREPEAT, vk)
-            if not ok:
-                ok = user32.RegisterHotKey(None, self.BASE + i,
-                                           MOD_ALT | MOD_NOREPEAT, vk)
-            if ok:
+            if user32.RegisterHotKey(None, self.BASE + i, flags, 0x31 + i):
                 self.count += 1
         return self.count
 
@@ -56,6 +58,3 @@ class AppHotkeyFilter(QAbstractNativeEventFilter):
             except Exception:
                 pass
         return False, 0
-
-
-

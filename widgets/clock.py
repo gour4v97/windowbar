@@ -18,6 +18,12 @@ class ClockCard(Card):
 
     def __init__(self):
         super().__init__("Time")
+        self.open_popup = None
+        self.setCursor(Qt.PointingHandCursor)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton and self.open_popup:
+            self.open_popup()
 
     def tick(self):
         return self.set_texts(time.strftime("%a %d %b").upper(),
@@ -33,7 +39,13 @@ class AnalogClockCard(QFrame):
         super().__init__()
         self.setObjectName("card")
         self.get_accent = get_accent
+        self.open_popup = None
+        self.setCursor(Qt.PointingHandCursor)
         self.setFixedSize(62, 58)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton and self.open_popup:
+            self.open_popup()
 
     def tick(self):
         self.update()
@@ -79,4 +91,13 @@ WIDGET_ID = 'clock'
 WIDGET_ORDER = 1
 
 def make_card(dock):
-    return dock._clock_card()
+    card = dock._clock_card()
+    def show_details():
+        now = datetime.now().astimezone()
+        dock.show_widget_details(card, "Clock", [
+            now.strftime("%A, %B %d, %Y"),
+            now.strftime("%I:%M:%S %p").lstrip("0"),
+            f"Time zone: {now.tzname() or 'Local'}",
+        ])
+    card.open_popup = show_details
+    return card

@@ -26,7 +26,8 @@ from core.app_config import (APP_DIR, SCREEN_TIME_FILE, THEMES_DIR, CUSTOM_QSS,
 from core.registry import WidgetRegistry
 from launcher import HotkeyFilter, Launcher
 from ui.hotkeys import AppHotkeyFilter
-from ui.panels import CalendarPopup, TodosPanel, NotesPanel
+from ui.panels import (CalendarPopup, TodosPanel, NotesPanel,
+                       WidgetDetailPopup)
 from services import CalendarService, MediaService, RadioService, WeatherService
 from widgets.calendar_card import CalendarCard
 from widgets.clock import ClockCard, AnalogClockCard
@@ -118,7 +119,21 @@ class Dock(QWidget):
         self.sync_hotkey()
         self.app_hotkeys = AppHotkeyFilter(self._app_hotkey)
         QApplication.instance().installNativeEventFilter(self.app_hotkeys)
-        self.app_hotkeys.register_all()
+        self.app_hotkeys.register_all(
+            self.cfg.get("app_hotkey_modifier", "alt"))
+
+    def ask_app_hotkey_modifier(self):
+        choices = ["Alt", "Ctrl+Alt", "Win"]
+        current = self.cfg.get("app_hotkey_modifier", "alt").lower()
+        selected = next((item for item in choices
+                         if item.lower() == current), "Alt")
+        value, ok = QInputDialog.getItem(
+            self, "Pinned-app hotkeys", "Modifier for 1–9:", choices,
+            choices.index(selected), False)
+        if ok:
+            self.cfg["app_hotkey_modifier"] = value.lower()
+            self.app_hotkeys.register_all(value.lower())
+            save_config(self.cfg)
 
     def _app_hotkey(self, index):
         names = list(self.cfg["apps"])
@@ -150,6 +165,10 @@ class Dock(QWidget):
         self._sync_services()
         self.tick()
         self.place()
+
+    def show_widget_details(self, anchor, title, details, actions=()):
+        popup = WidgetDetailPopup(self, title, details, actions)
+        return popup.show_near(anchor)
 
     def _clock_card(self):
         if self.cfg.get("clock_style") == "analog":
@@ -568,6 +587,10 @@ class Dock(QWidget):
             a.setChecked(self.cfg[key])
             a.toggled.connect(lambda on, k=key: self.set_option(k, on))
             m.addAction(a)
+        modifier = self.cfg.get("app_hotkey_modifier", "alt").title()
+        app_keys = QAction(f"Pinned-app hotkeys ({modifier}+1…9)…", self)
+        app_keys.triggered.connect(self.ask_app_hotkey_modifier)
+        m.addAction(app_keys)
         auto = QAction("Start with Windows", self, checkable=True)
         auto.setChecked(winapi.autostart_enabled())
         auto.toggled.connect(

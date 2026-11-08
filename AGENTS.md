@@ -1,7 +1,7 @@
 # Project handoff
 
 ## Current product
-The repository is `gour4v97/windowbar`; the product is **Windows Bar**. It is a Python/PySide6 Windows 10/11 dock. The README documents 27 configurable widgets plus a calendar popup and a launcher, themes, wallpaper accent, media, and quick toggles.
+The repository is `gour4v97/windowbar`; the product is **Windows Bar**. It is a Python/PySide6 Windows 10/11 dock. The README documents 28 configurable widgets plus a calendar popup and a launcher, themes, wallpaper accent, media, and quick toggles.
 
 ## Development
 - Install: `pip install -r requirements.txt`
@@ -18,4 +18,4 @@ The repository is `gour4v97/windowbar`; the product is **Windows Bar**. It is a 
 - New features need a platform-independent test where practical.
 
 ## Session handoff
-Phase 1 is complete: all 27 configurable widgets now live in individual modules with module-level factories and are auto-discovered through the registry. The README count is reconciled: the calendar popup is a detail panel, not a separate widget. `windowsbar.py` delegates to `ui/dock.py`; config defaults live in `core/app_config.py`; native helpers live in `native/`; and the installer copies all package directories. Existing lifecycle, popup, logging, and taskbar crash-recovery work remains covered. The next roadmap phase is Phase 2: Dockyard parity and keyboard basics.
+Phase 1 is complete: all 28 configurable widgets now live in individual modules with module-level factories and are auto-discovered through the registry. The README count is reconciled: the calendar popup is a detail panel, not a separate widget. `windowsbar.py` delegates to `ui/dock.py`; config defaults live in `core/app_config.py`; native helpers live in `native/`; and the installer copies all package directories. Existing lifecycle, popup, logging, and taskbar crash-recovery work remains covered. Phase 2 now adds configurable pinned-app hotkeys, optional temperature sensor support, and shared detail popups for clock, system, media, and weather; Dockyard parity features already present include running indicators, world clocks, timers, storage, and radio/volume toggles. DND and Night Light are documented as unsupported.

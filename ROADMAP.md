@@ -1,4 +1,4 @@
-> **Current baseline (2026-11-08):** Product name is Windows Bar; repository remains `gour4v97/windowbar`. The existing source documents 27 configurable widgets plus a calendar detail popup and already includes a launcher, theme engine, wallpaper accent, and several Phase 2 features. The matrix is being reconciled against the source; see `AUDIT.md`.
+> **Current baseline (2026-11-08):** Product name is Windows Bar; repository remains `gour4v97/windowbar`. The existing source documents 28 configurable widgets plus a calendar detail popup and already includes a launcher, theme engine, wallpaper accent, and several Phase 2 features. The matrix is being reconciled against the source; see `AUDIT.md`.
 # Windows Bar Roadmap
 
 Goal: grow Windows Bar from a single smart dock into a full, customizable Windows desktop shell with the same *feature set* as [Seelen UI](https://github.com/eythaann/seelen-ui), plus the smart-dock extras from [Dockyard](https://github.com/aryansoni57/dockyard). Everything stays local: no account, no telemetry.
@@ -24,7 +24,7 @@ From the README and the source audit in `AUDIT.md`:
 - Single bar, top or bottom, snaps to edges, optional full-width or pill
 - AppBar space reservation, glass/acrylic, taskbar auto-hide with crash-safe restore
 - Auto-hide dock with fullscreen detection, start with Windows
-- 27 configurable widgets, including pinned apps, open windows, clock, system, weather, media, calendar, quick actions, notes, focus tools, storage, network, volume, and quick toggles; the calendar popup is a detail panel
+- 28 configurable widgets, including pinned apps, open windows, clock, system, weather, media, calendar, quick actions, notes, focus tools, storage, network, volume, and quick toggles; the calendar popup is a detail panel
 - Files: `windowsbar.py` (UI), `launcher.py`, `search.py`, `theme.py`, `services.py`, `extras.py`, `winapi.py`, `tests/`
 - MIT; see `LICENSE`
 
@@ -35,7 +35,7 @@ From the README and the source audit in `AUDIT.md`:
 | Seelen feature | Windows Bar now | Target phase | Effort |
 |---|---|---|---|
 | Custom toolbar (replaces taskbar) | 🟡 bar can sit on top | P3: separate Toolbar + Dock | M |
-| Dock with launch / focus / badges | 🟡 launcher + open windows, no running dots/badges | P2 | M |
+| Dock with launch / focus / badges | ✅ pinned apps show running dots and focus or launch on click | — | — |
 | Desktop widgets on wallpaper layer | ⬜ | P4 | L |
 | Custom flyouts (volume, brightness, system) | ⬜ | P3 | M |
 | Start menu / keyboard launcher (fuzzy search) | ✅ Alt+Space launcher searches apps, files, commands, and calculator | — | — |
@@ -51,7 +51,7 @@ From the README and the source audit in `AUDIT.md`:
 | Media controls | ✅ | — | — |
 | Multi-monitor, per-display config | ⬜ | P3 | M |
 | Settings app with live preview | 🟡 right-click menu | P3 | L |
-| Keyboard-first (everything reachable) | ⬜ | P2 → P3 | M |
+| Keyboard-first (everything reachable) | 🟡 pinned-app Alt+1..9 (modifier configurable); remaining controls still need keyboard paths | P2 → P3 | M |
 | i18n (Seelen: 70+ languages) | ⬜ | P6 | M |
 | Widget SDK | ⬜ | P1 (internal), P6 (public) | M |
 | Portable, plain-file config | 🟡 `%APPDATA%\Windows Bar\config.json`; schema v1 migration started | P1 (export/import remains) | S |
@@ -72,7 +72,7 @@ Already in Windows Bar: clock, stopwatch, focus timer, CPU/RAM/network, battery,
 | Temperature sensor | Often unavailable on Windows without a helper (LibreHardwareMonitor); make it optional | P2 |
 | Disk usage widget | `psutil` | P2 |
 | Click-to-open **detail popup** per widget | Core UI pattern; build once in P1 | P1/P2 |
-| Quick toggles: mute, Wi-Fi, Bluetooth | mute via `pycaw`; radios via WinRT. Do Not Disturb and Night Light are undocumented on Windows: mark experimental | P2 |
+| Quick toggles: mute, Wi-Fi, Bluetooth | mute via native Core Audio; radios via WinRT. Do Not Disturb and Night Light are undocumented on Windows and remain unsupported | P2 |
 | "Each module is one dumb view; data sources live once" | Adopt as the widget architecture | P1 |
 | Hidden modules stop their timers/sensors | Copy this behaviour exactly; big battery/CPU win | P1 |
 | Glass desktop theme | Ship as a built-in theme | P3 |
@@ -133,20 +133,20 @@ Rules: widgets never touch Win32 directly (go through `native/`); all native hoo
 ### Phase 1: Modular core *(M)*
 - [x] Split `windowsbar.py` / `winapi.py` into the structure in section 4, with no behaviour change; `windowsbar.py` is the entrypoint, Dock/config are in `ui/` and `core/`, and native helpers are in `native/`
 - [x] Give each configured widget its own module and factory; registry package discovery registers widgets from the modules and config defaults.
-- [x] Widget registry + widget contract; all 27 configured widgets are auto-discovered and registered through the compatibility adapter
+- [x] Widget registry + widget contract; all 28 configured widgets are auto-discovered and registered through the compatibility adapter
 - [x] Versioned config with migration from the current `config.json` (schema v1, legacy migration, and focused tests; export/import is a later enhancement)
 - [x] Widgets stop their work when hidden or disabled (poll workers stop, Screen Time sampler is opt-in, and weather/calendar/media/radio workers stop when inactive)
 - [x] Detail-popup component (`ui/popup.py`, shared by calendar, notes, and todos panels)
 - [x] Rotating logging to `%APPDATA%\Windows Bar\logs` and a crash-recovery test for saved taskbar auto-hide state
 
-**Done when:** all 27 configured widgets run through the registry; adding a widget = one module + one config key.
+**Done when:** all 28 configured widgets run through the registry; adding a widget = one module + one config key.
 
 ### Phase 2: Dockyard parity + keyboard basics *(M–L)*
-- [ ] Pinned apps with running dots and focus/launch behaviour
-- [ ] Global hotkeys `Alt+1..9` (configurable)
-- [ ] World clocks, pomodoro/timer, disk widget, optional temperature
-- [ ] Quick toggles: mute, Wi-Fi, Bluetooth (DND / Night Light as experimental)
-- [ ] Detail popups for clock, system, media, weather
+- [x] Pinned apps with running dots and focus/launch behaviour
+- [x] Global hotkeys `Alt+1..9` by default; configurable modifier (Alt, Ctrl+Alt, or Win)
+- [x] World clocks, pomodoro/timer, disk widget, optional temperature (psutil or optional LibreHardwareMonitor WMI)
+- [x] Quick toggles: mute, Wi-Fi, Bluetooth; DND / Night Light documented as unsupported
+- [x] Detail popups for clock, system, media, weather
 
 **Done when:** every Dockyard feature in section 3 is either shipped or documented as unsupported on Windows.
 

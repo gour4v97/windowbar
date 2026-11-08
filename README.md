@@ -19,17 +19,17 @@ python windowsbar.py
 Right-click the dock for the menu: choose widgets, position, and options.
 Settings live in `%APPDATA%\Windows Bar\config.json`.
 
-## Widgets (27 configurable widgets)
+## Widgets (28 configurable widgets)
 
-The calendar popup is a detail panel on the Next event widget, not a separate widget.
+The calendar popup is a detail panel on the Next event widget, not a separate widget. Pinned-app shortcuts default to `Alt+1` through `Alt+9`; change the modifier from the dock menu. Temperature is optional; for Windows hardware sensors, run LibreHardwareMonitor and install `wmi` with `pip install -r requirements-temperature.txt`.
 
 | Widget | How it works |
 |---|---|
-| App launcher | pinned apps, edit `apps` in config.json. Running apps get a dot: click focuses (or minimises) instead of relaunching; right-click for Open new / Focus / Minimize / Close. `Win+1`…`Win+9` open or switch to them (`Alt+number` where Windows refuses the Win key) |
+| App launcher | pinned apps, edit `apps` in config.json. Running apps get a dot: click focuses (or minimises) instead of relaunching; right-click for Open new / Focus / Minimize / Close. `Alt+1`…`Alt+9` open or switch to them by default; change the modifier in the dock menu |
 | Open windows | buttons for your open windows; click one to bring it to front |
 | Clock, CPU/RAM/network, Battery | built in |
-| Weather | Open-Meteo, no API key; asks for your city |
-| Now playing | Windows media session; click = play/pause (needs `winsdk`) |
+| Weather | Open-Meteo, no API key; detail popup shows the current city and conditions, with refresh and city controls |
+| Now playing | Windows media session; click opens details and play/pause (needs `winsdk`) |
 | Next event | paste your calendar's secret iCal link (Google, Outlook, iCloud) |
 | Quick actions | Lock, Dark/Light theme, Empty Recycle Bin (with confirmation), Open any file/folder path, Power menu (Sleep, Sign out, Restart, Shut down) |
 | Recycle Bin | item count; click to empty |
@@ -44,9 +44,10 @@ The calendar popup is a detail panel on the Next event widget, not a separate wi
 | World clocks | up to three IANA time zones (menu sets them) |
 | Day / week / year progress | rotating progress bars for the period |
 | Storage | disk used % and free space for the system drive |
+| Temperature | first available hardware sensor; optional and may report unavailable without a sensor provider |
 | Network | Wi-Fi name, local IP, live up/down speeds |
 | Volume | output volume; click mutes, scroll adjusts |
-| Quick toggles | Wi-Fi, Bluetooth and airplane mode (needs `winsdk`, same as Now playing), keep-awake, mute |
+| Quick toggles | Wi-Fi, Bluetooth and airplane mode (needs `winsdk`, same as Now playing), keep-awake, mute. Do Not Disturb and Night Light are not included because Windows does not expose a stable supported API. |
 | Script | first two lines of your own shell command's output, refreshed on a timer; optional click command. Menu: "Set script command…" (`script_command`, `script_interval`, `script_click_command` in config) |
 | Calendar popup | click the Next event card for a month view with event days marked |
 

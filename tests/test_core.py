@@ -390,11 +390,35 @@ def test_widget_modules_discover_every_configured_widget():
                               WIDGET_LABELS)
 
     assert set(registry.definitions) == set(DEFAULTS["widgets"])
-    assert len(registry.definitions) == 27
+    assert len(registry.definitions) == 28
     assert [d.name for d in registry.definitions.values()] == [
         WIDGET_LABELS[key] for key in (
             "apps", "clock", "world", "progress", "weather", "downloads",
             "shots", "windows", "system", "network", "storage", "battery",
             "media", "volume", "toggles", "calendar", "quick", "recycle",
             "screentime", "github", "revenue", "notes", "pomodoro", "timer",
-            "stopwatch", "script", "todos")]
+            "stopwatch", "script", "todos", "temperature")]
+
+
+def test_app_hotkey_modifier_flags_are_configurable():
+    from ui.hotkeys import AppHotkeyFilter
+
+    assert AppHotkeyFilter.modifier_flags("alt") == 0x0001
+    assert AppHotkeyFilter.modifier_flags("ctrl+alt") == 0x0003
+    assert AppHotkeyFilter.modifier_flags("win") == 0x0008
+    assert AppHotkeyFilter.modifier_flags("unknown") == 0x0001
+
+
+def test_temperature_reader_handles_supported_and_missing_sensors(monkeypatch):
+    from types import SimpleNamespace
+    import psutil
+    from widgets.temperature import temperature_readings
+
+    monkeypatch.setattr(psutil, "sensors_temperatures", lambda **_: {
+        "CPU": [SimpleNamespace(current=57.5)]}, raising=False)
+    assert temperature_readings() == [("CPU", 57.5)]
+
+    def unavailable(**_kwargs):
+        raise NotImplementedError
+    monkeypatch.setattr(psutil, "sensors_temperatures", unavailable, raising=False)
+    assert temperature_readings() == []
