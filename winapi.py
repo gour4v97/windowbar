@@ -1,9 +1,11 @@
 """Windows-only native helpers. Every function is a safe no-op elsewhere."""
 import ctypes
+import logging
 import sys
 from ctypes import wintypes
 
 IS_WIN = sys.platform == "win32"
+_log = logging.getLogger(__name__)
 ABM_NEW, ABM_REMOVE, ABM_QUERYPOS, ABM_SETPOS = 0, 1, 2, 3
 ABM_GETSTATE, ABM_SETSTATE = 4, 10
 ABE_TOP, ABE_BOTTOM = 1, 3
@@ -85,20 +87,36 @@ def set_taskbar_autohide(enable, hwnd, cfg):
         else:
             restore_taskbar(cfg, hwnd)
     except Exception:
-        pass
+        _log.exception("Could not update taskbar auto-hide state")
+
+
+def _restore_taskbar_state(cfg, apply_state):
+    """Apply and consume a saved taskbar state; injectable for recovery tests."""
+    if "_taskbar_original" not in cfg:
+        return False
+    original = cfg["_taskbar_original"]
+    try:
+        apply_state(original)
+    except Exception:
+        _log.exception("Could not restore the saved taskbar state")
+        return False
+    cfg.pop("_taskbar_original", None)
+    return True
 
 
 def restore_taskbar(cfg, hwnd=0):
-    if not IS_WIN or "_taskbar_original" not in cfg:
+    if "_taskbar_original" not in cfg:
+        return
+    if not IS_WIN:
         cfg.pop("_taskbar_original", None)
         return
-    try:
+
+    def apply_state(original):
         abd = _abd(hwnd)
-        abd.lParam = cfg["_taskbar_original"]
+        abd.lParam = original
         _appbar(ABM_SETSTATE, abd)
-    except Exception:
-        pass
-    cfg.pop("_taskbar_original", None)
+
+    _restore_taskbar_state(cfg, apply_state)
 
 
 # ------------------------------------------------------------------ glass --
@@ -299,7 +317,6 @@ def _guid(text):
 
 class _Com:
     """Minimal COM helper: build an interface pointer, call vtable slots."""
-
     @staticmethod
     def create(clsid, iid):
         ole32 = ctypes.windll.ole32
