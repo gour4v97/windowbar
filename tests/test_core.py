@@ -178,8 +178,8 @@ def test_normalize_notes_migrates_legacy_text():
 
 
 def test_exe_of():
-    # same logic as widgets.taskbar._exe_of, kept Qt-free for the test env
-    src = Path(__file__).resolve().parents[1] / "widgets" / "taskbar.py"
+    # same logic as widgets.apps._exe_of, kept Qt-free for the test env
+    src = Path(__file__).resolve().parents[1] / "widgets" / "apps.py"
     tree = ast.parse(src.read_text(encoding="utf-8"))
     fn = next(n for n in tree.body
               if isinstance(n, ast.FunctionDef) and n.name == "_exe_of")
@@ -267,7 +267,6 @@ def test_first_widgets_are_in_separate_modules():
 
     assert (ClockCard.id, NotesCard.id, WeatherCard.id) == (
         "clock", "notes", "weather")
-
 
 def test_screen_time_worker_starts_and_stops_with_widget(tmp_path):
     import threading
@@ -379,3 +378,23 @@ def test_taskbar_auto_hide_state_restores_after_restart(tmp_path, monkeypatch):
 
     assert calls == [(winapi.ABM_SETSTATE, 0)]
     assert "_taskbar_original" not in recovered_config
+
+
+def test_widget_modules_discover_every_configured_widget():
+    import widgets
+    from core.app_config import DEFAULTS, WIDGET_LABELS
+    from core.registry import WidgetRegistry
+
+    registry = WidgetRegistry()
+    registry.register_package(widgets, object(), DEFAULTS["widgets"],
+                              WIDGET_LABELS)
+
+    assert set(registry.definitions) == set(DEFAULTS["widgets"])
+    assert len(registry.definitions) == 27
+    assert [d.name for d in registry.definitions.values()] == [
+        WIDGET_LABELS[key] for key in (
+            "apps", "clock", "world", "progress", "weather", "downloads",
+            "shots", "windows", "system", "network", "storage", "battery",
+            "media", "volume", "toggles", "calendar", "quick", "recycle",
+            "screentime", "github", "revenue", "notes", "pomodoro", "timer",
+            "stopwatch", "script", "todos")]
