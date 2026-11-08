@@ -83,6 +83,10 @@ The calendar popup is a detail panel on the Next event widget, not a separate wi
 - **Dynamic accent** — the accent colour is derived from your wallpaper and follows it when it changes (hover, focused window, launcher selection). Turn it off in the menu to use the theme's own accent.
 - The open-windows widget now behaves like a taskbar (no hidden/cloaked windows) and highlights the focused window.
 
+## Workspaces (Phase 4)
+
+Open **Workspaces…** from the dock menu or the split toolbar. The viewer lists Windows virtual desktops, switches between them, creates/removes desktops, renames them, assigns an emoji or symbol, moves the last active app window, and sets a per-desktop wallpaper on supported Windows 11 builds. Virtual desktop support uses the [MIT-licensed `pyvda` package](https://github.com/mirober/pyvda); if its Windows interface is unavailable, previous/next/create actions fall back to Windows keyboard shortcuts and window movement/removal report the limitation.
+
 ## Performance
 
 - Native window-reservation calls are made only when the dock's size/edge actually changes, not on every digit change (this was the main source of lag: it made other windows re-layout).
