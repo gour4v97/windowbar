@@ -257,3 +257,12 @@ def test_widget_registry_starts_and_stops_enabled_widgets():
     assert events == ["start"]
     assert registry.start_enabled({"widgets": {"clock": False}}) == {}
     assert events == ["start", "stop"]
+
+
+def test_first_widgets_are_in_separate_modules():
+    from widgets.clock import ClockCard
+    from widgets.notes import NotesCard
+    from widgets.weather import WeatherCard
+
+    assert (ClockCard.id, NotesCard.id, WeatherCard.id) == (
+        "clock", "notes", "weather")
