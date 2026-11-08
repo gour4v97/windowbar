@@ -5,7 +5,7 @@ import sys
 from ctypes import wintypes
 
 IS_WIN = sys.platform == "win32"
-_log = logging.getLogger(__name__)
+_log = logging.getLogger("windowsbar.winapi")
 ABM_NEW, ABM_REMOVE, ABM_QUERYPOS, ABM_SETPOS = 0, 1, 2, 3
 ABM_GETSTATE, ABM_SETSTATE = 4, 10
 ABE_TOP, ABE_BOTTOM = 1, 3
@@ -317,6 +317,7 @@ def _guid(text):
 
 class _Com:
     """Minimal COM helper: build an interface pointer, call vtable slots."""
+
     @staticmethod
     def create(clsid, iid):
         ole32 = ctypes.windll.ole32
@@ -604,3 +605,4 @@ def set_autostart(enable, name, command):
                 winreg.DeleteValue(k, name)
             except OSError:
                 pass
+
