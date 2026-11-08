@@ -43,6 +43,8 @@ from widgets.system import (SystemCard, BatteryCard, MediaCard, CalendarCard,
                             QuickCard)
 from core.formatting import fmt_hms, fmt_speed, fmt_delta
 from widgets.clock import ClockCard
+from widgets.productivity import (PomodoroCard, StopwatchCard, TodoCard,
+                                   ScreenTimeCard)
 from widgets.notes import NotesCard
 from widgets.weather import WeatherCard
 from ui.popup import DetailPopup
@@ -143,133 +145,6 @@ def autostart_command():
 
 
 # ----------------------------------------------------------------- cards ----
-class PomodoroCard(Card):
-    ALWAYS = True
-    STICKY = True
-
-    def __init__(self, minutes, quiet=None):
-        super().__init__("Focus")
-        self.quiet = quiet or (lambda: False)
-        self.minutes = minutes
-        self.remaining = minutes * 60.0
-        self.running = False
-        self._t = time.monotonic()
-        self.setCursor(Qt.PointingHandCursor)
-        self.setToolTip("Click: start/pause   Double-click: reset")
-
-    def _advance(self):
-        now = time.monotonic()
-        if self.running:
-            self.remaining -= now - self._t
-        self._t = now
-
-    def mousePressEvent(self, e):
-        if e.button() == Qt.LeftButton:
-            self._advance()
-            self.running = not self.running
-
-    def mouseDoubleClickEvent(self, e):
-        self.running = False
-        self.remaining = self.minutes * 60.0
-
-    def tick(self):
-        self._advance()
-        if self.running and self.remaining <= 0:
-            self.running = False
-            self.remaining = self.minutes * 60.0
-            if not self.quiet():
-                QApplication.beep()
-        return self.set_texts(
-            "FOCUS" + (" ▶" if self.running else " ❚❚"),
-            fmt_hms(math.ceil(self.remaining)))
-
-
-class StopwatchCard(Card):
-    ALWAYS = True
-    STICKY = True
-
-    def __init__(self):
-        super().__init__("Stopwatch")
-        self.elapsed = 0.0
-        self.running = False
-        self._t = time.monotonic()
-        self.setCursor(Qt.PointingHandCursor)
-        self.setToolTip("Click: start/pause   Double-click: reset")
-
-    def _advance(self):
-        now = time.monotonic()
-        if self.running:
-            self.elapsed += now - self._t
-        self._t = now
-
-    def mousePressEvent(self, e):
-        if e.button() == Qt.LeftButton:
-            self._advance()
-            self.running = not self.running
-
-    def mouseDoubleClickEvent(self, e):
-        self.running = False
-        self.elapsed = 0.0
-
-    def tick(self):
-        self._advance()
-        return self.set_texts(body=fmt_hms(int(self.elapsed)))
-
-
-class TodoCard(Card):
-    INTERVAL = 2
-
-    def __init__(self, cfg):
-        super().__init__("Todos")
-        self.cfg = cfg
-        self.open_panel = None
-        self.setCursor(Qt.PointingHandCursor)
-        self.setToolTip("Click: open the list   Right-click: complete first")
-
-    def mousePressEvent(self, e):
-        if e.button() == Qt.LeftButton:
-            if self.open_panel:
-                self.open_panel()
-            else:
-                text, ok = QInputDialog.getText(self, "New todo", "Todo:")
-                if ok and text.strip():
-                    self.cfg["todos"].append({"t": text.strip(),
-                                               "done": False})
-                    save_config(self.cfg)
-        elif e.button() == Qt.RightButton:
-            for t in self.cfg["todos"]:
-                if not t["done"]:
-                    t["done"] = True
-                    save_config(self.cfg)
-                    break
-
-    def contextMenuEvent(self, e):
-        e.accept()
-
-    def tick(self):
-        todos = self.cfg["todos"]
-        open_ = [t["t"] for t in todos if not t["done"]]
-        return self.set_texts(
-            f"TODOS ({len(open_)})",
-            clip(open_[0], 24) if open_ else
-            ("All done" if todos else "All clear"))
-
-
-class ScreenTimeCard(Card):
-    INTERVAL = 5
-
-    def __init__(self, tracker):
-        super().__init__("Screen time")
-        self.tracker = tracker
-
-    def tick(self):
-        total, top = self.tracker.today()
-        tip = "\n".join(f"{n}: {extras.fmt_dur(s)}" for n, s in top)
-        if tip and tip != self.toolTip():
-            self.setToolTip(tip)
-        return self.set_texts(body=extras.fmt_dur(total) + " today")
-
-
 class PollCard(Card):
     """Shows the value of a background Poll, or its error."""
 
@@ -297,6 +172,7 @@ class PollCard(Card):
 
 class DownloadsCard(Card):
     INTERVAL = 5
+
     def __init__(self, poll, name="Downloads", folder=None):
         super().__init__(name)
         self.poll = poll
@@ -321,7 +197,6 @@ class WindowsCard(QFrame):
     """Buttons for the open windows (taskbar-style); click one to focus it.
     The window list is gathered by a background poll; the focused window is
     highlighted with the theme accent."""
-
     INTERVAL = 2
 
     def __init__(self, poll):
@@ -821,7 +696,6 @@ class Popup(DetailPopup):
     def __init__(self, dock):
         self.dock = dock
         super().__init__(dock, edge=dock.cfg.get("position", "bottom"))
-
     def show_near(self, widget):
         return super().show_near(
             widget, edge=self.dock.cfg.get("position", "bottom"))
@@ -1287,7 +1161,7 @@ class Dock(QWidget):
         return card
 
     def _todo_card(self):
-        card = TodoCard(self.cfg)
+        card = TodoCard(self.cfg, save_config)
         card.open_panel = lambda: TodosPanel(
             self, self.cfg, lambda: save_config(self.cfg)).show_near(card)
         return card
@@ -1321,7 +1195,6 @@ class Dock(QWidget):
         for key in list(self.polls):
             if not w.get(key):
                 self.polls.pop(key).stop()
-
     # -- theme / accent ------------------------------------------------------
     def apply_theme(self):
         self.tokens = theme.resolve(
@@ -1596,6 +1469,7 @@ class Dock(QWidget):
         self.ask_text("quiet_hours", "Quiet hours",
                       "Quiet hours for sounds, e.g. 23:00-07:00 "
                       "(blank = off):")
+
     def ask_github(self):
         self.ask_text("github_user", "GitHub", "GitHub username:",
                       lambda: self.poll("github").refresh())
