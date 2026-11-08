@@ -16,7 +16,7 @@ pip install --only-binary=:all: -r requirements-media.txt   # optional: Now play
 python windowsbar.py
 ```
 
-Right-click the dock for the menu: choose widgets, position, and options.
+Open **Settings** from the dock menu to manage widgets, layout, themes, and hotkeys with a live preview. Right-click the dock for quick actions.
 Settings live in `%APPDATA%\Windows Bar\config.json`.
 
 ## Widgets (28 configurable widgets)
@@ -85,7 +85,9 @@ The calendar popup is a detail panel on the Next event widget, not a separate wi
 
 ## Files
 
-- `windowsbar.py` — the dock, cards and menu (UI)
+- `windowsbar.py` — application entry point
+- `ui/dock.py` — dock behavior and quick menu
+- `ui/settings.py` — separate live Settings window
 - `launcher.py` — the Alt+Space launcher and global hotkey
 - `theme.py` — themes, QSS builder, wallpaper accent (pure Python)
 - `search.py` — fuzzy search, Start Menu scan, hotkey parsing, safe calculator (pure Python)
