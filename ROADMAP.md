@@ -21,7 +21,7 @@ Legend: ✅ done · 🟡 partial · ⬜ not started · Effort: S (a session) · 
 
 From the README and the source audit in `AUDIT.md`:
 
-- Single bar, top or bottom, snaps to edges, optional full-width or pill
+- Bar on each connected display with per-display widget/layout settings; combined or split Toolbar/Dock layout, snaps to edges, optional full-width or pill
 - AppBar space reservation, glass/acrylic, taskbar auto-hide with crash-safe restore
 - Auto-hide dock with fullscreen detection, start with Windows
 - 28 configurable widgets, including pinned apps, open windows, clock, system, weather, media, calendar, quick actions, notes, focus tools, storage, network, volume, and quick toggles; the calendar popup is a detail panel
@@ -34,7 +34,7 @@ From the README and the source audit in `AUDIT.md`:
 
 | Seelen feature | Windows Bar now | Target phase | Effort |
 |---|---|---|---|
-| Custom toolbar (replaces taskbar) | 🟡 optional split toolbar + pinned-app dock, active-window title, virtual-desktop shortcuts; notification-area tray remains Windows-owned | P3 | M |
+| Custom toolbar (replaces taskbar) | ✅ optional split toolbar + pinned-app dock, active-window title, virtual-desktop shortcuts; notification-area tray remains Windows-owned | — | — |
 | Dock with launch / focus / badges | ✅ pinned apps show running dots and focus or launch on click | — | — |
 | Desktop widgets on wallpaper layer | ⬜ | P4 | L |
 | Custom flyouts (volume, brightness, system) | ✅ volume and WMI internal-panel brightness; system detail popups | — | — |
@@ -154,14 +154,14 @@ Rules: widgets never touch Win32 directly (go through `native/`); all native hoo
 - [x] **Theming engine:** JSON theme files, color/radius/font/spacing/blur tokens, QSS, and default/glass/light/dark built-ins
 - [x] Dynamic accent colour from the current wallpaper (dominant-colour extraction, live update)
 - [x] Per-widget style overrides for accent, card background, text, button color, and radius
-- [🟡] Split **Toolbar** (top: active-window title, virtual-desktop shortcuts, enabled information widgets) and **Dock** (bottom: pinned apps + running); Windows notification-area tray remains OS-owned
+- [x] Split **Toolbar** (top: active-window title, virtual-desktop shortcuts, enabled information widgets) and **Dock** (bottom: pinned apps + running); Windows notification-area tray remains OS-owned
 - [x] Multi-monitor: a bar per display with independent widget/layout profile
 - [x] Separate Settings window for widgets, layout, themes, hotkeys, and live preview
 - [x] **Launcher:** global hotkey, fuzzy search over apps, files, commands, calculator
 - [x] Volume and brightness flyouts (brightness via optional WMI on supported internal panels; external DDC displays are not supported)
 - [x] Optional notification-centre integration: open the native Windows notification surface; Windows owns the notification feed and rendering
 
-**Done when:** a non-programmer can restyle and rearrange everything from the Settings app without editing JSON.
+**Done when:** a non-programmer can restyle and rearrange widgets and layouts from Settings without editing JSON. **Met.** Native notification feeds and the system tray remain rendered by Windows.
 
 > **Decision gate (end of Phase 3):** the written decision is to stay on Python/PySide6 and measure idle CPU/RAM and input latency before Phase 4's hook/tiling work. No runtime measurements were available in the authoring environment; reopen the decision if Windows measurements show stalls or excessive idle resource use. See `docs/decisions/0001-stack.md`.
 
