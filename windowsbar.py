@@ -36,6 +36,10 @@ from core.registry import WidgetDefinition, WidgetRegistry
 from launcher import HotkeyFilter, Launcher
 from services import (CalendarService, MediaService, RadioService,
                       WeatherService)
+from widgets.base import Card, clip
+from widgets.clock import ClockCard
+from widgets.notes import NotesCard
+from widgets.weather import WeatherCard
 
 APP_DIR = Path(os.environ.get("APPDATA", Path.home())) / "Windows Bar"
 CONFIG = APP_DIR / "config.json"
@@ -135,10 +139,6 @@ def fmt_delta(seconds):
     return f"in {h}h {m:02d}m" if h < 24 else f"in {h // 24}d"
 
 
-def clip(text, n):
-    return text if len(text) <= n else text[: n - 1] + "…"
-
-
 def in_quiet_hours(spec, now=None):
     """spec is "23:00-07:00" (may wrap midnight). Empty/invalid -> False."""
     try:
@@ -162,77 +162,6 @@ def autostart_command():
 
 
 # ----------------------------------------------------------------- cards ----
-class Card(QFrame):
-    """A titled card. INTERVAL is how many seconds between refreshes --
-    slow sources (Recycle Bin, open windows) must not run every second.
-    tick() returns True only when the displayed text actually changed,
-    so the dock can skip relayout/repaint work on quiet seconds."""
-
-    INTERVAL = 1
-    ALWAYS = False   # True: keeps ticking while the dock is slid away
-    STICKY = False   # True: never shrinks, so changing digits can't make the dock jitter
-
-    def __init__(self, title):
-        super().__init__()
-        self.setObjectName("card")
-        self._wmax = 0
-        lay = QVBoxLayout(self)
-        lay.setContentsMargins(12, 6, 12, 6)
-        lay.setSpacing(0)
-        self.title = QLabel(title.upper())
-        self.title.setObjectName("cardtitle")
-        self.body = QLabel("")
-        self.body.setObjectName("cardbody")
-        lay.addWidget(self.title)
-        lay.addWidget(self.body)
-
-    def set_texts(self, title=None, body=None):
-        changed = False
-        if title is not None and title != self.title.text():
-            self.title.setText(title)
-            changed = True
-        if body is not None and body != self.body.text():
-            self.body.setText(body)
-            changed = True
-        if changed and self.STICKY:
-            w = max(self.body.sizeHint().width(), self.title.sizeHint().width())
-            if w > self._wmax:
-                self._wmax = w
-                self.setMinimumWidth(w + 24)
-        return changed
-
-    def tick(self):
-        return False
-
-
-class ClockCard(Card):
-    STICKY = True
-
-    def __init__(self):
-        super().__init__("Time")
-
-    def tick(self):
-        return self.set_texts(time.strftime("%a %d %b").upper(),
-                              time.strftime("%I:%M %p").lstrip("0"))
-
-
-class WeatherCard(Card):
-    INTERVAL = 5
-
-    def __init__(self, weather, ask_city):
-        super().__init__("Weather")
-        self.weather, self.ask_city = weather, ask_city
-        self.setCursor(Qt.PointingHandCursor)
-        self.setToolTip("Click to change city")
-
-    def mousePressEvent(self, e):
-        if e.button() == Qt.LeftButton:
-            self.ask_city()
-
-    def tick(self):
-        return self.set_texts(self.weather.label, self.weather.text)
-
-
 class SystemCard(Card):
     STICKY = True
 
@@ -519,30 +448,6 @@ class TodoCard(Card):
             f"TODOS ({len(open_)})",
             clip(open_[0], 24) if open_ else
             ("All done" if todos else "All clear"))
-
-
-class NotesCard(Card):
-    INTERVAL = 5
-
-    def __init__(self, cfg):
-        super().__init__("Notes")
-        self.cfg = cfg
-        self.open_panel = None
-        self.setCursor(Qt.PointingHandCursor)
-        self.setToolTip("Click: open notes")
-
-    def mousePressEvent(self, e):
-        if e.button() == Qt.LeftButton and self.open_panel:
-            self.open_panel()
-
-    def tick(self):
-        notes = self.cfg["notes_list"]
-        cur = notes[self.cfg["notes_current"]] if notes else ""
-        first = (cur.strip().splitlines() or [""])[0]
-        n = len(notes)
-        return self.set_texts(
-            f"NOTES · {n}" if n > 1 else "NOTES",
-            clip(first, 26) if first else "Click to write")
 
 
 class ScreenTimeCard(Card):
@@ -1117,6 +1022,7 @@ class Popup(QWidget):
         self.setWindowFlags(Qt.Popup | Qt.FramelessWindowHint
                             | Qt.WindowStaysOnTopHint)
         self.setStyleSheet(dock.styleSheet())
+
     def show_near(self, widget):
         self.adjustSize()
         anchor = widget.mapToGlobal(QPoint(0, 0))
@@ -1369,7 +1275,6 @@ class AppHotkeyFilter(QAbstractNativeEventFilter):
             except Exception:
                 pass
         return False, 0
-
 
 
 
@@ -1851,7 +1756,6 @@ class Dock(QWidget):
     def enterEvent(self, e):
         self._last_hover = time.monotonic()
         super().enterEvent(e)
-
     # -- automations ---------------------------------------------------------
     def automations(self):
         if not self.cfg["pause_before_meeting"]:
