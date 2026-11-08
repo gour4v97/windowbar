@@ -58,6 +58,7 @@ The calendar popup is a detail panel on the Next event widget, not a separate wi
 - **Full width** or a centred pill
 - **Auto-hide the Windows taskbar** while the dock runs — the taskbar's original state is restored on quit, and on the next start after a crash
 - **Glass effect** — acrylic / DWM backdrop on Windows 11, acrylic accent on older builds
+- **Themes** — built-in default, glass, light, and dark themes; JSON theme files can override colors, radius, font, spacing, and blur
 - **Widget styles** — use the Widget styles menu to set each widget’s accent, card background, text, button color, and corner radius
 - **Pause music before meetings** — pauses playback one minute before your next calendar event
 - **Quiet hours** (e.g. `23:00-07:00`) — the focus timer finishes silently
@@ -95,7 +96,6 @@ The calendar popup is a detail panel on the Next event widget, not a separate wi
 - `extras.py` — screen time, GitHub, Stripe, folder stats, disk/progress/script/network helpers, background poller
 - `winapi.py` — Windows-only native helpers (AppBar reservation, glass, taskbar state, open windows, volume, power, autostart); safe no-ops elsewhere
 - `tests/` — parser/recurrence/folder tests that run anywhere: `pytest -q`
-
 
 ## License
 
