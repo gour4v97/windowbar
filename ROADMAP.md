@@ -131,7 +131,7 @@ Rules: widgets never touch Win32 directly (go through `native/`); all native hoo
 **Done when:** a fresh clone + `pip install -r requirements.txt` + `pytest -q` works, and CI is green.
 
 ### Phase 1: Modular core *(M)*
-- [ ] Split `windowsbar.py` / `winapi.py` into the structure in section 4, with no behaviour change
+- [ ] Split `windowsbar.py` / `winapi.py` into the structure in section 4, with no behaviour change  \n  - Progress: `windowsbar.py` is now a small entrypoint; `ui/dock.py`, `core/app_config.py`, `native/`, `widgets/`, and `ui/` hold the extracted layers. Finish aligning each widget module with the one-file-plus-one-config-key contract.
 - [x] Widget registry + the widget contract; all 28 cards register through the compatibility adapter, and Clock, Weather, and Notes now live in standalone modules
 - [x] Versioned config with migration from the current `config.json` (schema v1, legacy migration, and focused tests; export/import is a later enhancement)
 - [x] Widgets stop their work when hidden or disabled (poll workers stop, Screen Time sampler is opt-in, and weather/calendar/media/radio workers stop when inactive)
