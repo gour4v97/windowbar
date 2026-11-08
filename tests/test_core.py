@@ -311,3 +311,16 @@ def test_weather_and_calendar_workers_only_run_while_active():
     calendar_thread.join(timeout=1)
     assert not weather_thread.is_alive()
     assert not calendar_thread.is_alive()
+
+
+def test_detail_popup_position_respects_edge_and_screen_bounds():
+    from PySide6.QtCore import QPoint, QRect, QSize
+    from ui.popup import popup_position
+    screen = QRect(0, 0, 800, 800)
+    anchor = QRect(500, 500, 100, 30)
+    size = QSize(200, 100)
+    assert popup_position(anchor, size, screen, "top") == QPoint(449, 536)
+    assert popup_position(anchor, size, screen, "bottom") == QPoint(449, 394)
+
+    near_edge = QRect(760, 20, 50, 20)
+    assert popup_position(near_edge, size, screen, "bottom") == QPoint(600, 0)
