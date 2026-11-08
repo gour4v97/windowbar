@@ -642,7 +642,8 @@ class Dock(QWidget):
             edge = "top"
         elif y >= geo.y() + geo.height() - 48:
             edge = "bottom"
-        if edge and edge != self.cfg["position"]:
+        if (self.cfg.get("shell_layout") != "split" and edge
+                and edge != self.cfg["position"]):
             self.cfg["position"] = edge
             save_config(self.cfg)
         self.place()
@@ -668,6 +669,7 @@ class Dock(QWidget):
         m = QMenu(self)
         pos = QAction("Move to top" if self.cfg["position"] == "bottom"
                       else "Move to bottom", self)
+        pos.setEnabled(self.cfg.get("shell_layout") != "split")
         pos.triggered.connect(self.toggle_position)
         m.addAction(pos)
         settings = QAction("Settings…", self)
