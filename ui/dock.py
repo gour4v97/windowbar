@@ -88,6 +88,7 @@ class Dock(QWidget):
         self._shown_pos = None
         self._last_hover = time.monotonic()
         self._menu_open = False
+        self.last_external_hwnd = 0
         self._res_key = self._res_rc = None   # last AppBar reservation (skip no-ops)
         self._fs = (0.0, False)               # throttled fullscreen check
         self._bg = None                       # cached background pixmap
@@ -116,6 +117,10 @@ class Dock(QWidget):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.tick)
         self.timer.start(1000)
+
+        self._foreground_timer = QTimer(self)
+        self._foreground_timer.timeout.connect(self._track_foreground_window)
+        self._foreground_timer.start(300)
 
         self._hover_timer = QTimer(self)
         self._hover_timer.timeout.connect(self._autohide_check)
@@ -400,6 +405,17 @@ class Dock(QWidget):
                 self.appbar.hwnd or int(self.winId())))
         return self._fs[1]
 
+    def _track_foreground_window(self):
+        hwnd = winapi.foreground_hwnd()
+        if not hwnd or hwnd in (self.appbar.hwnd,
+                                int(self.toolbar.winId())
+                                if self.toolbar else 0):
+            return
+        title = winapi.window_title(hwnd)
+        if (title and not title.startswith("Windows Bar")
+                and title != "Workspaces"):
+            self.last_external_hwnd = hwnd
+
     def showEvent(self, e):
         super().showEvent(e)
         QTimer.singleShot(0, self.apply_native)
@@ -681,6 +697,16 @@ class Dock(QWidget):
         self._settings_window.raise_()
         self._settings_window.activateWindow()
 
+    def open_workspaces(self):
+        from ui.workspaces import WorkspaceViewer
+        if not getattr(self, "_workspace_window", None):
+            self._workspace_window = WorkspaceViewer(self)
+        else:
+            self._workspace_window.reload()
+        self._workspace_window.show()
+        self._workspace_window.raise_()
+        self._workspace_window.activateWindow()
+
     def contextMenuEvent(self, e):
         self._menu_open = True
         try:
@@ -698,6 +724,9 @@ class Dock(QWidget):
         settings = QAction("Settings…", self)
         settings.triggered.connect(self.open_settings)
         m.addAction(settings)
+        workspaces = QAction("Workspaces…", self)
+        workspaces.triggered.connect(self.open_workspaces)
+        m.addAction(workspaces)
         m.addSeparator()
         for key, label in WIDGET_LABELS.items():
             a = QAction(label, self, checkable=True)
