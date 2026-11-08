@@ -14,7 +14,7 @@ class Toolbar(QWidget):
         self.dock = dock
         self.appbar = winapi.AppBar()
         self.appbar.hwnd = int(self.winId())
-        self._res_key = None
+        self._res_key = self._res_rc = None
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
                             | Qt.Tool)
         self.setAttribute(Qt.WA_TranslucentBackground)
@@ -75,15 +75,14 @@ class Toolbar(QWidget):
                     int((full.y() + full.height()) * dpr))
             key = (True, rect, int((h + 2 * MARGIN) * dpr))
             if key != self._res_key or not self.appbar.registered:
-                reserved = self.appbar.reserve(*key)
+                self._res_rc = self.appbar.reserve(*key)
                 self._res_key = key
-            else:
-                reserved = None
+            reserved = self._res_rc
             if reserved:
                 y = reserved[1] / dpr + MARGIN
         else:
             self.appbar.remove()
-            self._res_key = None
+            self._res_key = self._res_rc = None
         if y is None:
             avail = screen.availableGeometry()
             y = avail.y() + MARGIN
