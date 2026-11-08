@@ -8,6 +8,7 @@ Right-click the dock for the menu. Settings live in %APPDATA%\\Windows Bar\\conf
 Stripe revenue reads the key from the WINDOWSBAR_STRIPE_KEY environment variable.
 """
 import json
+import logging
 import math
 import os
 import subprocess
@@ -32,6 +33,7 @@ import extras
 import theme
 import winapi
 from core import config as config_store
+from core.logging_setup import configure_logging
 from core.registry import WidgetDefinition, WidgetRegistry
 from launcher import HotkeyFilter, Launcher
 from services import (CalendarService, MediaService, RadioService,
@@ -40,8 +42,10 @@ from widgets.base import Card, clip
 from widgets.clock import ClockCard
 from widgets.notes import NotesCard
 from widgets.weather import WeatherCard
+from ui.popup import DetailPopup
 
 APP_DIR = Path(os.environ.get("APPDATA", Path.home())) / "Windows Bar"
+_log = logging.getLogger("windowsbar")
 CONFIG = APP_DIR / "config.json"
 SCREEN_TIME_FILE = APP_DIR / "screentime.json"
 THEMES_DIR = APP_DIR / "themes"
@@ -793,7 +797,6 @@ class TimerCard(Card):
 
 class ScriptCard(Card):
     """First line of your own command's output, big; second line small."""
-
     INTERVAL = 5
 
     def __init__(self, poll, cfg):
@@ -1012,29 +1015,15 @@ class AnalogClockCard(QFrame):
 
 
 # ------------------------------------------------------------- popups --------
-class Popup(QWidget):
-    """A small panel that opens over its card and closes when you
-    click elsewhere."""
-
+class Popup(DetailPopup):
+    """Windows Bar positioning and theme adapter for detail popups."""
     def __init__(self, dock):
-        super().__init__(dock)
         self.dock = dock
-        self.setWindowFlags(Qt.Popup | Qt.FramelessWindowHint
-                            | Qt.WindowStaysOnTopHint)
-        self.setStyleSheet(dock.styleSheet())
+        super().__init__(dock, edge=dock.cfg.get("position", "bottom"))
 
     def show_near(self, widget):
-        self.adjustSize()
-        anchor = widget.mapToGlobal(QPoint(0, 0))
-        x = max(0, anchor.x() + widget.width() // 2 - self.width() // 2)
-        if self.dock.cfg["position"] == "top":
-            y = self.dock.y() + self.dock.height() + 6
-        else:
-            y = self.dock.y() - self.height() - 6
-        screen = QApplication.primaryScreen().availableGeometry()
-        x = min(x, max(0, screen.width() - self.width() - 4))
-        self.move(int(x), int(y))
-        self.show()
+        return super().show_near(
+            widget, edge=self.dock.cfg.get("position", "bottom"))
 
 
 class CalendarPopup(Popup):
@@ -1275,6 +1264,7 @@ class AppHotkeyFilter(QAbstractNativeEventFilter):
             except Exception:
                 pass
         return False, 0
+
 
 
 
@@ -1756,6 +1746,7 @@ class Dock(QWidget):
                 c.tick()
             self.place()           # re-reserve space, settle exact position
         self._last_hover = time.monotonic()
+
     def enterEvent(self, e):
         self._last_hover = time.monotonic()
         super().enterEvent(e)
@@ -2044,6 +2035,7 @@ class Dock(QWidget):
         os.startfile(str(THEMES_DIR))
 
     def shutdown(self):
+        _log.info("Windows Bar shutting down")
         self._widget_registry.stop_all()
         for poll in self.polls.values():
             poll.stop()
@@ -2061,6 +2053,8 @@ class Dock(QWidget):
 
 
 def main():
+    log_path = configure_logging(APP_DIR)
+    _log.info("Windows Bar starting (log file: %s)", log_path)
     app = QApplication(sys.argv)
     app.setFont(QFont("Segoe UI", 10))
     dock = Dock()

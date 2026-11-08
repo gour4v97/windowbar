@@ -311,3 +311,68 @@ def test_weather_and_calendar_workers_only_run_while_active():
     calendar_thread.join(timeout=1)
     assert not weather_thread.is_alive()
     assert not calendar_thread.is_alive()
+
+
+def test_detail_popup_position_respects_edge_and_screen_bounds():
+    from PySide6.QtCore import QPoint, QRect, QSize
+    from ui.popup import popup_position
+    screen = QRect(0, 0, 800, 800)
+    anchor = QRect(500, 500, 100, 30)
+    size = QSize(200, 100)
+    assert popup_position(anchor, size, screen, "top") == QPoint(449, 536)
+    assert popup_position(anchor, size, screen, "bottom") == QPoint(449, 394)
+
+    near_edge = QRect(760, 20, 50, 20)
+    assert popup_position(near_edge, size, screen, "bottom") == QPoint(600, 0)
+
+
+def test_logging_creates_rotating_log_in_app_logs(tmp_path):
+    import logging
+    import sys
+    import threading
+    from core.logging_setup import configure_logging
+
+    logger = logging.getLogger("windowsbar")
+    old_sys_hook, old_thread_hook = sys.excepthook, threading.excepthook
+    log_path = configure_logging(tmp_path)
+    try:
+        logger.warning("test log entry")
+        for handler in logger.handlers:
+            handler.flush()
+        assert log_path == tmp_path / "logs" / "windowsbar.log"
+        assert "test log entry" in log_path.read_text(encoding="utf-8")
+    finally:
+        for handler in list(logger.handlers):
+            if getattr(handler, "_windowsbar_file_handler", False):
+                logger.removeHandler(handler)
+                handler.close()
+        sys.excepthook = old_sys_hook
+        threading.excepthook = old_thread_hook
+
+
+def test_taskbar_auto_hide_state_restores_after_restart(tmp_path, monkeypatch):
+    import json
+    import winapi
+
+    calls = []
+
+    def fake_appbar(message, data):
+        if message == winapi.ABM_GETSTATE:
+            return 0
+        calls.append((message, data.lParam))
+        return 1
+
+    monkeypatch.setattr(winapi, "IS_WIN", True)
+    monkeypatch.setattr(winapi, "_appbar", fake_appbar)
+    config = {"hide_taskbar": True}
+    winapi.set_taskbar_autohide(True, 123, config)
+    assert config["_taskbar_original"] == 0
+
+    saved = tmp_path / "config.json"
+    saved.write_text(json.dumps(config), encoding="utf-8")
+    recovered_config = json.loads(saved.read_text(encoding="utf-8"))
+    calls.clear()  # the next process only performs restore
+    winapi.restore_taskbar(recovered_config, 123)
+
+    assert calls == [(winapi.ABM_SETSTATE, 0)]
+    assert "_taskbar_original" not in recovered_config
