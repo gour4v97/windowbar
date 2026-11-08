@@ -151,7 +151,7 @@ Rules: widgets never touch Win32 directly (go through `native/`); all native hoo
 **Done when:** every Dockyard feature in section 3 is either shipped or documented as unsupported on Windows.
 
 ### Phase 3: Shell basics, Seelen tier 1 *(L)*
-- [🟡] **Theming engine:** JSON theme files, colors, radius, font and QSS are present; add blur/spacing tokens and the default/glass/light/dark built-ins
+- [x] **Theming engine:** JSON theme files, color/radius/font/spacing/blur tokens, QSS, and default/glass/light/dark built-ins
 - [x] Dynamic accent colour from the current wallpaper (dominant-colour extraction, live update)
 - [x] Per-widget style overrides for accent, card background, text, button color, and radius
 - [ ] Split **Toolbar** (top: workspaces, active window, tray-style widgets, clock) and **Dock** (bottom: pinned apps + running)
