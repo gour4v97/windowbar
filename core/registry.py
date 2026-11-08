@@ -70,3 +70,35 @@ class WidgetRegistry:
     def _stop_one(self, widget_id):
         widget = self._active.pop(widget_id)
         widget.stop()
+
+
+class CardWidgetAdapter:
+    """Expose an existing card through the new internal widget contract."""
+
+    def __init__(self, widget_id, name, default_config, card_factory):
+        self.id = widget_id
+        self.name = name
+        self.default_config = {"enabled": bool(default_config)}
+        self._card = card_factory()
+
+    def start(self):
+        start = getattr(self._card, "start", None)
+        if callable(start):
+            start()
+
+    def stop(self):
+        stop = getattr(self._card, "stop", None)
+        if callable(stop):
+            stop()
+
+    def card(self):
+        return self._card
+
+    def popup(self):
+        popup = getattr(self._card, "popup", None)
+        return popup() if callable(popup) else None
+    def on_click(self):
+        callback = getattr(self._card, "on_click", None)
+        if callable(callback):
+            callback()
+
