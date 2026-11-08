@@ -19,25 +19,20 @@ from PySide6.QtWidgets import (QApplication, QCalendarWidget, QFrame,
 import extras
 import theme
 import winapi
+import widgets
 from core.app_config import (APP_DIR, SCREEN_TIME_FILE, THEMES_DIR, CUSTOM_QSS,
     DEFAULTS, WIDGET_LABELS, load_config, save_config, in_quiet_hours,
     autostart_command, PRESETS, MARGIN)
-from core.registry import CardWidgetAdapter, WidgetDefinition, WidgetRegistry
+from core.registry import WidgetRegistry
 from launcher import HotkeyFilter, Launcher
 from ui.hotkeys import AppHotkeyFilter
 from ui.panels import CalendarPopup, TodosPanel, NotesPanel
 from services import CalendarService, MediaService, RadioService, WeatherService
-from widgets.base import Card, clip
-from widgets.system import (SystemCard, BatteryCard, MediaCard, CalendarCard,
-                            QuickCard)
-from widgets.utility import (PollCard, DownloadsCard, StorageCard, WorldClockCard,
-    ProgressCard, TimerCard, ScriptCard, NetworkCard, VolumeCard, TogglesCard)
+from widgets.calendar_card import CalendarCard
 from widgets.clock import ClockCard, AnalogClockCard
-from widgets.taskbar import WindowsCard, RecycleCard, AppsCard, _exe_of
-from widgets.productivity import (PomodoroCard, StopwatchCard, TodoCard,
-                                  ScreenTimeCard)
+from widgets.apps import AppsCard, _exe_of
 from widgets.notes import NotesCard
-from widgets.weather import WeatherCard
+from widgets.todos import TodoCard
 
 _log = logging.getLogger("windowsbar")
 class Dock(QWidget):
@@ -97,6 +92,7 @@ class Dock(QWidget):
         self._anim = QPropertyAnimation(self, b"pos", self)
         self._anim.setDuration(180)
         self._anim.finished.connect(self._anim_done)
+
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
                             | Qt.Tool)
         self.setAttribute(Qt.WA_TranslucentBackground)
@@ -142,54 +138,9 @@ class Dock(QWidget):
             self.row.removeWidget(c)
             c.deleteLater()
         self.cards = []
-        makers = [
-            ("apps", lambda: AppsCard(self.cfg["apps"], self.poll("apps"))),
-            ("clock", self._clock_card),
-            ("world", lambda: WorldClockCard(self.cfg["world_zones"])),
-            ("progress", ProgressCard),
-            ("weather", lambda: WeatherCard(self.weather, self.ask_city)),
-            ("downloads", lambda: DownloadsCard(self.poll("downloads"))),
-            ("shots", lambda: DownloadsCard(
-                self.poll("shots"), "Screenshots",
-                Path.home() / "Pictures" / "Screenshots")),
-            ("windows", lambda: WindowsCard(self.poll("windows"))),
-            ("system", SystemCard),
-            ("network", lambda: NetworkCard(self.poll("network"))),
-            ("storage", lambda: StorageCard(self.poll("storage"))),
-            ("battery", BatteryCard),
-            ("media", lambda: MediaCard(self.media)),
-            ("volume", VolumeCard),
-            ("toggles", lambda: TogglesCard(
-                self.radios, self.cfg, lambda: save_config(self.cfg))),
-            ("calendar", self._calendar_card),
-            ("quick", lambda: QuickCard(self)),
-            ("recycle", lambda: RecycleCard(self.poll("recycle"))),
-            ("screentime", lambda: ScreenTimeCard(self.screen_time)),
-            ("github", lambda: PollCard("GitHub", self.poll("github"),
-                                        self.ask_github)),
-            ("revenue", lambda: PollCard("Revenue", self.poll("revenue"))),
-            ("notes", self._notes_card),
-            ("pomodoro", lambda: PomodoroCard(
-                self.cfg["pomodoro_minutes"],
-                quiet=lambda: in_quiet_hours(self.cfg["quiet_hours"]))),
-            ("timer", lambda: TimerCard(
-                self.cfg,
-                quiet=lambda: in_quiet_hours(self.cfg["quiet_hours"]),
-                save=lambda cfg: save_config(cfg))),
-            ("stopwatch", StopwatchCard),
-            ("script", lambda: ScriptCard(self.poll("script"), self.cfg)),
-            ("todos", self._todo_card),
-        ]
         registry = WidgetRegistry()
-        for key, make in makers:
-            registry.register(WidgetDefinition(
-                id=key,
-                name=WIDGET_LABELS.get(key, key.title()),
-                default_config=DEFAULTS["widgets"].get(key, False),
-                factory=lambda k=key, f=make: CardWidgetAdapter(
-                    k, WIDGET_LABELS.get(k, k.title()),
-                    DEFAULTS["widgets"].get(k, False), f),
-            ))
+        registry.register_package(
+            widgets, self, DEFAULTS["widgets"], WIDGET_LABELS)
         active = registry.start_enabled(self.cfg)
         self._widget_registry = registry
         self.cards = [widget.card() for widget in active.values()]
@@ -396,6 +347,7 @@ class Dock(QWidget):
                 self._last_size = size
                 self.place()
         self.automations()
+
     # -- auto-hide -----------------------------------------------------------
     SLIVER = 4  # px left visible at the edge while hidden
 
