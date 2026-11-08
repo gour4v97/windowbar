@@ -15,7 +15,8 @@ from PySide6.QtGui import (QAction, QActionGroup, QColor, QCursor, QFont,
                            QImageReader, QPainter, QPainterPath, QPixmap)
 from PySide6.QtWidgets import (QApplication, QCalendarWidget, QFrame,
     QHBoxLayout, QInputDialog, QLabel, QLineEdit, QListWidget, QListWidgetItem,
-    QMenu, QMessageBox, QPlainTextEdit, QPushButton, QVBoxLayout, QWidget)
+    QMenu, QMessageBox, QPlainTextEdit, QPushButton, QVBoxLayout, QWidget,
+    QColorDialog)
 import extras
 import theme
 import winapi
@@ -159,6 +160,9 @@ class Dock(QWidget):
         active = registry.start_enabled(self.cfg)
         self._widget_registry = registry
         self.cards = [widget.card() for widget in active.values()]
+        for widget_id, widget in active.items():
+            widget.card().setProperty("widgetId", widget_id)
+        self._apply_widget_styles()
         for c in self.cards:
             self.row.addWidget(c)
             c.tick()
@@ -231,8 +235,64 @@ class Dock(QWidget):
         if QApplication.font().family() != font:
             QApplication.setFont(QFont(font, 10))
         self.setStyleSheet(css)
+        self._apply_widget_styles()
         self._bg = None
         self.update()
+
+    def _apply_widget_styles(self):
+        registry = getattr(self, "_widget_registry", None)
+        if registry is None:
+            return
+        styles = self.cfg.get("widget_styles", {})
+        for widget_id, widget in registry.active.items():
+            tokens = theme.widget_tokens(
+                self.tokens, styles.get(widget_id, {}))
+            widget.card().setStyleSheet(theme.build_widget_qss(tokens))
+
+    def edit_widget_style(self):
+        labels = list(WIDGET_LABELS.values())
+        keys = list(WIDGET_LABELS)
+        label, ok = QInputDialog.getItem(
+            self, "Widget style", "Widget:", labels, 0, False)
+        if not ok:
+            return
+        widget_id = keys[labels.index(label)]
+        options = ["Accent", "Card background", "Text", "Button", "Radius"]
+        prop, ok = QInputDialog.getItem(
+            self, "Widget style", "Style token:", options, 0, False)
+        if not ok:
+            return
+        token = {"Accent": "accent", "Card background": "card",
+                 "Text": "text", "Button": "button", "Radius": "radius"}[prop]
+        override = self.cfg.setdefault("widget_styles", {}).setdefault(
+            widget_id, {})
+        if token == "radius":
+            value, ok = QInputDialog.getInt(
+                self, "Widget radius", "Radius:",
+                int(override.get("radius", self.tokens["radius"])), 0, 48)
+        else:
+            current = QColor(*theme.to_rgba(
+                override.get(token, self.tokens[token])))
+            color = QColorDialog.getColor(current, self, f"{label}: {prop}",
+                                          QColorDialog.ShowAlphaChannel)
+            ok = color.isValid()
+            value = list(color.getRgb()) if ok else None
+        if not ok:
+            return
+        override[token] = value
+        save_config(self.cfg)
+        self.apply_theme()
+
+    def clear_widget_style(self):
+        labels = list(WIDGET_LABELS.values())
+        keys = list(WIDGET_LABELS)
+        label, ok = QInputDialog.getItem(
+            self, "Reset widget style", "Widget:", labels, 0, False)
+        if ok:
+            self.cfg.setdefault("widget_styles", {}).pop(
+                keys[labels.index(label)], None)
+            save_config(self.cfg)
+            self.apply_theme()
 
     def set_theme(self, name):
         self.cfg["theme"] = name
@@ -596,6 +656,13 @@ class Dock(QWidget):
         auto.toggled.connect(
             lambda on: winapi.set_autostart(on, "Windows Bar", autostart_command()))
         m.addAction(auto)
+        style_menu = m.addMenu("Widget styles")
+        edit_style = QAction("Set widget style override…", style_menu)
+        edit_style.triggered.connect(self.edit_widget_style)
+        style_menu.addAction(edit_style)
+        reset_style = QAction("Reset widget style…", style_menu)
+        reset_style.triggered.connect(self.clear_widget_style)
+        style_menu.addAction(reset_style)
         tm = m.addMenu("Theme")
         grp = QActionGroup(tm)
         for name in theme.list_themes(THEMES_DIR):
