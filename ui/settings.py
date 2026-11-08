@@ -202,9 +202,17 @@ class SettingsWindow(QDialog):
         self.window_tracking = QCheckBox("Track open application windows")
         self.window_tracking.toggled.connect(self._set_window_tracking)
         form.addRow(self.window_tracking)
-        self.tiling_enabled = QCheckBox("Automatically tile windows (BSP)")
+        self.tiling_enabled = QCheckBox("Automatically tile windows")
         self.tiling_enabled.toggled.connect(self._set_tiling_enabled)
         form.addRow(self.tiling_enabled)
+        self.tiling_layout = QComboBox()
+        self.tiling_layout.addItem("BSP", "bsp")
+        self.tiling_layout.addItem("Columns", "columns")
+        self.tiling_layout.addItem("Master / stack", "stack")
+        self.tiling_layout.currentIndexChanged.connect(
+            lambda index: self.dock.set_tiling_layout(
+                self.tiling_layout.itemData(index)))
+        form.addRow("Layout engine", self.tiling_layout)
         self.tiling_gap = QSpinBox()
         self.tiling_gap.setRange(0, 80)
         self.tiling_gap.setSuffix(" px")
@@ -306,6 +314,9 @@ class SettingsWindow(QDialog):
         self.dock.set_tiling_spacing(self.tiling_gap.value(),
                                      self.tiling_padding.value())
 
+    def _set_tiling_layout(self, value):
+        self.dock.set_tiling_layout(value)
+
     def _save_floating_rules(self):
         self.dock.set_tiling_floating_rules(
             self.floating_apps.text(), self.floating_classes.text(),
@@ -355,6 +366,12 @@ class SettingsWindow(QDialog):
         self.tiling_enabled.setChecked(bool(cfg.get("tiling_enabled", False)))
         self.tiling_enabled.setEnabled(self.dock.is_primary_display)
         self.tiling_enabled.blockSignals(False)
+        self.tiling_layout.blockSignals(True)
+        layout_index = self.tiling_layout.findData(
+            cfg.get("tiling_layout", "bsp"))
+        self.tiling_layout.setCurrentIndex(max(0, layout_index))
+        self.tiling_layout.setEnabled(self.dock.is_primary_display)
+        self.tiling_layout.blockSignals(False)
         self.tiling_gap.blockSignals(True)
         self.tiling_gap.setValue(int(cfg.get("tiling_gap", 12)))
         self.tiling_gap.setEnabled(self.dock.is_primary_display)

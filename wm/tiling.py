@@ -6,16 +6,18 @@ import sys
 from PySide6.QtCore import QObject, QTimer
 
 import winapi
-from wm.layouts import bsp_layout
+from wm.layouts import bsp_layout, columns_layout, master_stack_layout
 
 
 class TilingManager(QObject):
     def __init__(self, tracker, gap=12, padding=16, workspace_layouts=None,
-                 floating_apps=(), floating_rules=None, on_change=None,
+                 floating_apps=(), floating_rules=None, layout="bsp",
+                 on_change=None,
                  parent=None):
         super().__init__(parent)
         self.tracker = tracker
         self.gap, self.padding = int(gap), int(padding)
+        self.layout = layout if layout in ("bsp", "columns", "stack") else "bsp"
         self.workspace_layouts = (workspace_layouts
                                   if isinstance(workspace_layouts, dict) else {})
         if isinstance(floating_apps, str):
@@ -103,7 +105,9 @@ class TilingManager(QObject):
                 ratio = float(ratios.get(area_key, 0.5))
             except (TypeError, ValueError):
                 ratio = 0.5
-            for hwnd, rect in zip(order, bsp_layout(
+            layout_fn = {"bsp": bsp_layout, "columns": columns_layout,
+                         "stack": master_stack_layout}[self.layout]
+            for hwnd, rect in zip(order, layout_fn(
                     area, len(order), self.gap, self.padding, ratio=ratio)):
                 winapi.move_window_rect(hwnd, rect)
             names = [winapi.window_process_name(hwnd) for hwnd in order]

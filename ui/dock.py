@@ -1061,6 +1061,7 @@ class Dock(QWidget):
                     self._window_tracker,
                     gap=self.cfg.get("tiling_gap", 12),
                     padding=self.cfg.get("tiling_padding", 16),
+                    layout=self.cfg.get("tiling_layout", "bsp"),
                     workspace_layouts=workspace_layouts,
                     floating_apps=self.cfg.get("tiling_floating_apps", []),
                     floating_rules=self.cfg.get("tiling_floating_rules", {}),
@@ -1166,6 +1167,14 @@ class Dock(QWidget):
         if self._tiling_manager is not None:
             self._tiling_manager.gap = self.cfg["tiling_gap"]
             self._tiling_manager.padding = self.cfg["tiling_padding"]
+            self._tiling_manager.schedule_layout()
+        save_config(self.cfg)
+
+    def set_tiling_layout(self, value):
+        value = value if value in ("bsp", "columns", "stack") else "bsp"
+        self.cfg["tiling_layout"] = value
+        if self._tiling_manager is not None:
+            self._tiling_manager.layout = value
             self._tiling_manager.schedule_layout()
         save_config(self.cfg)
 
