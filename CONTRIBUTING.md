@@ -1,0 +1,36 @@
+# Contributing to Windows Bar
+
+Thanks for helping improve Windows Bar. The app is a Windows desktop shell built with Python and PySide6. Keep changes local-first, respect the MIT license, and do not copy code, styles, names, or assets from projects whose licenses do not permit it.
+
+## Set up a development environment
+
+1. Use Windows 10 or 11 and a supported Python version listed in `requirements.txt` / CI.
+2. Create and activate a virtual environment.
+3. Install dependencies with `python -m pip install -r requirements.txt`.
+4. Run `python windowsbar.py` to launch the app. Use a separate Windows account or VM for changes that affect taskbar state, global hooks, or window placement.
+
+Optional media and temperature dependencies are documented in `requirements-media.txt` and `requirements-temperature.txt`.
+
+## Make a change
+
+- Check `ROADMAP.md`, `AUDIT.md`, and `AGENTS.md` before taking on a roadmap item.
+- Keep UI work on the Qt thread. Put Win32 integration in `native/` and background work in a worker or service.
+- For widgets, follow [`docs/widget-sdk.md`](docs/widget-sdk.md) and the copyable [`docs/widget-template/`](docs/widget-template/) scaffold. Third-party runtime plugins are not currently supported.
+- For themes, validate JSON against the existing theme format and include a readable preview description.
+- Preserve crash-safe restoration for taskbar, hooks, and window geometry. Native features should degrade gracefully when Windows denies access.
+- Do not include credentials, personal paths, machine-specific logs, or generated runtime folders in commits.
+
+## Check your work
+
+Run focused checks relevant to your change. The CI workflow runs the repository's Python checks on Windows. For UI or native changes, also describe which Windows version and interaction path you exercised; automated checks cannot prove behavior of desktop hooks, COM, or window stacking.
+
+## Submit a contribution
+
+Use a short branch and a focused commit, for example `feat(wm): add layout preset`. In the PR description, include:
+
+- What changed and why.
+- How it was checked, including any manual Windows steps.
+- Screenshots or a short recording for visible UI changes, with personal data hidden.
+- Any roadmap item that remains partial and the reason.
+
+Small, focused contributions are easier to review. Please avoid bundling unrelated formatting or generated files.
