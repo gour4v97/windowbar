@@ -31,7 +31,7 @@ def set_brightness(percent):
     try:
         methods = _methods()
         for method in methods:
-            method.WmiSetBrightness(0, value)
+            method.WmiSetBrightness(Timeout=0, Brightness=value)
         return bool(methods)
     except Exception:
         return False
