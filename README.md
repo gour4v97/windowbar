@@ -19,7 +19,9 @@ python windowsbar.py
 Right-click the dock for the menu: choose widgets, position, and options.
 Settings live in `%APPDATA%\Windows Bar\config.json`.
 
-## Widgets (28)
+## Widgets (27 configurable widgets)
+
+The calendar popup is a detail panel on the Next event widget, not a separate widget.
 
 | Widget | How it works |
 |---|---|
