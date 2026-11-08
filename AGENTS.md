@@ -18,4 +18,4 @@ The repository is `gour4v97/windowbar`; the product is **Windows Bar**. It is a 
 - New features need a platform-independent test where practical.
 
 ## Session handoff
-Phase 1 now includes schema-v1 config storage, a widget registry/lifecycle adapter, standalone Clock/Weather/Notes modules, stoppable background workers, the reusable detail popup, rotating file logs, and a tested taskbar auto-hide crash-recovery path. Tests pass locally. Remaining Phase 1 work is to split the rest of `windowsbar.py` and `winapi.py`; the next substantial task is that module split.
+Phase 1 now includes schema-v1 config storage, a widget registry/lifecycle adapter, standalone Clock/Weather/Notes modules, stoppable background workers, the reusable detail popup, rotating file logs, and a tested taskbar auto-hide crash-recovery path. Tests pass locally. The `winapi.py` implementation has been split into `native/appbar.py`, `native/glass.py`, `native/system.py`, and `native/audio.py`, with `native/windows.py` and the root `winapi.py` preserving compatibility. Remaining Phase 1 work is to split the UI and widget implementations out of `windowsbar.py` without changing behavior.
