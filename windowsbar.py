@@ -31,6 +31,8 @@ from PySide6.QtWidgets import (
 import extras
 import theme
 import winapi
+from core import config as config_store
+from core.registry import WidgetDefinition, WidgetRegistry
 from launcher import HotkeyFilter, Launcher
 from services import (CalendarService, MediaService, RadioService,
                       WeatherService)
@@ -40,8 +42,6 @@ CONFIG = APP_DIR / "config.json"
 SCREEN_TIME_FILE = APP_DIR / "screentime.json"
 THEMES_DIR = APP_DIR / "themes"
 CUSTOM_QSS = APP_DIR / "custom.qss"
-_save_lock = threading.Lock()
-
 DEFAULTS = {
     "position": "bottom",
     "reserve_space": True,
@@ -102,25 +102,11 @@ WIDGET_LABELS = {
 
 
 def load_config():
-    cfg = json.loads(json.dumps(DEFAULTS))
-    try:
-        data = json.loads(CONFIG.read_text(encoding="utf-8"))
-        cfg.update({k: v for k, v in data.items() if k != "widgets"})
-        cfg["widgets"].update(data.get("widgets", {}))
-    except Exception:
-        pass
-    return cfg
+    return config_store.load(CONFIG, DEFAULTS)
 
 
 def save_config(cfg):
-    with _save_lock:  # widgets save from background threads too
-        try:
-            APP_DIR.mkdir(parents=True, exist_ok=True)
-            tmp = CONFIG.with_suffix(".tmp")
-            tmp.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
-            os.replace(tmp, CONFIG)
-        except Exception:
-            pass
+    config_store.save(CONFIG, cfg)
 
 
 def fmt_hms(seconds):
@@ -1131,7 +1117,6 @@ class Popup(QWidget):
         self.setWindowFlags(Qt.Popup | Qt.FramelessWindowHint
                             | Qt.WindowStaysOnTopHint)
         self.setStyleSheet(dock.styleSheet())
-
     def show_near(self, widget):
         self.adjustSize()
         anchor = widget.mapToGlobal(QPoint(0, 0))
@@ -1401,6 +1386,38 @@ PRESETS = {
 MARGIN = 8
 
 
+class CardWidgetAdapter:
+    """Expose an existing card through the new internal widget contract."""
+
+    def __init__(self, widget_id, name, default_config, card_factory):
+        self.id = widget_id
+        self.name = name
+        self.default_config = {"enabled": bool(default_config)}
+        self._card = card_factory()
+
+    def start(self):
+        start = getattr(self._card, "start", None)
+        if callable(start):
+            start()
+
+    def stop(self):
+        stop = getattr(self._card, "stop", None)
+        if callable(stop):
+            stop()
+
+    def card(self):
+        return self._card
+
+    def popup(self):
+        popup = getattr(self._card, "popup", None)
+        return popup() if callable(popup) else None
+
+    def on_click(self):
+        callback = getattr(self._card, "on_click", None)
+        if callable(callback):
+            callback()
+
+
 # ------------------------------------------------------------------ dock ----
 class Dock(QWidget):
     def __init__(self):
@@ -1468,6 +1485,7 @@ class Dock(QWidget):
         self.row.setContentsMargins(14, 10, 14, 10)
         self.row.setSpacing(10)
         self.cards = []
+        self._widget_registry = WidgetRegistry()
         self.rebuild()
 
         self.timer = QTimer(self)
@@ -1499,11 +1517,11 @@ class Dock(QWidget):
 
     # -- build ---------------------------------------------------------------
     def rebuild(self):
+        self._widget_registry.stop_all()
         for c in self.cards:
             self.row.removeWidget(c)
             c.deleteLater()
         self.cards = []
-        w = self.cfg["widgets"]
         makers = [
             ("apps", lambda: AppsCard(self.cfg["apps"], self.poll("apps"))),
             ("clock", self._clock_card),
@@ -1541,9 +1559,19 @@ class Dock(QWidget):
             ("script", lambda: ScriptCard(self.poll("script"), self.cfg)),
             ("todos", self._todo_card),
         ]
+        registry = WidgetRegistry()
         for key, make in makers:
-            if w.get(key):
-                self.cards.append(make())
+            registry.register(WidgetDefinition(
+                id=key,
+                name=WIDGET_LABELS.get(key, key.title()),
+                default_config=DEFAULTS["widgets"].get(key, False),
+                factory=lambda k=key, f=make: CardWidgetAdapter(
+                    k, WIDGET_LABELS.get(k, k.title()),
+                    DEFAULTS["widgets"].get(k, False), f),
+            ))
+        active = registry.start_enabled(self.cfg)
+        self._widget_registry = registry
+        self.cards = [widget.card() for widget in active.values()]
         for c in self.cards:
             self.row.addWidget(c)
             c.tick()
@@ -2108,6 +2136,9 @@ class Dock(QWidget):
         os.startfile(str(THEMES_DIR))
 
     def shutdown(self):
+        self._widget_registry.stop_all()
+        for poll in self.polls.values():
+            poll.stop()
         self.hotkey.unregister()
         self.app_hotkeys.unregister()
         winapi.set_keep_awake(False)
