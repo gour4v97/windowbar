@@ -40,6 +40,7 @@ from widgets.base import Card, clip
 from widgets.clock import ClockCard
 from widgets.notes import NotesCard
 from widgets.weather import WeatherCard
+from ui.popup import DetailPopup
 
 APP_DIR = Path(os.environ.get("APPDATA", Path.home())) / "Windows Bar"
 CONFIG = APP_DIR / "config.json"
@@ -1012,29 +1013,15 @@ class AnalogClockCard(QFrame):
 
 
 # ------------------------------------------------------------- popups --------
-class Popup(QWidget):
-    """A small panel that opens over its card and closes when you
-    click elsewhere."""
-
+class Popup(DetailPopup):
+    """Windows Bar positioning and theme adapter for detail popups."""
     def __init__(self, dock):
-        super().__init__(dock)
         self.dock = dock
-        self.setWindowFlags(Qt.Popup | Qt.FramelessWindowHint
-                            | Qt.WindowStaysOnTopHint)
-        self.setStyleSheet(dock.styleSheet())
+        super().__init__(dock, edge=dock.cfg.get("position", "bottom"))
 
     def show_near(self, widget):
-        self.adjustSize()
-        anchor = widget.mapToGlobal(QPoint(0, 0))
-        x = max(0, anchor.x() + widget.width() // 2 - self.width() // 2)
-        if self.dock.cfg["position"] == "top":
-            y = self.dock.y() + self.dock.height() + 6
-        else:
-            y = self.dock.y() - self.height() - 6
-        screen = QApplication.primaryScreen().availableGeometry()
-        x = min(x, max(0, screen.width() - self.width() - 4))
-        self.move(int(x), int(y))
-        self.show()
+        return super().show_near(
+            widget, edge=self.dock.cfg.get("position", "bottom"))
 
 
 class CalendarPopup(Popup):
@@ -1278,6 +1265,7 @@ class AppHotkeyFilter(QAbstractNativeEventFilter):
 
 
 
+
 PRESETS = {
     "Essentials": ["apps", "clock", "weather", "system", "battery",
                    "media", "calendar", "quick"],
@@ -1289,7 +1277,6 @@ PRESETS = {
 }
 
 MARGIN = 8
-
 
 class CardWidgetAdapter:
     """Expose an existing card through the new internal widget contract."""
@@ -1756,6 +1743,7 @@ class Dock(QWidget):
                 c.tick()
             self.place()           # re-reserve space, settle exact position
         self._last_hover = time.monotonic()
+
     def enterEvent(self, e):
         self._last_hover = time.monotonic()
         super().enterEvent(e)
