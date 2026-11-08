@@ -81,6 +81,7 @@ The calendar popup is a detail panel on the Next event widget, not a separate wi
 - **Themes** — menu > Theme: midnight (default), daylight, aurora, rose, mono. Add your own as JSON in `%APPDATA%\Windows Bar\themes\` (menu > Theme > Open themes folder creates an example). A theme only lists the keys it changes: `panel`, `glass`, `border`, `card`, `text`, `muted`, `button`, `accent` (`"#rrggbb"` or `[r,g,b,a]`, alpha 0-255), `radius`, `panel_radius`, `font`.
 - **Theme gallery** — starter `nord`, `forest`, and `ember` JSON themes live in [`themes/gallery/`](themes/gallery/); copy a JSON file into `%APPDATA%\Windows Bar\themes\` to use it.
 - **Widget contributions** — the source-level widget contract and template are in [`docs/widget-sdk.md`](docs/widget-sdk.md). Runtime third-party plugin loading is not yet supported.
+- **Contributing and localization** — see [`CONTRIBUTING.md`](CONTRIBUTING.md) and the [localization workflow](docs/localization.md); runtime translation is still in progress.
 - **Custom CSS** — drop a `custom.qss` into `%APPDATA%\Windows Bar\` and it is applied on top of the theme (Qt style sheets, a CSS subset).
 - **Dynamic accent** — the accent colour is derived from your wallpaper and follows it when it changes (hover, focused window, launcher selection). Turn it off in the menu to use the theme's own accent.
 - The open-windows widget now behaves like a taskbar (no hidden/cloaked windows) and highlights the focused window.
@@ -121,3 +122,4 @@ Phase 5 includes opt-in BSP, Columns, and Master / stack tiling in **Settings �
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
