@@ -1,4 +1,4 @@
-> **Current baseline (2026-11-08):** Product name is Windows Bar; repository remains `gour4v97/windowbar`. The existing source documents 28 widgets and already includes a launcher, theme engine, wallpaper accent, and several Phase 2 features. The matrix is being reconciled against the source; see `AUDIT.md`.
+> **Current baseline (2026-11-08):** Product name is Windows Bar; repository remains `gour4v97/windowbar`. The existing source documents 27 configurable widgets plus a calendar detail popup and already includes a launcher, theme engine, wallpaper accent, and several Phase 2 features. The matrix is being reconciled against the source; see `AUDIT.md`.
 # Windows Bar Roadmap
 
 Goal: grow Windows Bar from a single smart dock into a full, customizable Windows desktop shell with the same *feature set* as [Seelen UI](https://github.com/eythaann/seelen-ui), plus the smart-dock extras from [Dockyard](https://github.com/aryansoni57/dockyard). Everything stays local: no account, no telemetry.
@@ -24,7 +24,7 @@ From the README and the source audit in `AUDIT.md`:
 - Single bar, top or bottom, snaps to edges, optional full-width or pill
 - AppBar space reservation, glass/acrylic, taskbar auto-hide with crash-safe restore
 - Auto-hide dock with fullscreen detection, start with Windows
-- 28 widgets, including launcher, open windows, clock, system, weather, media, calendar, quick actions, notes, focus tools, storage, network, volume, and quick toggles
+- 27 configurable widgets, including pinned apps, open windows, clock, system, weather, media, calendar, quick actions, notes, focus tools, storage, network, volume, and quick toggles; the calendar popup is a detail panel
 - Files: `windowsbar.py` (UI), `launcher.py`, `search.py`, `theme.py`, `services.py`, `extras.py`, `winapi.py`, `tests/`
 - MIT; see `LICENSE`
 
@@ -131,14 +131,15 @@ Rules: widgets never touch Win32 directly (go through `native/`); all native hoo
 **Done when:** a fresh clone + `pip install -r requirements.txt` + `pytest -q` works, and CI is green.
 
 ### Phase 1: Modular core *(M)*
-- [ ] Split `windowsbar.py` / `winapi.py` into the structure in section 4, with no behaviour change  \n  - Progress: `windowsbar.py` is now a small entrypoint; `ui/dock.py`, `core/app_config.py`, `native/`, `widgets/`, and `ui/` hold the extracted layers. Finish aligning each widget module with the one-file-plus-one-config-key contract.
-- [x] Widget registry + the widget contract; all 28 cards register through the compatibility adapter, and Clock, Weather, and Notes now live in standalone modules
+- [x] Split `windowsbar.py` / `winapi.py` into the structure in section 4, with no behaviour change; `windowsbar.py` is the entrypoint, Dock/config are in `ui/` and `core/`, and native helpers are in `native/`
+- [x] Give each configured widget its own module and factory; registry package discovery registers widgets from the modules and config defaults.
+- [x] Widget registry + widget contract; all 27 configured widgets are auto-discovered and registered through the compatibility adapter
 - [x] Versioned config with migration from the current `config.json` (schema v1, legacy migration, and focused tests; export/import is a later enhancement)
 - [x] Widgets stop their work when hidden or disabled (poll workers stop, Screen Time sampler is opt-in, and weather/calendar/media/radio workers stop when inactive)
 - [x] Detail-popup component (`ui/popup.py`, shared by calendar, notes, and todos panels)
 - [x] Rotating logging to `%APPDATA%\Windows Bar\logs` and a crash-recovery test for saved taskbar auto-hide state
 
-**Done when:** all 28 widgets run through the registry; adding a widget = one file + one config key.
+**Done when:** all 27 configured widgets run through the registry; adding a widget = one module + one config key.
 
 ### Phase 2: Dockyard parity + keyboard basics *(M–L)*
 - [ ] Pinned apps with running dots and focus/launch behaviour
