@@ -1,6 +1,7 @@
 """Windows Bar user paths, defaults, and configuration helpers."""
 import os
 import sys
+import threading
 from datetime import datetime
 from pathlib import Path
 from core import config as config_store
@@ -9,9 +10,11 @@ CONFIG = APP_DIR / "config.json"
 SCREEN_TIME_FILE = APP_DIR / "screentime.json"
 THEMES_DIR = APP_DIR / "themes"
 CUSTOM_QSS = APP_DIR / "custom.qss"
+_CONFIG_SAVE_LOCK = threading.RLock()
 DEFAULTS = {
     "position": "bottom",
     "shell_layout": "combined",
+    "widget_order": [],
     "reserve_space": True,
     "hide_taskbar": False,
     "glass": True,
@@ -55,6 +58,7 @@ DEFAULTS = {
     "launcher": True,
     "launcher_hotkey": "alt+space",
     "app_hotkey_modifier": "alt",
+    "display_profiles": {},
 }
 
 WIDGET_LABELS = {
@@ -73,12 +77,35 @@ WIDGET_LABELS = {
 }
 
 
-def load_config():
-    return config_store.load(CONFIG, DEFAULTS)
+def display_config_id(screen):
+    if screen is None:
+        return "primary"
+    return str(screen.name() or screen.serialNumber() or "primary")
+
+
+def load_config(screen=None):
+    cfg = config_store.load(CONFIG, DEFAULTS)
+    if screen is not None:
+        profile = cfg.get("display_profiles", {}).get(
+            display_config_id(screen), {})
+        cfg.update(profile)
+        cfg["_display_id"] = display_config_id(screen)
+    return cfg
 
 
 def save_config(cfg):
-    config_store.save(CONFIG, cfg)
+    with _CONFIG_SAVE_LOCK:
+        display_id = cfg.get("_display_id")
+        if not display_id:
+            config_store.save(CONFIG, cfg)
+            return
+        root = config_store.load(CONFIG, DEFAULTS)
+        profiles = root.setdefault("display_profiles", {})
+        profiles[display_id] = {
+            key: value for key, value in cfg.items()
+            if key not in ("_display_id", "display_profiles")
+        }
+        config_store.save(CONFIG, root)
 
 
 def in_quiet_hours(spec, now=None):
