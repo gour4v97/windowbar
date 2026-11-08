@@ -442,3 +442,16 @@ def test_widget_theme_overrides_are_validated_and_scoped():
     assert tokens["text"] == base["text"]
     assert tokens["panel"] == base["panel"]
     assert "rgba(255,0,0,150)" in theme.build_widget_qss(tokens)
+
+
+def test_builtin_theme_aliases_and_spacing_blur_tokens():
+    import theme
+
+    assert theme.resolve("default") == theme.resolve("midnight")
+    assert theme.resolve("light") == theme.resolve("daylight")
+    assert theme.resolve("dark") == theme.resolve("midnight")
+    glass = theme.resolve("glass")
+    assert glass["blur"] > 0 and glass["spacing"] == 12
+    assert "padding: 12px" in theme.build_qss(glass)
+    assert {"default", "glass", "light", "dark"}.issubset(
+        theme.list_themes())
