@@ -41,6 +41,7 @@ STRIPE_VAR = "WINDOWSBAR_STRIPE_KEY"
 CORE_FILES = ["windowsbar.py", "services.py", "extras.py", "winapi.py",
               "theme.py", "search.py", "launcher.py", "requirements.txt"]
 EXTRA_FILES = ["requirements-media.txt", "LICENSE", "README.md"]
+CORE_DIRS = ["core", "native", "ui", "widgets"]
 
 LOCAL = Path(os.environ.get("LOCALAPPDATA", str(Path.home() / "AppData" / "Local")))
 ROAMING = Path(os.environ.get("APPDATA", str(Path.home() / "AppData" / "Roaming")))
@@ -161,6 +162,11 @@ def install(args):
             src = SRC_DIR / name
             if src.exists():
                 shutil.copy2(src, INSTALL_DIR / name)
+        for name in CORE_DIRS:
+            src = SRC_DIR / name
+            if src.exists():
+                shutil.copytree(src, INSTALL_DIR / name, dirs_exist_ok=True,
+                                ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
     except PermissionError:
         fail("Could not overwrite files - Windows Bar is probably running.\n"
              "    Right-click the dock, quit it, and run setup again.")
