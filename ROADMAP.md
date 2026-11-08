@@ -42,8 +42,8 @@ From the README and the source audit in `AUDIT.md`:
 | Tiling window manager (BSP, columns, stacks) | ⬜ | P5 | XL |
 | Per-app rules, floating mode, gaps | ⬜ | P5 | L |
 | Custom Alt+Tab | ⬜ | P4 | L |
-| Virtual desktops + workspace viewer | ⬜ | P4 | L |
-| Wallpaper per workspace, named workspaces | ⬜ | P4 | M |
+| Virtual desktops + workspace viewer | 🟡 control and named/icon viewer shipped; custom Alt+Tab/window layouts remain | P4 | L |
+| Wallpaper per workspace, named workspaces | 🟡 names/icons shipped; wallpaper on supported Windows 11 only | P4 | M |
 | Theming engine (CSS/JSON-style) | ✅ built-in JSON themes, custom themes and QSS | — | — |
 | Dynamic accent from wallpaper | ✅ | — | — |
 | Per-widget theming | ✅ color/radius overrides through Settings | — | — |
@@ -166,9 +166,9 @@ Rules: widgets never touch Win32 directly (go through `native/`); all native hoo
 > **Decision gate (end of Phase 3):** the written decision is to stay on Python/PySide6 and measure idle CPU/RAM and input latency before Phase 4's hook/tiling work. No runtime measurements were available in the authoring environment; reopen the decision if Windows measurements show stalls or excessive idle resource use. See `docs/decisions/0001-stack.md`.
 
 ### Phase 4: Workspaces, Alt+Tab, desktop widgets, Seelen tier 2 *(L)*
-- [ ] Virtual desktop control (switch, move window, create/remove), using a maintained wrapper rather than raw undocumented COM, with a fallback if Windows updates break it
-- [ ] Workspace viewer overlay, named workspaces with icons
-- [ ] Wallpaper per workspace
+- [x] Virtual desktop control (switch, move window, create/remove) through the maintained `pyvda` wrapper; shortcut fallback for switching/creation and graceful errors for unsupported operations
+- [x] Workspace viewer overlay, named workspaces with custom symbols/icons
+- [🟡] Wallpaper per workspace through `pyvda` on supported Windows 11 builds; Windows 10 reports the limitation
 - [ ] Custom Alt+Tab: low-level keyboard hook on its own thread, window previews (DWM thumbnails or captured frames), keyboard + mouse navigation
 - [ ] Desktop-widgets layer pinned beneath normal windows (wallpaper layer), draggable, theme-aware
 
