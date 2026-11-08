@@ -1342,7 +1342,7 @@ class Dock(QWidget):
         self.calendar = CalendarService(self.cfg)
         self.media = MediaService()
         self.radios = RadioService()
-        self.screen_time = extras.ScreenTime(SCREEN_TIME_FILE)
+        self.screen_time = extras.ScreenTime(SCREEN_TIME_FILE, start=False)
         self.polls = {}            # created on demand, stopped when the widget is off
         self._poll_makers = {
             "github": (lambda: extras.github_summary(self.cfg["github_user"]), 1800),
@@ -1519,6 +1519,10 @@ class Dock(QWidget):
         """Background work only runs for widgets that are switched on."""
         w = self.cfg["widgets"]
         meeting = bool(self.cfg["pause_before_meeting"])
+        if w.get("screentime"):
+            self.screen_time.start()
+        else:
+            self.screen_time.stop()
         self.weather.active = bool(w.get("weather"))
         self.calendar.active = bool(w.get("calendar")) or meeting
         self.media.active = bool(w.get("media")) or meeting
@@ -1752,10 +1756,10 @@ class Dock(QWidget):
                 c.tick()
             self.place()           # re-reserve space, settle exact position
         self._last_hover = time.monotonic()
-
     def enterEvent(self, e):
         self._last_hover = time.monotonic()
         super().enterEvent(e)
+
     # -- automations ---------------------------------------------------------
     def automations(self):
         if not self.cfg["pause_before_meeting"]:
@@ -2043,10 +2047,14 @@ class Dock(QWidget):
         self._widget_registry.stop_all()
         for poll in self.polls.values():
             poll.stop()
+        self.weather.stop()
+        self.calendar.stop()
+        self.media.stop()
+        self.radios.stop()
         self.hotkey.unregister()
         self.app_hotkeys.unregister()
         winapi.set_keep_awake(False)
-        self.screen_time.flush()
+        self.screen_time.stop()
         self.appbar.remove()
         winapi.set_taskbar_autohide(False, self.appbar.hwnd, self.cfg)
         save_config(self.cfg)
