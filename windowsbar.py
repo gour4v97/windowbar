@@ -8,6 +8,7 @@ Right-click the dock for the menu. Settings live in %APPDATA%\\Windows Bar\\conf
 Stripe revenue reads the key from the WINDOWSBAR_STRIPE_KEY environment variable.
 """
 import json
+import logging
 import math
 import os
 import subprocess
@@ -32,6 +33,7 @@ import extras
 import theme
 import winapi
 from core import config as config_store
+from core.logging_setup import configure_logging
 from core.registry import WidgetDefinition, WidgetRegistry
 from launcher import HotkeyFilter, Launcher
 from services import (CalendarService, MediaService, RadioService,
@@ -43,6 +45,7 @@ from widgets.weather import WeatherCard
 from ui.popup import DetailPopup
 
 APP_DIR = Path(os.environ.get("APPDATA", Path.home())) / "Windows Bar"
+_log = logging.getLogger("windowsbar")
 CONFIG = APP_DIR / "config.json"
 SCREEN_TIME_FILE = APP_DIR / "screentime.json"
 THEMES_DIR = APP_DIR / "themes"
@@ -794,7 +797,6 @@ class TimerCard(Card):
 
 class ScriptCard(Card):
     """First line of your own command's output, big; second line small."""
-
     INTERVAL = 5
 
     def __init__(self, poll, cfg):
@@ -1277,6 +1279,7 @@ PRESETS = {
 }
 
 MARGIN = 8
+
 
 class CardWidgetAdapter:
     """Expose an existing card through the new internal widget contract."""
@@ -2032,6 +2035,7 @@ class Dock(QWidget):
         os.startfile(str(THEMES_DIR))
 
     def shutdown(self):
+        _log.info("Windows Bar shutting down")
         self._widget_registry.stop_all()
         for poll in self.polls.values():
             poll.stop()
@@ -2049,6 +2053,8 @@ class Dock(QWidget):
 
 
 def main():
+    log_path = configure_logging(APP_DIR)
+    _log.info("Windows Bar starting (log file: %s)", log_path)
     app = QApplication(sys.argv)
     app.setFont(QFont("Segoe UI", 10))
     dock = Dock()
