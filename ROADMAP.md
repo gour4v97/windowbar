@@ -156,7 +156,7 @@ Rules: widgets never touch Win32 directly (go through `native/`); all native hoo
 - [x] Per-widget style overrides for accent, card background, text, button color, and radius
 - [ ] Split **Toolbar** (top: workspaces, active window, tray-style widgets, clock) and **Dock** (bottom: pinned apps + running)
 - [ ] Multi-monitor: a bar per display with independent config
-- [🟡] Right-click menu exposes widgets, layout, themes, hotkeys, and per-widget styles; separate settings window with live preview remains
+- [x] Separate Settings window for widgets, layout, themes, hotkeys, and live preview
 - [x] **Launcher:** global hotkey, fuzzy search over apps, files, commands, calculator
 - [🟡] Volume control exists; custom volume and brightness flyouts remain (brightness via WMI/DDC where supported)
 - [ ] Optional Windows-notification-centre integration
