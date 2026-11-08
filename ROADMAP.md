@@ -34,10 +34,10 @@ From the README and the source audit in `AUDIT.md`:
 
 | Seelen feature | Windows Bar now | Target phase | Effort |
 |---|---|---|---|
-| Custom toolbar (replaces taskbar) | 🟡 optional split toolbar + pinned-app dock; workspaces and notification-area tray remain | P3 | M |
+| Custom toolbar (replaces taskbar) | 🟡 optional split toolbar + pinned-app dock, active-window title, virtual-desktop shortcuts; notification-area tray remains Windows-owned | P3 | M |
 | Dock with launch / focus / badges | ✅ pinned apps show running dots and focus or launch on click | — | — |
 | Desktop widgets on wallpaper layer | ⬜ | P4 | L |
-| Custom flyouts (volume, brightness, system) | ⬜ | P3 | M |
+| Custom flyouts (volume, brightness, system) | ✅ volume and WMI internal-panel brightness; system detail popups | — | — |
 | Start menu / keyboard launcher (fuzzy search) | ✅ Alt+Space launcher searches apps, files, commands, and calculator | — | — |
 | Tiling window manager (BSP, columns, stacks) | ⬜ | P5 | XL |
 | Per-app rules, floating mode, gaps | ⬜ | P5 | L |
@@ -46,11 +46,11 @@ From the README and the source audit in `AUDIT.md`:
 | Wallpaper per workspace, named workspaces | ⬜ | P4 | M |
 | Theming engine (CSS/JSON-style) | ✅ built-in JSON themes, custom themes and QSS | — | — |
 | Dynamic accent from wallpaper | ✅ | — | — |
-| Per-widget theming | ⬜ | P3 | S |
+| Per-widget theming | ✅ color/radius overrides through Settings | — | — |
 | Community themes / sharing | ⬜ | P6 | M |
 | Media controls | ✅ | — | — |
-| Multi-monitor, per-display config | ⬜ | P3 | M |
-| Settings app with live preview | 🟡 right-click menu | P3 | L |
+| Multi-monitor, per-display config | ✅ one bar and settings profile per connected display | — | — |
+| Settings app with live preview | ✅ separate live Settings window | — | — |
 | Keyboard-first (everything reachable) | 🟡 pinned-app Alt+1..9 (modifier configurable); remaining controls still need keyboard paths | P2 → P3 | M |
 | i18n (Seelen: 70+ languages) | ⬜ | P6 | M |
 | Widget SDK | ⬜ | P1 (internal), P6 (public) | M |
@@ -154,16 +154,16 @@ Rules: widgets never touch Win32 directly (go through `native/`); all native hoo
 - [x] **Theming engine:** JSON theme files, color/radius/font/spacing/blur tokens, QSS, and default/glass/light/dark built-ins
 - [x] Dynamic accent colour from the current wallpaper (dominant-colour extraction, live update)
 - [x] Per-widget style overrides for accent, card background, text, button color, and radius
-- [🟡] Split **Toolbar** (top: enabled information widgets) and **Dock** (bottom: pinned apps + running); workspace controls, active-window summary, and notification-area tray integration remain
-- [ ] Multi-monitor: a bar per display with independent config
+- [🟡] Split **Toolbar** (top: active-window title, virtual-desktop shortcuts, enabled information widgets) and **Dock** (bottom: pinned apps + running); Windows notification-area tray remains OS-owned
+- [x] Multi-monitor: a bar per display with independent widget/layout profile
 - [x] Separate Settings window for widgets, layout, themes, hotkeys, and live preview
 - [x] **Launcher:** global hotkey, fuzzy search over apps, files, commands, calculator
-- [🟡] Volume control exists; custom volume and brightness flyouts remain (brightness via WMI/DDC where supported)
-- [ ] Optional Windows-notification-centre integration
+- [x] Volume and brightness flyouts (brightness via optional WMI on supported internal panels; external DDC displays are not supported)
+- [x] Optional notification-centre integration: open the native Windows notification surface; Windows owns the notification feed and rendering
 
 **Done when:** a non-programmer can restyle and rearrange everything from the Settings app without editing JSON.
 
-> **Decision gate (end of Phase 3):** measure idle CPU/RAM and input latency. If Python is fine, continue. If hooks, Alt+Tab or tiling feel laggy, move the native layer to Rust (PyO3) or start the Tauri port. Write the decision in `docs/decisions/0001-stack.md`.
+> **Decision gate (end of Phase 3):** the written decision is to stay on Python/PySide6 and measure idle CPU/RAM and input latency before Phase 4's hook/tiling work. No runtime measurements were available in the authoring environment; reopen the decision if Windows measurements show stalls or excessive idle resource use. See `docs/decisions/0001-stack.md`.
 
 ### Phase 4: Workspaces, Alt+Tab, desktop widgets, Seelen tier 2 *(L)*
 - [ ] Virtual desktop control (switch, move window, create/remove), using a maintained wrapper rather than raw undocumented COM, with a fallback if Windows updates break it
