@@ -19,6 +19,8 @@ python windowsbar.py
 Open **Settings** from the dock menu to manage widgets, layout, themes, and hotkeys with a live preview. Right-click the dock for quick actions.
 Settings live in `%APPDATA%\Windows Bar\config.json`.
 
+In Settings → Layout, choose **Separate top toolbar and app dock** to put enabled information widgets in a top toolbar and pinned apps in a bottom dock. The default **Combined bar** keeps the current single-row layout.
+
 ## Widgets (28 configurable widgets)
 
 The calendar popup is a detail panel on the Next event widget, not a separate widget. Pinned-app shortcuts default to `Alt+1` through `Alt+9`; change the modifier from the dock menu. Temperature is optional; for Windows hardware sensors, run LibreHardwareMonitor and install `wmi` with `pip install -r requirements-temperature.txt`.
@@ -97,6 +99,8 @@ The calendar popup is a detail panel on the Next event widget, not a separate wi
 - `winapi.py` — Windows-only native helpers (AppBar reservation, glass, taskbar state, open windows, volume, power, autostart); safe no-ops elsewhere
 - `tests/` — parser/recurrence/folder tests that run anywhere: `pytest -q`
 
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
