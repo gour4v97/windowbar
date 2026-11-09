@@ -44,6 +44,7 @@ class Dock(QWidget):
         self.target_screen = screen or QApplication.primaryScreen()
         self.is_primary_display = (shared_shell is None)
         self.shared_shell = shared_shell
+        self._desktop_widgets_window = None
         self.cfg = load_config(self.target_screen)
         self.cfg["todos"] = extras.normalize_todos(self.cfg.get("todos"))
         notes, cur = extras.normalize_notes(
@@ -88,6 +89,7 @@ class Dock(QWidget):
         self._shown_pos = None
         self._last_hover = time.monotonic()
         self._menu_open = False
+        self.last_external_hwnd = 0
         self._res_key = self._res_rc = None   # last AppBar reservation (skip no-ops)
         self._fs = (0.0, False)               # throttled fullscreen check
         self._bg = None                       # cached background pixmap
@@ -102,6 +104,7 @@ class Dock(QWidget):
 
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
                             | Qt.Tool)
+        self.setWindowTitle("Windows Bar")
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.apply_theme()
         self.row = QHBoxLayout(self)
@@ -117,6 +120,10 @@ class Dock(QWidget):
         self.timer.timeout.connect(self.tick)
         self.timer.start(1000)
 
+        self._foreground_timer = QTimer(self)
+        self._foreground_timer.timeout.connect(self._track_foreground_window)
+        self._foreground_timer.start(300)
+
         self._hover_timer = QTimer(self)
         self._hover_timer.timeout.connect(self._autohide_check)
         self._sync_autohide_timer()
@@ -130,6 +137,13 @@ class Dock(QWidget):
             QApplication.instance().installNativeEventFilter(self.app_hotkeys)
             self.app_hotkeys.register_all(
                 self.cfg.get("app_hotkey_modifier", "alt"))
+            self._alt_tab_controller = None
+            if self.cfg.get("custom_alt_tab"):
+                if not self._start_custom_alt_tab(show_error=False):
+                    self.cfg["custom_alt_tab"] = False
+                    save_config(self.cfg)
+            if self.cfg.get("desktop_widgets"):
+                self._sync_desktop_widgets()
         else:
             self.launcher = shared_shell.launcher
             self.hotkey = shared_shell.hotkey
@@ -158,6 +172,40 @@ class Dock(QWidget):
                 winapi.focus_window(hwnd)
             else:
                 AppsCard.launch(self.cfg["apps"][name])
+
+    def _start_custom_alt_tab(self, show_error=True):
+        from ui.alt_tab import AltTabController
+        self._alt_tab_controller = AltTabController(self)
+        if self._alt_tab_controller.start():
+            return True
+        reason = self._alt_tab_controller.hook.error
+        self._alt_tab_controller.deleteLater()
+        self._alt_tab_controller = None
+        _log.warning("Custom Alt+Tab did not start: %s", reason)
+        if show_error:
+            QMessageBox.warning(
+                self, "Custom Alt+Tab unavailable",
+                reason or "Windows did not install the keyboard hook.")
+        return False
+
+    def set_custom_alt_tab(self, enabled):
+        if not self.is_primary_display:
+            return
+        enabled = bool(enabled)
+        if enabled == bool(self.cfg.get("custom_alt_tab", False)):
+            return
+        self.cfg["custom_alt_tab"] = enabled
+        if enabled:
+            if not self._start_custom_alt_tab():
+                self.cfg["custom_alt_tab"] = False
+        elif self._alt_tab_controller is not None:
+            self._alt_tab_controller.stop()
+            self._alt_tab_controller.deleteLater()
+            self._alt_tab_controller = None
+        save_config(self.cfg)
+        settings = getattr(self, "_settings_window", None)
+        if settings is not None:
+            settings.refresh()
 
     # -- build ---------------------------------------------------------------
     def rebuild(self):
@@ -275,6 +323,8 @@ class Dock(QWidget):
         self.setStyleSheet(css)
         if getattr(self, "toolbar", None) is not None:
             self.toolbar.setStyleSheet(css)
+        if self._desktop_widgets_window is not None:
+            self._desktop_widgets_window.apply_theme()
         if hasattr(self, "row"):
             self.row.setSpacing(self.tokens["spacing"])
         if getattr(self, "appbar", None) and self.appbar.hwnd:
@@ -399,6 +449,17 @@ class Dock(QWidget):
             self._fs = (now, winapi.foreground_is_fullscreen(
                 self.appbar.hwnd or int(self.winId())))
         return self._fs[1]
+
+    def _track_foreground_window(self):
+        hwnd = winapi.foreground_hwnd()
+        if not hwnd or hwnd in (self.appbar.hwnd,
+                                int(self.toolbar.winId())
+                                if self.toolbar else 0):
+            return
+        title = winapi.window_title(hwnd)
+        if (title and not title.startswith("Windows Bar")
+                and title != "Workspaces"):
+            self.last_external_hwnd = hwnd
 
     def showEvent(self, e):
         super().showEvent(e)
@@ -681,6 +742,16 @@ class Dock(QWidget):
         self._settings_window.raise_()
         self._settings_window.activateWindow()
 
+    def open_workspaces(self):
+        from ui.workspaces import WorkspaceViewer
+        if not getattr(self, "_workspace_window", None):
+            self._workspace_window = WorkspaceViewer(self)
+        else:
+            self._workspace_window.reload()
+        self._workspace_window.show()
+        self._workspace_window.raise_()
+        self._workspace_window.activateWindow()
+
     def contextMenuEvent(self, e):
         self._menu_open = True
         try:
@@ -698,6 +769,9 @@ class Dock(QWidget):
         settings = QAction("Settings…", self)
         settings.triggered.connect(self.open_settings)
         m.addAction(settings)
+        workspaces = QAction("Workspaces…", self)
+        workspaces.triggered.connect(self.open_workspaces)
+        m.addAction(workspaces)
         m.addSeparator()
         for key, label in WIDGET_LABELS.items():
             a = QAction(label, self, checkable=True)
@@ -840,7 +914,9 @@ class Dock(QWidget):
 
     def set_option(self, key, on):
         self.cfg[key] = on
-        if key == "auto_hide":
+        if key == "desktop_widgets":
+            self._sync_desktop_widgets()
+        elif key == "auto_hide":
             self._sync_autohide_timer()
             self._last_hover = time.monotonic()
             if not on and self._hidden:
@@ -870,6 +946,17 @@ class Dock(QWidget):
         if self.toolbar is not None:
             self.toolbar.place()
         self.place()
+
+    def _sync_desktop_widgets(self):
+        if self.cfg.get("desktop_widgets"):
+            if self._desktop_widgets_window is None:
+                from ui.desktop_widgets import DesktopWidgetsWindow
+                self._desktop_widgets_window = DesktopWidgetsWindow(self)
+            self._desktop_widgets_window.show_behind_windows()
+        elif self._desktop_widgets_window is not None:
+            self._desktop_widgets_window.close()
+            self._desktop_widgets_window.deleteLater()
+            self._desktop_widgets_window = None
 
     def set_shell_layout(self, value):
         if value not in ("combined", "split") or value == self.cfg.get(
@@ -908,12 +995,16 @@ class Dock(QWidget):
         if self.is_primary_display:
             self.hotkey.unregister()
             self.app_hotkeys.unregister()
+            if self._alt_tab_controller is not None:
+                self._alt_tab_controller.stop()
             winapi.set_keep_awake(False)
+        if self._desktop_widgets_window is not None:
+            self._desktop_widgets_window.close()
+            self._desktop_widgets_window = None
         self.screen_time.stop()
         self.appbar.remove()
         if self.is_primary_display:
             winapi.set_taskbar_autohide(False, self.appbar.hwnd, self.cfg)
         save_config(self.cfg)
-
 
 

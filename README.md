@@ -83,6 +83,14 @@ The calendar popup is a detail panel on the Next event widget, not a separate wi
 - **Dynamic accent** — the accent colour is derived from your wallpaper and follows it when it changes (hover, focused window, launcher selection). Turn it off in the menu to use the theme's own accent.
 - The open-windows widget now behaves like a taskbar (no hidden/cloaked windows) and highlights the focused window.
 
+## Workspaces (Phase 4)
+
+Open **Workspaces…** from the dock menu or the split toolbar. The viewer lists Windows virtual desktops, switches between them, creates/removes desktops, renames them, assigns an emoji or symbol, moves the last active app window, and sets a per-desktop wallpaper on supported Windows 11 builds. Virtual desktop support uses the [MIT-licensed `pyvda` package](https://github.com/mirober/pyvda); if its Windows interface is unavailable, previous/next/create actions fall back to Windows keyboard shortcuts and window movement/removal report the limitation.
+
+To try the custom window switcher, enable **Settings → Hotkeys → Use Windows Bar window switcher for Alt+Tab**. Alt+Tab and Alt+Shift+Tab cycle, arrow keys move through the list, Enter or releasing Alt switches, and Esc cancels. The hook runs on a dedicated thread and is disabled by default. Live hook behavior and input latency still need verification in an interactive Windows session.
+
+Enable **Settings → Layout → Show draggable desktop widgets** to show a small clock and CPU/RAM/network panel on the primary display. Drag the panel to reposition it; its location is saved per display. It is placed at the bottom of the window z-order so ordinary app windows cover it.
+
 ## Performance
 
 - Native window-reservation calls are made only when the dock's size/edge actually changes, not on every digit change (this was the main source of lag: it made other windows re-layout).
@@ -109,4 +117,3 @@ The calendar popup is a detail panel on the Next event widget, not a separate wi
 ## License
 
 MIT — see [LICENSE](LICENSE).
-

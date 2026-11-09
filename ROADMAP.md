@@ -11,7 +11,7 @@ Legend: ✅ done · 🟡 partial · ⬜ not started · Effort: S (a session) · 
 
 **Licensing.** Seelen UI is AGPL-3.0. Windows Bar is MIT. Re-implementing *features and behaviour* is fine. Copying Seelen source, CSS, icons, logo or the name is not, and would force Windows Bar to become AGPL. Dockyard has no license file, so treat it as all-rights-reserved: take ideas, not code. Windows Bar gets its **own visual identity**; we match capabilities, not pixels.
 
-**Stack decision.** Stay on Python + PySide6 through Phase 3. At the end of Phase 3, make a written go/no-go call on whether Phase 4+ (Alt+Tab, tiling) needs a native core (Rust via PyO3) or a Tauri rewrite. See Risks.
+**Stack decision.** The written Phase 3 decision is to stay on Python + PySide6. See `docs/decisions/0001-stack.md`; remeasure the full shell and real key response after hook integration and before expanding into Phase 5 tiling.
 
 **GitHub rule.** Nothing exists until it is pushed. See section 7.
 
@@ -36,14 +36,14 @@ From the README and the source audit in `AUDIT.md`:
 |---|---|---|---|
 | Custom toolbar (replaces taskbar) | ✅ optional split toolbar + pinned-app dock, active-window title, virtual-desktop shortcuts; notification-area tray remains Windows-owned | — | — |
 | Dock with launch / focus / badges | ✅ pinned apps show running dots and focus or launch on click | — | — |
-| Desktop widgets on wallpaper layer | ⬜ | P4 | L |
+| Desktop widgets on wallpaper layer | 🟡 draggable clock/system panel implemented; Windows desktop-layer visibility check remains | P4 | L |
 | Custom flyouts (volume, brightness, system) | ✅ volume and WMI internal-panel brightness; system detail popups | — | — |
 | Start menu / keyboard launcher (fuzzy search) | ✅ Alt+Space launcher searches apps, files, commands, and calculator | — | — |
 | Tiling window manager (BSP, columns, stacks) | ⬜ | P5 | XL |
 | Per-app rules, floating mode, gaps | ⬜ | P5 | L |
-| Custom Alt+Tab | ⬜ | P4 | L |
-| Virtual desktops + workspace viewer | ⬜ | P4 | L |
-| Wallpaper per workspace, named workspaces | ⬜ | P4 | M |
+| Custom Alt+Tab | 🟡 hook installs and switcher is implemented; real key-navigation/latency check remains | P4 | L |
+| Virtual desktops + workspace viewer | 🟡 control and named/icon viewer implemented; interactive COM access is unavailable in this session | P4 | L |
+| Wallpaper per workspace, named workspaces | 🟡 names/icons and Windows 11 wallpaper action implemented; live COM verification remains | P4 | M |
 | Theming engine (CSS/JSON-style) | ✅ built-in JSON themes, custom themes and QSS | — | — |
 | Dynamic accent from wallpaper | ✅ | — | — |
 | Per-widget theming | ✅ color/radius overrides through Settings | — | — |
@@ -163,14 +163,16 @@ Rules: widgets never touch Win32 directly (go through `native/`); all native hoo
 
 **Done when:** a non-programmer can restyle and rearrange widgets and layouts from Settings without editing JSON. **Met.** Native notification feeds and the system tray remain rendered by Windows.
 
-> **Decision gate (end of Phase 3):** the written decision is to stay on Python/PySide6 and measure idle CPU/RAM and input latency before Phase 4's hook/tiling work. No runtime measurements were available in the authoring environment; reopen the decision if Windows measurements show stalls or excessive idle resource use. See `docs/decisions/0001-stack.md`.
+> **Decision gate (end of Phase 3):** stay on Python/PySide6. The available runtime baseline is recorded in `docs/decisions/0001-stack.md`; it does not measure the full dock or physical keyboard latency.
 
 ### Phase 4: Workspaces, Alt+Tab, desktop widgets, Seelen tier 2 *(L)*
-- [ ] Virtual desktop control (switch, move window, create/remove), using a maintained wrapper rather than raw undocumented COM, with a fallback if Windows updates break it
-- [ ] Workspace viewer overlay, named workspaces with icons
-- [ ] Wallpaper per workspace
-- [ ] Custom Alt+Tab: low-level keyboard hook on its own thread, window previews (DWM thumbnails or captured frames), keyboard + mouse navigation
-- [ ] Desktop-widgets layer pinned beneath normal windows (wallpaper layer), draggable, theme-aware
+- [🟡] Virtual desktop control (switch, move window, create/remove) through the maintained `pyvda` wrapper; shortcut fallback for switching/creation and graceful errors for unsupported operations; live COM access is denied in this session
+- [x] Workspace viewer overlay, named workspaces with custom symbols/icons
+- [🟡] Wallpaper per workspace through `pyvda` on supported Windows 11 builds; Windows 10 reports the limitation
+- [🟡] Custom Alt+Tab: dedicated low-level hook, window switcher overlay, captured previews, keyboard + mouse selection implemented; live Windows hook/latency validation remains
+- [🟡] Desktop-widgets layer: draggable, theme-aware clock/system panel with bottom z-order implemented; live desktop stacking and interaction validation remains
+
+**Phase 4 implementation status:** all planned feature slices are present. Phase exit is pending interactive checks for the custom switcher, desktop layer, and per-desktop wallpaper. In this session, the isolated app launched with the hook and desktop layer enabled without resetting either option; the virtual-desktop COM activation fails with Windows access denied, and the automation surface could not capture the custom overlay. Keep these items partial until they can be checked in the user's interactive Windows session.
 
 ### Phase 5: Tiling window manager *(XL)*
 - [ ] Window tracking via `SetWinEventHook`; ignore tool windows, dialogs, UWP edge cases
@@ -211,7 +213,6 @@ Rules: widgets never touch Win32 directly (go through `native/`); all native hoo
 5. **Tag milestones:** `v0.1.0` (today) → `v0.2.0` (P1) → `v0.3.0` (P2) → `v0.4.0` (P3, first "shell" release) → …
 6. **Keep `AGENTS.md` current:** its "Current state" section is the handoff note. Any AI assistant (or you in a month) starts there.
 7. **Never commit secrets:** the Stripe key stays in `WINDOWSBAR_STRIPE_KEY`; check `.gitignore` before each push.
-
 
 
 
