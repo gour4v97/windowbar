@@ -308,6 +308,49 @@ def move_window_rect(hwnd, rect):
         return False
 
 
+def window_frame_insets(hwnd):
+    """Invisible border sizes ``(left, top, right, bottom)`` around a window.
+
+    Windows 10/11 windows include transparent resize borders in their outer
+    rectangle; the DWM extended frame bounds are the visible edges. Returns
+    zeros when the DWM call is unavailable.
+    """
+    if not IS_WIN or not hwnd:
+        return (0, 0, 0, 0)
+    try:
+        from wm.geometry import frame_insets
+        visible = wintypes.RECT()
+        # DWMWA_EXTENDED_FRAME_BOUNDS = 9
+        result = ctypes.windll.dwmapi.DwmGetWindowAttribute(
+            wintypes.HWND(int(hwnd)), 9, ctypes.byref(visible),
+            ctypes.sizeof(visible))
+        outer = window_rect(hwnd)
+        if result != 0 or not outer:
+            return (0, 0, 0, 0)
+        return frame_insets(outer, (visible.left, visible.top,
+                                    visible.right - visible.left,
+                                    visible.bottom - visible.top))
+    except Exception:
+        _log.debug("Could not read frame bounds for %s", hwnd, exc_info=True)
+        return (0, 0, 0, 0)
+
+
+def move_window_visible_rect(hwnd, rect):
+    """Move a window so its *visible* frame fills ``rect`` (no gap/overlap)."""
+    if not IS_WIN or not hwnd:
+        return False
+    try:
+        from wm.geometry import compensate
+        user32 = ctypes.windll.user32
+        handle = wintypes.HWND(int(hwnd))
+        if user32.IsIconic(handle) or user32.IsZoomed(handle):
+            user32.ShowWindow(handle, 9)  # SW_RESTORE before measuring
+        return move_window_rect(hwnd, compensate(rect, window_frame_insets(hwnd)))
+    except Exception:
+        _log.exception("Could not tile window %s", hwnd)
+        return move_window_rect(hwnd, rect)
+
+
 def restore_window_state(hwnd, state):
     if not IS_WIN or not state or not is_window(hwnd):
         return False
@@ -439,3 +482,4 @@ def set_autostart(enable, name, command):
                 winreg.DeleteValue(k, name)
             except OSError:
                 pass
+
