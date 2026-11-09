@@ -62,6 +62,7 @@ DEFAULTS = {
     "desktop_widgets_geometry": {},
     "window_tracking": False,
     "tiling_enabled": False,
+    "tiling_release_hotkey": "ctrl+alt+esc",
     "tiling_layout": "bsp",
     "tiling_gap": 12,
     "tiling_padding": 16,
@@ -158,3 +159,5 @@ MARGIN = 8
 
 
 # ------------------------------------------------------------------ dock ----
+
+
