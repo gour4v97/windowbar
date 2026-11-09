@@ -3,6 +3,7 @@ import json
 import logging
 import math
 import os
+import re
 import subprocess
 import sys
 import threading
@@ -45,6 +46,13 @@ class Dock(QWidget):
         self.is_primary_display = (shared_shell is None)
         self.shared_shell = shared_shell
         self._desktop_widgets_window = None
+        self._window_tracker = None
+        self._window_tracking_error = ""
+        self._tiling_manager = None
+        self._tiling_release_hotkey = None
+        self._tiling_hotkey_unavailable = []
+        self._tiling_hotkey_errors = {}
+        self._tiling_runtime_error = ""
         self.cfg = load_config(self.target_screen)
         self.cfg["todos"] = extras.normalize_todos(self.cfg.get("todos"))
         notes, cur = extras.normalize_notes(
@@ -144,10 +152,16 @@ class Dock(QWidget):
                     save_config(self.cfg)
             if self.cfg.get("desktop_widgets"):
                 self._sync_desktop_widgets()
+            if self.cfg.get("window_tracking"):
+                if not self._sync_window_tracking():
+                    save_config(self.cfg)
+            if self.cfg.get("tiling_enabled"):
+                self.set_tiling_enabled(True, persist=False, warn=False)
         else:
             self.launcher = shared_shell.launcher
             self.hotkey = shared_shell.hotkey
             self.app_hotkeys = shared_shell.app_hotkeys
+            self._window_tracker = shared_shell._window_tracker
 
     def ask_app_hotkey_modifier(self):
         choices = ["Alt", "Ctrl+Alt", "Win"]
@@ -958,6 +972,212 @@ class Dock(QWidget):
             self._desktop_widgets_window.deleteLater()
             self._desktop_widgets_window = None
 
+    def set_window_tracking(self, enabled):
+        if not self.is_primary_display:
+            return
+        enabled = bool(enabled)
+        self.cfg["window_tracking"] = enabled
+        started = self._sync_window_tracking()
+        if enabled and not started:
+            QMessageBox.warning(
+                self, "Window tracking unavailable",
+                self._window_tracking_error
+                or "Windows did not start the event hook.")
+        save_config(self.cfg)
+        settings = getattr(self, "_settings_window", None)
+        if settings is not None:
+            settings.refresh()
+
+    def _sync_window_tracking(self):
+        if self.cfg.get("window_tracking") or self.cfg.get("tiling_enabled"):
+            if self._window_tracker is not None:
+                return True
+            from ui.window_tracker import WindowTracker
+            tracker = WindowTracker(
+                self, exclude_hwnds=(self.appbar.hwnd, int(self.winId())))
+            if tracker.start():
+                self._window_tracker = tracker
+                _log.info("Phase 5 window tracking started")
+                return True
+            self.cfg["window_tracking"] = False
+            self._window_tracking_error = tracker.error
+            _log.warning("Phase 5 window tracking did not start: %s",
+                         tracker.error)
+            tracker.deleteLater()
+            return False
+        elif self._window_tracker is not None:
+            self._window_tracker.stop()
+            self._window_tracker.deleteLater()
+            self._window_tracker = None
+        return True
+
+    def set_tiling_enabled(self, enabled, persist=True, warn=True):
+        if not self.is_primary_display:
+            return False
+        enabled = bool(enabled)
+        if enabled:
+            self.cfg["tiling_enabled"] = True
+            if not self._sync_window_tracking():
+                self.cfg["tiling_enabled"] = False
+                return False
+            if self._tiling_manager is None:
+                from wm.tiling import EmergencyReleaseHotkey, TilingManager
+                workspace_layouts = self.cfg.get("tiling_workspaces")
+                if not isinstance(workspace_layouts, dict):
+                    workspace_layouts = {}
+                    self.cfg["tiling_workspaces"] = workspace_layouts
+                release_hotkey = EmergencyReleaseHotkey({
+                    "release": self._release_tiled_windows,
+                    "focus": self._focus_next_tiled_window,
+                    "swap": self._swap_focused_tiled_window,
+                    "floating": self._toggle_focused_floating,
+                    "resize_smaller": lambda: self._resize_focused_tiled_window(-0.05),
+                    "resize_larger": lambda: self._resize_focused_tiled_window(0.05),
+                    "move_previous": lambda: self._move_focused_tiled_window(-1),
+                    "move_next": lambda: self._move_focused_tiled_window(1),
+                })
+                if not release_hotkey.registered:
+                    self.cfg["tiling_enabled"] = False
+                    release_hotkey.close()
+                    self._sync_window_tracking()
+                    error_code = release_hotkey.registration_errors.get(
+                        "release")
+                    message = ("Could not register Ctrl+Alt+Esc"
+                               + (f" (Win32 error {error_code})"
+                                  if error_code else "")
+                               + ". Tiling stayed off because safe release is required.")
+                    if warn:
+                        QMessageBox.warning(self, "Safe release hotkey unavailable", message)
+                    self._tiling_error = message
+                    return False
+                QApplication.instance().installNativeEventFilter(release_hotkey.filter)
+                self._tiling_release_hotkey = release_hotkey
+                self._tiling_hotkey_unavailable = release_hotkey.unavailable
+                self._tiling_hotkey_errors = release_hotkey.registration_errors
+                if self._tiling_hotkey_unavailable:
+                    _log.warning("Tiling shortcut(s) unavailable: %s",
+                                 ", ".join(self._tiling_hotkey_unavailable))
+                self._tiling_manager = TilingManager(
+                    self._window_tracker,
+                    gap=self.cfg.get("tiling_gap", 12),
+                    padding=self.cfg.get("tiling_padding", 16),
+                    layout=self.cfg.get("tiling_layout", "bsp"),
+                    workspace_layouts=workspace_layouts,
+                    floating_apps=self.cfg.get("tiling_floating_apps", []),
+                    floating_rules=self.cfg.get("tiling_floating_rules", {}),
+                    on_change=lambda: save_config(self.cfg), parent=self)
+                _log.info("Phase 5 BSP tiling enabled")
+        else:
+            self.cfg["tiling_enabled"] = False
+            if self._tiling_manager is not None:
+                self._tiling_manager.release_all()
+                self._tiling_manager.deleteLater()
+                self._tiling_manager = None
+            if self._tiling_release_hotkey is not None:
+                QApplication.instance().removeNativeEventFilter(
+                    self._tiling_release_hotkey.filter)
+                self._tiling_release_hotkey.close()
+                self._tiling_release_hotkey = None
+            self._sync_window_tracking()
+        if persist:
+            save_config(self.cfg)
+        settings = getattr(self, "_settings_window", None)
+        if settings is not None:
+            settings.refresh()
+        return self.cfg.get("tiling_enabled", False) == enabled
+
+    def _focus_next_tiled_window(self):
+        if self._tiling_manager is not None:
+            self._tiling_manager.focus_next()
+
+    def _swap_focused_tiled_window(self):
+        if self._tiling_manager is not None:
+            self._tiling_manager.swap_focused()
+
+    def _toggle_focused_floating(self):
+        if self._tiling_manager is not None:
+            self._tiling_manager.toggle_floating()
+
+    def _resize_focused_tiled_window(self, delta):
+        if self._tiling_manager is not None:
+            self._tiling_manager.resize_focused(delta)
+
+    def _move_focused_tiled_window(self, direction):
+        if self._tiling_manager is None:
+            return
+        if not self._tiling_manager.move_focused_workspace(direction):
+            self._tiling_runtime_error = (
+                "Could not move the window. Windows virtual desktop COM "
+                "access may be unavailable in this session.")
+            _log.warning(self._tiling_runtime_error)
+        else:
+            self._tiling_runtime_error = ""
+        settings = getattr(self, "_settings_window", None)
+        if settings is not None:
+            settings.refresh()
+
+    def set_tiling_floating_apps(self, value):
+        names = sorted({part.strip().lower() for part in str(value).split(",")
+                        if part.strip()})
+        self.cfg["tiling_floating_apps"] = names
+        if self._tiling_manager is not None:
+            self._tiling_manager.set_floating_apps(names)
+        save_config(self.cfg)
+
+    def set_tiling_floating_rules(self, executables, classes, title_regex):
+        parse = lambda values: sorted({str(item).strip().lower()
+                                       for item in re.split(r"[,\r\n]+", values)
+                                       if str(item).strip()})
+        rules = {"executables": parse(executables), "classes": parse(classes),
+                 "title_regex": [item.strip() for item in title_regex.splitlines()
+                                 if item.strip()]}
+        self._tiling_invalid_title_patterns = []
+        for pattern in rules["title_regex"]:
+            try:
+                re.compile(pattern, re.IGNORECASE)
+            except re.error:
+                self._tiling_invalid_title_patterns.append(pattern)
+        self.cfg["tiling_floating_rules"] = rules
+        self.cfg["tiling_floating_apps"] = rules["executables"]
+        if self._tiling_manager is not None:
+            self._tiling_manager.floating_apps.clear()
+            self._tiling_manager.set_floating_rules(rules)
+        save_config(self.cfg)
+
+    def _release_tiled_windows(self):
+        if self._tiling_manager is not None:
+            self._tiling_manager.release_all()
+            self.cfg["tiling_enabled"] = False
+            if self._tiling_release_hotkey is not None:
+                QApplication.instance().removeNativeEventFilter(
+                    self._tiling_release_hotkey.filter)
+                self._tiling_release_hotkey.close()
+                self._tiling_release_hotkey = None
+            self._tiling_manager.deleteLater()
+            self._tiling_manager = None
+            self._sync_window_tracking()
+            save_config(self.cfg)
+            settings = getattr(self, "_settings_window", None)
+            if settings is not None:
+                settings.refresh()
+
+    def set_tiling_spacing(self, gap, padding):
+        self.cfg["tiling_gap"] = max(0, int(gap))
+        self.cfg["tiling_padding"] = max(0, int(padding))
+        if self._tiling_manager is not None:
+            self._tiling_manager.gap = self.cfg["tiling_gap"]
+            self._tiling_manager.padding = self.cfg["tiling_padding"]
+            self._tiling_manager.schedule_layout()
+        save_config(self.cfg)
+
+    def set_tiling_layout(self, value):
+        value = value if value in ("bsp", "columns", "stack") else "bsp"
+        self.cfg["tiling_layout"] = value
+        if self._tiling_manager is not None:
+            self._tiling_manager.layout = value
+            self._tiling_manager.schedule_layout()
+        save_config(self.cfg)
+
     def set_shell_layout(self, value):
         if value not in ("combined", "split") or value == self.cfg.get(
                 "shell_layout", "combined"):
@@ -993,10 +1213,18 @@ class Dock(QWidget):
         if self.toolbar is not None:
             self.toolbar.shutdown()
         if self.is_primary_display:
+            if self._tiling_manager is not None:
+                self._tiling_manager.release_all()
+            if self._tiling_release_hotkey is not None:
+                QApplication.instance().removeNativeEventFilter(
+                    self._tiling_release_hotkey.filter)
+                self._tiling_release_hotkey.close()
             self.hotkey.unregister()
             self.app_hotkeys.unregister()
             if self._alt_tab_controller is not None:
                 self._alt_tab_controller.stop()
+            if self._window_tracker is not None:
+                self._window_tracker.stop()
             winapi.set_keep_awake(False)
         if self._desktop_widgets_window is not None:
             self._desktop_widgets_window.close()

@@ -1,0 +1,15 @@
+{
+  "panel": [43, 26, 25, 240],
+  "glass": [76, 39, 32, 104],
+  "border": [255, 174, 112, 76],
+  "card": [255, 174, 112, 24],
+  "text": "#fff3e9",
+  "muted": [230, 198, 177, 174],
+  "button": [165, 82, 54, 40],
+  "accent": "#ffad73",
+  "radius": 12,
+  "panel_radius": 20,
+  "font": "Segoe UI",
+  "spacing": 10,
+  "blur": 84
+}

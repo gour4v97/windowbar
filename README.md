@@ -79,6 +79,9 @@ The calendar popup is a detail panel on the Next event widget, not a separate wi
 
 - **Launcher** — press `Alt+Space` anywhere. Fuzzy-search your apps, Start Menu programs and open windows; `↑ ↓` to pick, `Enter` to run, `Esc` to close. Type `> command` to run a shell command, `= 2*(3+4)` (or just `2*(3+4)`) to calculate (Enter copies the result), or a path to open it. Change the key with `launcher_hotkey` in config.json (e.g. `ctrl+shift+k`); turn it off from the menu.
 - **Themes** — menu > Theme: midnight (default), daylight, aurora, rose, mono. Add your own as JSON in `%APPDATA%\Windows Bar\themes\` (menu > Theme > Open themes folder creates an example). A theme only lists the keys it changes: `panel`, `glass`, `border`, `card`, `text`, `muted`, `button`, `accent` (`"#rrggbb"` or `[r,g,b,a]`, alpha 0-255), `radius`, `panel_radius`, `font`.
+- **Theme gallery** — starter `nord`, `forest`, and `ember` JSON themes live in [`themes/gallery/`](themes/gallery/); copy a JSON file into `%APPDATA%\Windows Bar\themes\` to use it.
+- **Widget contributions** — the source-level widget contract and template are in [`docs/widget-sdk.md`](docs/widget-sdk.md). Runtime third-party plugin loading is not yet supported.
+- **Contributing and localization** — see [`CONTRIBUTING.md`](CONTRIBUTING.md) and the [localization workflow](docs/localization.md); runtime translation is still in progress.
 - **Custom CSS** — drop a `custom.qss` into `%APPDATA%\Windows Bar\` and it is applied on top of the theme (Qt style sheets, a CSS subset).
 - **Dynamic accent** — the accent colour is derived from your wallpaper and follows it when it changes (hover, focused window, launcher selection). Turn it off in the menu to use the theme's own accent.
 - The open-windows widget now behaves like a taskbar (no hidden/cloaked windows) and highlights the focused window.
@@ -90,6 +93,8 @@ Open **Workspaces…** from the dock menu or the split toolbar. The viewer lists
 To try the custom window switcher, enable **Settings → Hotkeys → Use Windows Bar window switcher for Alt+Tab**. Alt+Tab and Alt+Shift+Tab cycle, arrow keys move through the list, Enter or releasing Alt switches, and Esc cancels. The hook runs on a dedicated thread and is disabled by default. Live hook behavior and input latency still need verification in an interactive Windows session.
 
 Enable **Settings → Layout → Show draggable desktop widgets** to show a small clock and CPU/RAM/network panel on the primary display. Drag the panel to reposition it; its location is saved per display. It is placed at the bottom of the window z-order so ordinary app windows cover it.
+
+Phase 5 includes opt-in BSP, Columns, and Master / stack tiling in **Settings → Window manager**. It offers BSP, Columns, and Master / stack layouts for visible taskbar windows within each monitor's work area, supports configurable gaps and edge padding, and saves original positions for release. While enabled, **Ctrl+Alt+J** focuses the next tiled window, **Ctrl+Alt+K** swaps its BSP slot, **Ctrl+Alt+H/L** adjusts the focused BSP branch, **Ctrl+Alt+F** toggles floating, and **Ctrl+Alt+Shift+Left/Right** moves the focused window between virtual desktops when the Windows COM API is available. Floating rules can match executable names, window classes, or title regular expressions. **Ctrl+Alt+Esc** releases windows and restores their saved positions. BSP order and split ratios persist per virtual desktop when its ID is available; shortcut conflicts and virtual desktop availability appear in Settings.
 
 ## Performance
 
@@ -117,3 +122,4 @@ Enable **Settings → Layout → Show draggable desktop widgets** to show a smal
 ## License
 
 MIT — see [LICENSE](LICENSE).
+

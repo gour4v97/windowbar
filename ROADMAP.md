@@ -39,8 +39,8 @@ From the README and the source audit in `AUDIT.md`:
 | Desktop widgets on wallpaper layer | 🟡 draggable clock/system panel implemented; Windows desktop-layer visibility check remains | P4 | L |
 | Custom flyouts (volume, brightness, system) | ✅ volume and WMI internal-panel brightness; system detail popups | — | — |
 | Start menu / keyboard launcher (fuzzy search) | ✅ Alt+Space launcher searches apps, files, commands, and calculator | — | — |
-| Tiling window manager (BSP, columns, stacks) | ⬜ | P5 | XL |
-| Per-app rules, floating mode, gaps | ⬜ | P5 | L |
+| Tiling window manager (BSP, columns, stacks) | 🟡 BSP/columns/master-stack engines, per-monitor geometry, keyboard controls, and restoration implemented; host hotkey registration denied here | P5 | XL |
+| Per-app rules, floating mode, gaps | 🟡 executable/class/title rules, floating toggle, and spacing controls implemented | P5 | L |
 | Custom Alt+Tab | 🟡 hook installs and switcher is implemented; real key-navigation/latency check remains | P4 | L |
 | Virtual desktops + workspace viewer | 🟡 control and named/icon viewer implemented; interactive COM access is unavailable in this session | P4 | L |
 | Wallpaper per workspace, named workspaces | 🟡 names/icons and Windows 11 wallpaper action implemented; live COM verification remains | P4 | M |
@@ -175,19 +175,22 @@ Rules: widgets never touch Win32 directly (go through `native/`); all native hoo
 **Phase 4 implementation status:** all planned feature slices are present. Phase exit is pending interactive checks for the custom switcher, desktop layer, and per-desktop wallpaper. In this session, the isolated app launched with the hook and desktop layer enabled without resetting either option; the virtual-desktop COM activation fails with Windows access denied, and the automation surface could not capture the custom overlay. Keep these items partial until they can be checked in the user's interactive Windows session.
 
 ### Phase 5: Tiling window manager *(XL)*
-- [ ] Window tracking via `SetWinEventHook`; ignore tool windows, dialogs, UWP edge cases
-- [ ] Layout engines: BSP first, then columns/stacks
-- [ ] Gaps/padding, keyboard focus/swap/resize/move-to-workspace
-- [ ] Floating mode toggle, per-app rules (match by exe / class / title regex)
-- [ ] Per-monitor and per-workspace layouts, persistence across restarts
-- [ ] Safe mode: hotkey to release all windows if the WM misbehaves
+- [🟡] Dedicated-thread `SetWinEventHook` and debounced top-level window snapshots; filtered taskbar windows feed the opt-in tiler
+- [x] BSP, columns, and master/stack layout engines; per-monitor work areas and configurable gaps/padding
+- [🟡] Keyboard focus cycle, BSP slot swap, and focused-branch resize (`Ctrl+Alt+J/K/H/L`)
+- [🟡] Floating mode toggle (`Ctrl+Alt+F`) and per-app executable, class, and title-regex rules
+- [🟡] Original window rectangles and show state are restored when tiling is disabled
+- [🟡] BSP order and split-ratio persistence keyed by virtual desktop ID when COM is accessible
+- [🟡] Move focused window to previous/next desktop (`Ctrl+Alt+Shift+Left/Right`) via pyvda; COM access denied in this session
+- [🟡] Ctrl+Alt+Esc safe release path implemented; host `RegisterHotKey` calls return Win32 error 5, so the app correctly refuses to enable tiling here
 
+Phase 5 implements opt-in BSP, columns, and master/stack tiling, keyboard focus/swap/resize, floating mode and executable/class/title-regex rules, original-position restoration, per-monitor layouts, and per-desktop order/ratio persistence when virtual desktop IDs are available. Adjacent-desktop movement uses pyvda. Native HWND tiling and restoration have been smoke-checked with temporary windows. This session cannot validate the safety and workspace controls: pyvda COM activation is denied, and `RegisterHotKey` returns Win32 error 5 for all attempted combinations; tiling stays disabled if the release key cannot register.
 ### Phase 6: Ecosystem and release *(M–L)*
-- [ ] Public widget SDK docs + example widget repo template
-- [ ] Theme sharing format and a `themes/` gallery in the repo
-- [ ] i18n with a translation workflow
+- [🟡] Source-level widget contract docs + copyable contribution template; stable runtime plugin API/loader remains
+- [x] Theme JSON sharing format documented and starter gallery added under `themes/gallery/`
+- [🟡] Localization conventions and rollout checklist documented in `docs/localization.md`; runtime extraction, locale selection, and CI parity checks remain
 - [ ] Installer (Inno Setup / MSIX), code signing if feasible, GitHub Releases, winget manifest
-- [ ] Screenshots, GIFs, a proper README, contribution guide
+- [🟡] Contributor guide added in `CONTRIBUTING.md`; current README, screenshots/GIFs, and release-ready visuals still need work
 
 ---
 

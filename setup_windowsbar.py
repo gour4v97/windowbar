@@ -41,7 +41,7 @@ STRIPE_VAR = "WINDOWSBAR_STRIPE_KEY"
 CORE_FILES = ["windowsbar.py", "services.py", "extras.py", "winapi.py",
               "theme.py", "search.py", "launcher.py", "requirements.txt"]
 EXTRA_FILES = ["requirements-media.txt", "requirements-temperature.txt", "LICENSE", "README.md"]
-CORE_DIRS = ["core", "native", "ui", "widgets"]
+CORE_DIRS = ["core", "native", "ui", "widgets", "wm"]
 
 LOCAL = Path(os.environ.get("LOCALAPPDATA", str(Path.home() / "AppData" / "Local")))
 ROAMING = Path(os.environ.get("APPDATA", str(Path.home() / "AppData" / "Roaming")))
