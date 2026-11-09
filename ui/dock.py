@@ -15,7 +15,8 @@ from PySide6.QtGui import (QAction, QActionGroup, QColor, QCursor, QFont,
                            QImageReader, QPainter, QPainterPath, QPixmap)
 from PySide6.QtWidgets import (QApplication, QCalendarWidget, QFrame,
     QHBoxLayout, QInputDialog, QLabel, QLineEdit, QListWidget, QListWidgetItem,
-    QMenu, QMessageBox, QPlainTextEdit, QPushButton, QVBoxLayout, QWidget)
+    QMenu, QMessageBox, QPlainTextEdit, QPushButton, QVBoxLayout, QWidget,
+    QColorDialog)
 import extras
 import theme
 import winapi
@@ -26,6 +27,7 @@ from core.app_config import (APP_DIR, SCREEN_TIME_FILE, THEMES_DIR, CUSTOM_QSS,
 from core.registry import WidgetRegistry
 from launcher import HotkeyFilter, Launcher
 from ui.hotkeys import AppHotkeyFilter
+from ui.toolbar import Toolbar
 from ui.panels import (CalendarPopup, TodosPanel, NotesPanel,
                        WidgetDetailPopup)
 from services import CalendarService, MediaService, RadioService, WeatherService
@@ -37,17 +39,21 @@ from widgets.todos import TodoCard
 
 _log = logging.getLogger("windowsbar")
 class Dock(QWidget):
-    def __init__(self):
+    def __init__(self, screen=None, shared_shell=None):
         super().__init__()
-        self.cfg = load_config()
+        self.target_screen = screen or QApplication.primaryScreen()
+        self.is_primary_display = (shared_shell is None)
+        self.shared_shell = shared_shell
+        self.cfg = load_config(self.target_screen)
         self.cfg["todos"] = extras.normalize_todos(self.cfg.get("todos"))
         notes, cur = extras.normalize_notes(
             self.cfg.get("notes", ""), self.cfg.get("notes_list"),
             self.cfg.get("notes_current", 0))
         self.cfg["notes_list"], self.cfg["notes_current"] = notes, cur
-        if self.cfg.get("keep_awake"):
+        if self.is_primary_display and self.cfg.get("keep_awake"):
             winapi.set_keep_awake(True)
-        winapi.restore_taskbar(self.cfg)   # undo auto-hide left by a crash
+        if self.is_primary_display:
+            winapi.restore_taskbar(self.cfg)   # undo auto-hide left by a crash
         save_config(self.cfg)
 
         self.weather = WeatherService(self.cfg, lambda: save_config(self.cfg))
@@ -102,6 +108,8 @@ class Dock(QWidget):
         self.row.setContentsMargins(14, 10, 14, 10)
         self.row.setSpacing(10)
         self.cards = []
+        self._cards_by_id = {}
+        self.toolbar = None
         self._widget_registry = WidgetRegistry()
         self.rebuild()
 
@@ -113,14 +121,19 @@ class Dock(QWidget):
         self._hover_timer.timeout.connect(self._autohide_check)
         self._sync_autohide_timer()
 
-        self.launcher = Launcher(self.cfg, lambda: self.tokens)
-        self.hotkey = HotkeyFilter(self.launcher.toggle)
-        QApplication.instance().installNativeEventFilter(self.hotkey)
-        self.sync_hotkey()
-        self.app_hotkeys = AppHotkeyFilter(self._app_hotkey)
-        QApplication.instance().installNativeEventFilter(self.app_hotkeys)
-        self.app_hotkeys.register_all(
-            self.cfg.get("app_hotkey_modifier", "alt"))
+        if self.is_primary_display:
+            self.launcher = Launcher(self.cfg, lambda: self.tokens)
+            self.hotkey = HotkeyFilter(self.launcher.toggle)
+            QApplication.instance().installNativeEventFilter(self.hotkey)
+            self.sync_hotkey()
+            self.app_hotkeys = AppHotkeyFilter(self._app_hotkey)
+            QApplication.instance().installNativeEventFilter(self.app_hotkeys)
+            self.app_hotkeys.register_all(
+                self.cfg.get("app_hotkey_modifier", "alt"))
+        else:
+            self.launcher = shared_shell.launcher
+            self.hotkey = shared_shell.hotkey
+            self.app_hotkeys = shared_shell.app_hotkeys
 
     def ask_app_hotkey_modifier(self):
         choices = ["Alt", "Ctrl+Alt", "Win"]
@@ -149,6 +162,8 @@ class Dock(QWidget):
     # -- build ---------------------------------------------------------------
     def rebuild(self):
         self._widget_registry.stop_all()
+        if self.toolbar:
+            self.toolbar.replace_cards([])
         for c in self.cards:
             self.row.removeWidget(c)
             c.deleteLater()
@@ -157,10 +172,37 @@ class Dock(QWidget):
         registry.register_package(
             widgets, self, DEFAULTS["widgets"], WIDGET_LABELS)
         active = registry.start_enabled(self.cfg)
+        configured_order = self.cfg.get("widget_order", [])
+        order_index = {key: index for index, key in enumerate(
+            configured_order)}
+        active = dict(sorted(
+            active.items(),
+            key=lambda pair: order_index.get(
+                pair[0], len(order_index) + list(active).index(pair[0]))))
         self._widget_registry = registry
-        self.cards = [widget.card() for widget in active.values()]
-        for c in self.cards:
+        self._cards_by_id = {widget_id: widget.card()
+                             for widget_id, widget in active.items()}
+        self.cards = list(self._cards_by_id.values())
+        for widget_id, widget in active.items():
+            widget.card().setProperty("widgetId", widget_id)
+        self._apply_widget_styles()
+        split = self.cfg.get("shell_layout", "combined") == "split"
+        if split and self.toolbar is None:
+            self.toolbar = Toolbar(self)
+        if not split and self.toolbar is not None:
+            self.toolbar.shutdown()
+            self.toolbar.deleteLater()
+            self.toolbar = None
+        dock_cards = ([self._cards_by_id[k] for k in ("apps",)
+                       if k in self._cards_by_id] if split else self.cards)
+        for c in dock_cards:
             self.row.addWidget(c)
+        if split:
+            self.toolbar.replace_cards(
+                [card for key, card in self._cards_by_id.items()
+                 if key != "apps"])
+            self.toolbar.show()
+        for c in self.cards:
             c.tick()
         self._sync_services()
         self.tick()
@@ -231,8 +273,75 @@ class Dock(QWidget):
         if QApplication.font().family() != font:
             QApplication.setFont(QFont(font, 10))
         self.setStyleSheet(css)
+        if getattr(self, "toolbar", None) is not None:
+            self.toolbar.setStyleSheet(css)
+        if hasattr(self, "row"):
+            self.row.setSpacing(self.tokens["spacing"])
+        if getattr(self, "appbar", None) and self.appbar.hwnd:
+            want_glass = bool(self.cfg["glass"] and self.tokens["blur"])
+            if want_glass and not self.glass_active:
+                self.glass_active = winapi.enable_glass(self.appbar.hwnd)
+            elif not want_glass and self.glass_active:
+                winapi.disable_glass(self.appbar.hwnd)
+                self.glass_active = False
+        self._apply_widget_styles()
         self._bg = None
         self.update()
+
+    def _apply_widget_styles(self):
+        registry = getattr(self, "_widget_registry", None)
+        if registry is None:
+            return
+        styles = self.cfg.get("widget_styles", {})
+        for widget_id, widget in registry.active.items():
+            tokens = theme.widget_tokens(
+                self.tokens, styles.get(widget_id, {}))
+            widget.card().setStyleSheet(theme.build_widget_qss(tokens))
+
+    def edit_widget_style(self):
+        labels = list(WIDGET_LABELS.values())
+        keys = list(WIDGET_LABELS)
+        label, ok = QInputDialog.getItem(
+            self, "Widget style", "Widget:", labels, 0, False)
+        if not ok:
+            return
+        widget_id = keys[labels.index(label)]
+        options = ["Accent", "Card background", "Text", "Button", "Radius"]
+        prop, ok = QInputDialog.getItem(
+            self, "Widget style", "Style token:", options, 0, False)
+        if not ok:
+            return
+        token = {"Accent": "accent", "Card background": "card",
+                 "Text": "text", "Button": "button", "Radius": "radius"}[prop]
+        override = self.cfg.setdefault("widget_styles", {}).setdefault(
+            widget_id, {})
+        if token == "radius":
+            value, ok = QInputDialog.getInt(
+                self, "Widget radius", "Radius:",
+                int(override.get("radius", self.tokens["radius"])), 0, 48)
+        else:
+            current = QColor(*theme.to_rgba(
+                override.get(token, self.tokens[token])))
+            color = QColorDialog.getColor(current, self, f"{label}: {prop}",
+                                          QColorDialog.ShowAlphaChannel)
+            ok = color.isValid()
+            value = list(color.getRgb()) if ok else None
+        if not ok:
+            return
+        override[token] = value
+        save_config(self.cfg)
+        self.apply_theme()
+
+    def clear_widget_style(self):
+        labels = list(WIDGET_LABELS.values())
+        keys = list(WIDGET_LABELS)
+        label, ok = QInputDialog.getItem(
+            self, "Reset widget style", "Widget:", labels, 0, False)
+        if ok:
+            self.cfg.setdefault("widget_styles", {}).pop(
+                keys[labels.index(label)], None)
+            save_config(self.cfg)
+            self.apply_theme()
 
     def set_theme(self, name):
         self.cfg["theme"] = name
@@ -298,21 +407,27 @@ class Dock(QWidget):
     def apply_native(self):
         hwnd = int(self.winId())
         self.appbar.hwnd = hwnd
-        self.glass_active = bool(self.cfg["glass"]) and winapi.enable_glass(hwnd)
-        winapi.set_taskbar_autohide(self.cfg["hide_taskbar"], hwnd, self.cfg)
+        self.glass_active = bool(self.cfg["glass"] and self.tokens["blur"]) and winapi.enable_glass(hwnd)
+        if self.is_primary_display:
+            winapi.set_taskbar_autohide(
+                self.cfg["hide_taskbar"], hwnd, self.cfg)
         save_config(self.cfg)
         self.place()
         self._bg = None
         self.update()
-        if not self.cfg["weather_city"] and self.cfg["widgets"]["weather"]:
+        if (self.is_primary_display and not self.cfg["weather_city"]
+                and self.cfg["widgets"]["weather"]):
             QTimer.singleShot(400, self.ask_city)
 
     def place(self):
-        screen = QApplication.primaryScreen()
+        screen = self.target_screen or QApplication.primaryScreen()
+        if screen is None:
+            return
         dpr = screen.devicePixelRatio()
         full = screen.geometry()
         w, h = self.width(), self.height()
-        top = self.cfg["position"] == "top"
+        top = (False if self.cfg.get("shell_layout") == "split"
+               else self.cfg["position"] == "top")
         y = None
         if self.cfg["reserve_space"] and winapi.IS_WIN and self.appbar.hwnd:
             rect = (int(full.x() * dpr), int(full.y() * dpr),
@@ -338,6 +453,9 @@ class Dock(QWidget):
         else:
             self.move(int(full.x() + (full.width() - w) // 2), int(y))
         self._shown_pos = self.pos()
+        if self.toolbar is not None:
+            self.toolbar.setStyleSheet(self.styleSheet())
+            self.toolbar.place()
         if self._hidden:
             self.move(self._hidden_pos())
 
@@ -372,7 +490,7 @@ class Dock(QWidget):
 
     def _hidden_pos(self):
         pos = self._shown_pos or self.pos()
-        screen = QApplication.primaryScreen().geometry()
+        screen = (self.target_screen or QApplication.primaryScreen()).geometry()
         if self.cfg["position"] == "top":
             return pos.__class__(pos.x(), screen.y() - self.height()
                                  + self.SLIVER)
@@ -388,7 +506,7 @@ class Dock(QWidget):
         if rect.contains(cur):
             return True
         if self._hidden and self._shown_pos is not None:
-            screen = QApplication.primaryScreen().geometry()
+            screen = (self.target_screen or QApplication.primaryScreen()).geometry()
             in_x = (self._shown_pos.x() - 40 <= cur.x()
                     <= self._shown_pos.x() + self.width() + 40)
             if not in_x:
@@ -540,19 +658,29 @@ class Dock(QWidget):
         self._drag = None
         if not was_drag:
             return
-        geo = QApplication.primaryScreen().geometry()
+        geo = (self.target_screen or QApplication.primaryScreen()).geometry()
         y = e.globalPosition().toPoint().y()
         edge = None
         if y <= geo.y() + 48:
             edge = "top"
         elif y >= geo.y() + geo.height() - 48:
             edge = "bottom"
-        if edge and edge != self.cfg["position"]:
+        if (self.cfg.get("shell_layout") != "split" and edge
+                and edge != self.cfg["position"]):
             self.cfg["position"] = edge
             save_config(self.cfg)
         self.place()
 
     # -- menu ----------------------------------------------------------------
+    def open_settings(self):
+        if not getattr(self, "_settings_window", None):
+            from ui.settings import SettingsWindow
+            self._settings_window = SettingsWindow(self)
+        self._settings_window.refresh()
+        self._settings_window.show()
+        self._settings_window.raise_()
+        self._settings_window.activateWindow()
+
     def contextMenuEvent(self, e):
         self._menu_open = True
         try:
@@ -564,8 +692,12 @@ class Dock(QWidget):
         m = QMenu(self)
         pos = QAction("Move to top" if self.cfg["position"] == "bottom"
                       else "Move to bottom", self)
+        pos.setEnabled(self.cfg.get("shell_layout") != "split")
         pos.triggered.connect(self.toggle_position)
         m.addAction(pos)
+        settings = QAction("Settings…", self)
+        settings.triggered.connect(self.open_settings)
+        m.addAction(settings)
         m.addSeparator()
         for key, label in WIDGET_LABELS.items():
             a = QAction(label, self, checkable=True)
@@ -596,6 +728,13 @@ class Dock(QWidget):
         auto.toggled.connect(
             lambda on: winapi.set_autostart(on, "Windows Bar", autostart_command()))
         m.addAction(auto)
+        style_menu = m.addMenu("Widget styles")
+        edit_style = QAction("Set widget style override…", style_menu)
+        edit_style.triggered.connect(self.edit_widget_style)
+        style_menu.addAction(edit_style)
+        reset_style = QAction("Reset widget style…", style_menu)
+        reset_style.triggered.connect(self.clear_widget_style)
+        style_menu.addAction(reset_style)
         tm = m.addMenu("Theme")
         grp = QActionGroup(tm)
         for name in theme.list_themes(THEMES_DIR):
@@ -611,6 +750,9 @@ class Dock(QWidget):
         launch = QAction("Open launcher", self)
         launch.triggered.connect(self.launcher.open)
         m.addAction(launch)
+        notifications = QAction("Open Windows notification center", self)
+        notifications.triggered.connect(winapi.open_notification_center)
+        m.addAction(notifications)
         quiet = QAction("Set quiet hours…", self)
         quiet.triggered.connect(self.ask_quiet_hours)
         m.addAction(quiet)
@@ -681,6 +823,8 @@ class Dock(QWidget):
             self.rebuild()
 
     def toggle_position(self):
+        if self.cfg.get("shell_layout") == "split":
+            return
         if self._hidden:
             self._hidden = False
             self._anim.stop()
@@ -702,12 +846,13 @@ class Dock(QWidget):
             if not on and self._hidden:
                 self._slide(False)
         elif key == "hide_taskbar":
-            winapi.set_taskbar_autohide(on, self.appbar.hwnd, self.cfg)
+            if self.is_primary_display:
+                winapi.set_taskbar_autohide(on, self.appbar.hwnd, self.cfg)
         elif key == "full_width" and not on:
             self.setMinimumWidth(0)
             self.setMaximumWidth(16777215)
         elif key == "glass":
-            if on:
+            if on and self.tokens.get("blur", 0):
                 self.glass_active = winapi.enable_glass(self.appbar.hwnd)
             else:
                 winapi.disable_glass(self.appbar.hwnd)
@@ -722,7 +867,19 @@ class Dock(QWidget):
         elif key == "pause_before_meeting":
             self._sync_services()
         save_config(self.cfg)
+        if self.toolbar is not None:
+            self.toolbar.place()
         self.place()
+
+    def set_shell_layout(self, value):
+        if value not in ("combined", "split") or value == self.cfg.get(
+                "shell_layout", "combined"):
+            return
+        self.cfg["shell_layout"] = value
+        if value == "split":
+            self.cfg["position"] = "bottom"
+        save_config(self.cfg)
+        self.rebuild()
 
     def open_themes_folder(self):
         THEMES_DIR.mkdir(parents=True, exist_ok=True)
@@ -736,6 +893,9 @@ class Dock(QWidget):
 
     def shutdown(self):
         _log.info("Windows Bar shutting down")
+        settings = getattr(self, "_settings_window", None)
+        if settings is not None:
+            settings.close()
         self._widget_registry.stop_all()
         for poll in self.polls.values():
             poll.stop()
@@ -743,11 +903,17 @@ class Dock(QWidget):
         self.calendar.stop()
         self.media.stop()
         self.radios.stop()
-        self.hotkey.unregister()
-        self.app_hotkeys.unregister()
-        winapi.set_keep_awake(False)
+        if self.toolbar is not None:
+            self.toolbar.shutdown()
+        if self.is_primary_display:
+            self.hotkey.unregister()
+            self.app_hotkeys.unregister()
+            winapi.set_keep_awake(False)
         self.screen_time.stop()
         self.appbar.remove()
-        winapi.set_taskbar_autohide(False, self.appbar.hwnd, self.cfg)
+        if self.is_primary_display:
+            winapi.set_taskbar_autohide(False, self.appbar.hwnd, self.cfg)
         save_config(self.cfg)
+
+
 

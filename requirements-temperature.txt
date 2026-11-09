@@ -1,2 +1,3 @@
-# Optional: LibreHardwareMonitor WMI access for the Temperature widget (Windows only).
+# Optional: WMI access for Temperature and compatible internal-display brightness (Windows only).
 wmi; sys_platform == "win32"
+

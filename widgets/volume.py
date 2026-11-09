@@ -17,13 +17,18 @@ class VolumeCard(Card):
     INTERVAL = 2
     STICKY = True
 
-    def __init__(self):
+    def __init__(self, dock=None):
         super().__init__("Volume")
+        self.dock = dock
         self.setCursor(Qt.PointingHandCursor)
-        self.setToolTip("Click: mute / unmute   Scroll: volume")
+        self.setToolTip("Click: volume and brightness controls   Scroll: volume")
 
     def mousePressEvent(self, e):
         if e.button() == Qt.LeftButton:
+            if self.dock is not None:
+                from ui.flyouts import ControlFlyout
+                ControlFlyout(self.dock).show_near(self)
+        elif e.button() == Qt.RightButton:
             v = winapi.get_volume()
             if v:
                 winapi.set_mute(not v[1])
@@ -49,4 +54,5 @@ WIDGET_ID = 'volume'
 WIDGET_ORDER = 13
 
 def make_card(dock):
-    return VolumeCard()
+    return VolumeCard(dock)
+

@@ -16,12 +16,16 @@ pip install --only-binary=:all: -r requirements-media.txt   # optional: Now play
 python windowsbar.py
 ```
 
-Right-click the dock for the menu: choose widgets, position, and options.
+Open **Settings** from the dock menu to manage widgets, layout, themes, and hotkeys with a live preview. Right-click the dock for quick actions.
 Settings live in `%APPDATA%\Windows Bar\config.json`.
+
+In Settings → Layout, choose **Separate top toolbar and app dock** to put enabled information widgets in a top toolbar and pinned apps in a bottom dock. The default **Combined bar** keeps the current single-row layout.
+
+Windows Bar starts a bar on each connected display. Each display has its own Settings window and saved widget/layout profile. The top toolbar also shows the active window and has native virtual-desktop shortcut buttons. Its notification action opens the Windows notification surface; Windows still owns and renders notifications.
 
 ## Widgets (28 configurable widgets)
 
-The calendar popup is a detail panel on the Next event widget, not a separate widget. Pinned-app shortcuts default to `Alt+1` through `Alt+9`; change the modifier from the dock menu. Temperature is optional; for Windows hardware sensors, run LibreHardwareMonitor and install `wmi` with `pip install -r requirements-temperature.txt`.
+The calendar popup is a detail panel on the Next event widget, not a separate widget. Pinned-app shortcuts default to `Alt+1` through `Alt+9`; change the modifier from the dock menu. Temperature and internal-display brightness are optional; for Windows hardware sensors or brightness controls, install `wmi` with `pip install -r requirements-temperature.txt`. External monitor brightness is not supported by the WMI control.
 
 | Widget | How it works |
 |---|---|
@@ -46,18 +50,24 @@ The calendar popup is a detail panel on the Next event widget, not a separate wi
 | Storage | disk used % and free space for the system drive |
 | Temperature | first available hardware sensor; optional and may report unavailable without a sensor provider |
 | Network | Wi-Fi name, local IP, live up/down speeds |
-| Volume | output volume; click mutes, scroll adjusts |
+| Volume | click opens volume and supported internal-display brightness sliders; right-click mutes, scroll adjusts volume |
 | Quick toggles | Wi-Fi, Bluetooth and airplane mode (needs `winsdk`, same as Now playing), keep-awake, mute. Do Not Disturb and Night Light are not included because Windows does not expose a stable supported API. |
 | Script | first two lines of your own shell command's output, refreshed on a timer; optional click command. Menu: "Set script command…" (`script_command`, `script_interval`, `script_click_command` in config) |
 | Calendar popup | click the Next event card for a month view with event days marked |
 
 ## Options
 
-- **Top or bottom** — from the menu, or just drag the dock to a screen edge and it snaps there
+- **Top or bottom** — in the combined layout, use the menu or drag the dock to a screen edge
+- **Multiple displays** — one bar and independent widget/layout profile per connected display; profiles are keyed by the Windows display name
+- **Arrange widgets** — Settings → Widgets → Arrange widget order
+- **Virtual desktops** — split toolbar buttons use Windows' built-in shortcuts to switch/create desktops or open the overview; Windows provides the desktop count and animation
+- **Notification centre** — the dock menu opens the native Windows notification surface (Win+N on Windows 11, Win+A on earlier versions)
 - **Reserve screen space** so maximised windows stop at the dock
 - **Full width** or a centred pill
 - **Auto-hide the Windows taskbar** while the dock runs — the taskbar's original state is restored on quit, and on the next start after a crash
 - **Glass effect** — acrylic / DWM backdrop on Windows 11, acrylic accent on older builds
+- **Themes** — built-in default, glass, light, and dark themes; JSON theme files can override colors, radius, font, spacing, and blur
+- **Widget styles** — use the Widget styles menu to set each widget’s accent, card background, text, button color, and corner radius
 - **Pause music before meetings** — pauses playback one minute before your next calendar event
 - **Quiet hours** (e.g. `23:00-07:00`) — the focus timer finishes silently
 - **Start with Windows** — adds/removes a Run key for the current user
@@ -84,7 +94,9 @@ The calendar popup is a detail panel on the Next event widget, not a separate wi
 
 ## Files
 
-- `windowsbar.py` — the dock, cards and menu (UI)
+- `windowsbar.py` — application entry point
+- `ui/dock.py` — dock behavior and quick menu
+- `ui/settings.py` — separate live Settings window
 - `launcher.py` — the Alt+Space launcher and global hotkey
 - `theme.py` — themes, QSS builder, wallpaper accent (pure Python)
 - `search.py` — fuzzy search, Start Menu scan, hotkey parsing, safe calculator (pure Python)
@@ -97,3 +109,4 @@ The calendar popup is a detail panel on the Next event widget, not a separate wi
 ## License
 
 MIT — see [LICENSE](LICENSE).
+

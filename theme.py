@@ -6,35 +6,43 @@
 
 Colours are "#rrggbb", "#rrggbbaa" or [r, g, b] / [r, g, b, a] with a in 0-255.
 A user theme only needs the keys it wants to change; the rest come from
-"midnight".
+the default theme.
 """
 import colorsys
 import json
 import math
 from pathlib import Path
 
-DEFAULT_THEME = "midnight"
+DEFAULT_THEME = "default"
 
 BUILTIN = {
     "midnight": dict(
         panel=(18, 18, 22, 225), glass=(20, 20, 24, 60), border=(255, 255, 255, 40),
         card=(255, 255, 255, 18), text="#ffffff", muted=(255, 255, 255, 140),
         button=(255, 255, 255, 26), accent="#7aa2ff",
-        radius=12, panel_radius=20, font="Segoe UI"),
+        radius=12, panel_radius=20, font="Segoe UI", spacing=10, blur=80),
     "daylight": dict(
         panel=(246, 246, 249, 235), glass=(246, 246, 249, 90), border=(0, 0, 0, 40),
         card=(0, 0, 0, 14), text="#16161a", muted=(0, 0, 0, 140),
-        button=(0, 0, 0, 18), accent="#3b6cff"),
+        button=(0, 0, 0, 18), accent="#3b6cff", radius=12,
+        panel_radius=20, font="Segoe UI", spacing=10, blur=18),
     "aurora": dict(
         panel=(8, 22, 30, 228), glass=(8, 22, 30, 70), border=(90, 255, 210, 50),
-        card=(90, 255, 210, 20), accent="#3de6b0"),
+        card=(90, 255, 210, 20), accent="#3de6b0", radius=12,
+        panel_radius=20, font="Segoe UI", spacing=12, blur=90),
     "rose": dict(
         panel=(30, 16, 24, 228), glass=(30, 16, 24, 70), border=(255, 140, 180, 50),
-        card=(255, 150, 190, 22), accent="#ff7aa8"),
+        card=(255, 150, 190, 22), accent="#ff7aa8", radius=12,
+        panel_radius=20, font="Segoe UI", spacing=10, blur=80),
     "mono": dict(
         panel=(0, 0, 0, 238), glass=(0, 0, 0, 90), border=(255, 255, 255, 60),
-        card=(255, 255, 255, 12), accent="#ffffff", radius=6, panel_radius=10),
+        card=(255, 255, 255, 12), accent="#ffffff", radius=6,
+        panel_radius=10, font="Segoe UI", spacing=8, blur=100),
 }
+BUILTIN["default"] = dict(BUILTIN["midnight"])
+BUILTIN["glass"] = dict(BUILTIN["midnight"], blur=100, spacing=12)
+BUILTIN["light"] = dict(BUILTIN["daylight"])
+BUILTIN["dark"] = dict(BUILTIN["midnight"])
 
 
 def to_rgba(value):
@@ -89,9 +97,10 @@ def resolve(name, user_dir=None, accent=None):
             to_rgba(tokens[k])
         except Exception:
             tokens[k] = BUILTIN[DEFAULT_THEME][k]
-    for k in ("radius", "panel_radius"):
+    for k, low, high in (("radius", 0, 48), ("panel_radius", 0, 64),
+                         ("spacing", 0, 32), ("blur", 0, 100)):
         try:
-            tokens[k] = int(tokens[k])
+            tokens[k] = max(low, min(high, int(tokens[k])))
         except Exception:
             tokens[k] = BUILTIN[DEFAULT_THEME][k]
     if accent:
@@ -103,19 +112,61 @@ def resolve(name, user_dir=None, accent=None):
     return tokens
 
 
+
+WIDGET_OVERRIDE_KEYS = ("card", "border", "text", "muted", "button",
+                        "accent", "radius")
+
+
+def widget_tokens(base_tokens, overrides):
+    """Return validated theme tokens with safe per-widget overrides applied."""
+    tokens = dict(base_tokens)
+    if not isinstance(overrides, dict):
+        return tokens
+    for key in WIDGET_OVERRIDE_KEYS:
+        if key not in overrides:
+            continue
+        value = overrides[key]
+        if key == "radius":
+            try:
+                tokens[key] = max(0, min(48, int(value)))
+            except (TypeError, ValueError):
+                continue
+        else:
+            try:
+                to_rgba(value)
+            except (TypeError, ValueError):
+                continue
+            tokens[key] = value
+    return tokens
+
+
+def build_widget_qss(tokens):
+    """QSS scoped to one card so widget colors do not bleed to its siblings."""
+    t = tokens
+    return f"""
+QFrame#card {{ background: {qss(t['card'])}; border-radius: {t['radius']}px;
+              border: 1px solid {qss(t['border'])}; }}
+QFrame#card:hover {{ border: 1px solid {qss(t['accent'], 150)}; }}
+QLabel#cardtitle {{ color: {qss(t['muted'])}; }}
+QLabel#cardbody {{ color: {qss(t['text'])}; }}
+QPushButton {{ background: {qss(t['button'])}; color: {qss(t['text'])};
+              padding: {max(4, t['spacing'] // 2)}px 10px; }}
+QPushButton:hover {{ background: {qss(t['accent'], 90)}; }}
+"""
+
 def build_qss(t):
     """QSS for the dock's cards and buttons."""
     return f"""
 QFrame#card {{ background: {qss(t['card'])}; border-radius: {t['radius']}px;
-              border: 1px solid transparent; }}
+              border: 1px solid transparent; padding: {t['spacing']}px; }}
 QFrame#card:hover {{ border: 1px solid {qss(t['accent'], 90)}; }}
 QLabel {{ background: transparent; }}
 QLabel#cardtitle {{ color: {qss(t['muted'])}; font-size: 9px;
                    font-weight: 600; letter-spacing: 1px; }}
 QLabel#cardbody {{ color: {qss(t['text'])}; font-size: 15px; font-weight: 600; }}
 QPushButton {{ background: {qss(t['button'])}; color: {qss(t['text'])}; border: none;
-              border-radius: {max(4, t['radius'] - 4)}px; padding: 6px 10px;
-              font-size: 12px; }}
+              border-radius: {max(4, t['radius'] - 4)}px;
+              font-size: 12px; padding: {max(4, t['spacing'] // 2)}px 10px; }}
 QPushButton:hover {{ background: {qss(t['accent'], 70)}; }}
 QPushButton[active="true"] {{ background: {qss(t['accent'], 120)}; }}
 QToolTip {{ color: {qss(t['text'])}; background: {qss(t['panel'], 255)};

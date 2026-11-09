@@ -21,7 +21,7 @@ Legend: ✅ done · 🟡 partial · ⬜ not started · Effort: S (a session) · 
 
 From the README and the source audit in `AUDIT.md`:
 
-- Single bar, top or bottom, snaps to edges, optional full-width or pill
+- Bar on each connected display with per-display widget/layout settings; combined or split Toolbar/Dock layout, snaps to edges, optional full-width or pill
 - AppBar space reservation, glass/acrylic, taskbar auto-hide with crash-safe restore
 - Auto-hide dock with fullscreen detection, start with Windows
 - 28 configurable widgets, including pinned apps, open windows, clock, system, weather, media, calendar, quick actions, notes, focus tools, storage, network, volume, and quick toggles; the calendar popup is a detail panel
@@ -34,10 +34,10 @@ From the README and the source audit in `AUDIT.md`:
 
 | Seelen feature | Windows Bar now | Target phase | Effort |
 |---|---|---|---|
-| Custom toolbar (replaces taskbar) | 🟡 bar can sit on top | P3: separate Toolbar + Dock | M |
+| Custom toolbar (replaces taskbar) | ✅ optional split toolbar + pinned-app dock, active-window title, virtual-desktop shortcuts; notification-area tray remains Windows-owned | — | — |
 | Dock with launch / focus / badges | ✅ pinned apps show running dots and focus or launch on click | — | — |
 | Desktop widgets on wallpaper layer | ⬜ | P4 | L |
-| Custom flyouts (volume, brightness, system) | ⬜ | P3 | M |
+| Custom flyouts (volume, brightness, system) | ✅ volume and WMI internal-panel brightness; system detail popups | — | — |
 | Start menu / keyboard launcher (fuzzy search) | ✅ Alt+Space launcher searches apps, files, commands, and calculator | — | — |
 | Tiling window manager (BSP, columns, stacks) | ⬜ | P5 | XL |
 | Per-app rules, floating mode, gaps | ⬜ | P5 | L |
@@ -46,11 +46,11 @@ From the README and the source audit in `AUDIT.md`:
 | Wallpaper per workspace, named workspaces | ⬜ | P4 | M |
 | Theming engine (CSS/JSON-style) | ✅ built-in JSON themes, custom themes and QSS | — | — |
 | Dynamic accent from wallpaper | ✅ | — | — |
-| Per-widget theming | ⬜ | P3 | S |
+| Per-widget theming | ✅ color/radius overrides through Settings | — | — |
 | Community themes / sharing | ⬜ | P6 | M |
 | Media controls | ✅ | — | — |
-| Multi-monitor, per-display config | ⬜ | P3 | M |
-| Settings app with live preview | 🟡 right-click menu | P3 | L |
+| Multi-monitor, per-display config | ✅ one bar and settings profile per connected display | — | — |
+| Settings app with live preview | ✅ separate live Settings window | — | — |
 | Keyboard-first (everything reachable) | 🟡 pinned-app Alt+1..9 (modifier configurable); remaining controls still need keyboard paths | P2 → P3 | M |
 | i18n (Seelen: 70+ languages) | ⬜ | P6 | M |
 | Widget SDK | ⬜ | P1 (internal), P6 (public) | M |
@@ -151,19 +151,19 @@ Rules: widgets never touch Win32 directly (go through `native/`); all native hoo
 **Done when:** every Dockyard feature in section 3 is either shipped or documented as unsupported on Windows.
 
 ### Phase 3: Shell basics, Seelen tier 1 *(L)*
-- [ ] **Theming engine:** JSON tokens (colors, radius, font, blur, spacing) → QSS; built-in themes (default, glass, light, dark); theme files loadable from `%APPDATA%\Windows Bar\themes`
-- [ ] Dynamic accent colour from the current wallpaper (dominant-colour extraction, live update)
-- [ ] Per-widget style overrides
-- [ ] Split **Toolbar** (top: workspaces, active window, tray-style widgets, clock) and **Dock** (bottom: pinned apps + running)
-- [ ] Multi-monitor: a bar per display with independent config
-- [ ] **Settings app** (separate window): widgets, layout, themes, hotkeys, live preview
-- [ ] **Launcher:** global hotkey, fuzzy search over apps, files, commands, calculator
-- [ ] Volume and brightness flyouts (brightness via WMI/DDC where supported)
-- [ ] Optional Windows-notification-centre integration
+- [x] **Theming engine:** JSON theme files, color/radius/font/spacing/blur tokens, QSS, and default/glass/light/dark built-ins
+- [x] Dynamic accent colour from the current wallpaper (dominant-colour extraction, live update)
+- [x] Per-widget style overrides for accent, card background, text, button color, and radius
+- [x] Split **Toolbar** (top: active-window title, virtual-desktop shortcuts, enabled information widgets) and **Dock** (bottom: pinned apps + running); Windows notification-area tray remains OS-owned
+- [x] Multi-monitor: a bar per display with independent widget/layout profile
+- [x] Separate Settings window for widgets, layout, themes, hotkeys, and live preview
+- [x] **Launcher:** global hotkey, fuzzy search over apps, files, commands, calculator
+- [x] Volume and brightness flyouts (brightness via optional WMI on supported internal panels; external DDC displays are not supported)
+- [x] Optional notification-centre integration: open the native Windows notification surface; Windows owns the notification feed and rendering
 
-**Done when:** a non-programmer can restyle and rearrange everything from the Settings app without editing JSON.
+**Done when:** a non-programmer can restyle and rearrange widgets and layouts from Settings without editing JSON. **Met.** Native notification feeds and the system tray remain rendered by Windows.
 
-> **Decision gate (end of Phase 3):** measure idle CPU/RAM and input latency. If Python is fine, continue. If hooks, Alt+Tab or tiling feel laggy, move the native layer to Rust (PyO3) or start the Tauri port. Write the decision in `docs/decisions/0001-stack.md`.
+> **Decision gate (end of Phase 3):** the written decision is to stay on Python/PySide6 and measure idle CPU/RAM and input latency before Phase 4's hook/tiling work. No runtime measurements were available in the authoring environment; reopen the decision if Windows measurements show stalls or excessive idle resource use. See `docs/decisions/0001-stack.md`.
 
 ### Phase 4: Workspaces, Alt+Tab, desktop widgets, Seelen tier 2 *(L)*
 - [ ] Virtual desktop control (switch, move window, create/remove), using a maintained wrapper rather than raw undocumented COM, with a fallback if Windows updates break it
@@ -211,6 +211,8 @@ Rules: widgets never touch Win32 directly (go through `native/`); all native hoo
 5. **Tag milestones:** `v0.1.0` (today) → `v0.2.0` (P1) → `v0.3.0` (P2) → `v0.4.0` (P3, first "shell" release) → …
 6. **Keep `AGENTS.md` current:** its "Current state" section is the handoff note. Any AI assistant (or you in a month) starts there.
 7. **Never commit secrets:** the Stripe key stays in `WINDOWSBAR_STRIPE_KEY`; check `.gitignore` before each push.
+
+
 
 
 
