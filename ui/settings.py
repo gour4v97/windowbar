@@ -205,6 +205,12 @@ class SettingsWindow(QDialog):
         self.tiling_enabled = QCheckBox("Automatically tile windows")
         self.tiling_enabled.toggled.connect(self._set_tiling_enabled)
         form.addRow(self.tiling_enabled)
+        self.tiling_release_key = QLineEdit()
+        self.tiling_release_key.setPlaceholderText("ctrl+alt+esc")
+        self.save_tiling_release_key = QPushButton("Save safe-release shortcut")
+        self.save_tiling_release_key.clicked.connect(self._save_tiling_release_key)
+        form.addRow("Safe-release shortcut", self.tiling_release_key)
+        form.addRow(self.save_tiling_release_key)
         self.tiling_layout = QComboBox()
         self.tiling_layout.addItem("BSP", "bsp")
         self.tiling_layout.addItem("Columns", "columns")
@@ -242,7 +248,7 @@ class SettingsWindow(QDialog):
         form.addRow(QLabel(
             "BSP tiling moves visible taskbar windows on each monitor. "
             "Ctrl+Alt+J focuses the next tiled window, Ctrl+Alt+K swaps its "
-            "slot, Ctrl+Alt+H/L resizes the focused BSP branch, Ctrl+Alt+F "
+            "slot, Ctrl+Alt+H/L resizes the focused split, Ctrl+Alt+T cycles the layout, Ctrl+Alt+F "
             "toggles floating, and Ctrl+Alt+Shift+Left/Right moves the "
             "focused window to the previous/next virtual desktop. Ctrl+Alt+Esc "
             "releases windows. Per-workspace order and split sizes are saved."))
@@ -310,6 +316,10 @@ class SettingsWindow(QDialog):
             self.tiling_enabled.setChecked(False)
             self.tiling_enabled.blockSignals(False)
 
+    def _save_tiling_release_key(self):
+        if self.dock.set_tiling_release_hotkey(self.tiling_release_key.text()):
+            self.refresh()
+
     def _set_tiling_spacing(self, _value):
         self.dock.set_tiling_spacing(self.tiling_gap.value(),
                                      self.tiling_padding.value())
@@ -366,6 +376,14 @@ class SettingsWindow(QDialog):
         self.tiling_enabled.setChecked(bool(cfg.get("tiling_enabled", False)))
         self.tiling_enabled.setEnabled(self.dock.is_primary_display)
         self.tiling_enabled.blockSignals(False)
+        self.tiling_release_key.blockSignals(True)
+        self.tiling_release_key.setText(cfg.get(
+            "tiling_release_hotkey", "ctrl+alt+esc"))
+        self.tiling_release_key.setEnabled(
+            self.dock.is_primary_display and not cfg.get("tiling_enabled"))
+        self.save_tiling_release_key.setEnabled(
+            self.dock.is_primary_display and not cfg.get("tiling_enabled"))
+        self.tiling_release_key.blockSignals(False)
         self.tiling_layout.blockSignals(True)
         layout_index = self.tiling_layout.findData(
             cfg.get("tiling_layout", "bsp"))
@@ -388,6 +406,11 @@ class SettingsWindow(QDialog):
             "\n".join(rules.get("title_regex", [])))
         unavailable = getattr(self.dock, "_tiling_hotkey_unavailable", [])
         messages = []
+        release_status = getattr(self.dock, "_tiling_release_status", "")
+        if release_status:
+            messages.append(release_status)
+        elif not cfg.get("tiling_enabled"):
+            messages.append("Safe-release fallbacks: Ctrl+Alt+F12, Ctrl+Shift+F12.")
         if unavailable and cfg.get("tiling_enabled"):
             messages.append("Shortcut conflict/unavailable: "
                             + ", ".join(unavailable))
@@ -424,3 +447,4 @@ class SettingsWindow(QDialog):
         self.app_modifier.setCurrentText(modifier)
         self.app_modifier.blockSignals(False)
         self._refresh_preview()
+
