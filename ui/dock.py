@@ -1035,23 +1035,31 @@ class Dock(QWidget):
                     "resize_larger": lambda: self._resize_focused_tiled_window(0.05),
                     "move_previous": lambda: self._move_focused_tiled_window(-1),
                     "move_next": lambda: self._move_focused_tiled_window(1),
-                })
+                    "layout": self._cycle_tiling_layout,
+                }, release_hotkey=self.cfg.get(
+                    "tiling_release_hotkey", "ctrl+alt+esc"))
                 if not release_hotkey.registered:
                     self.cfg["tiling_enabled"] = False
                     release_hotkey.close()
                     self._sync_window_tracking()
                     error_code = release_hotkey.registration_errors.get(
                         "release")
-                    message = ("Could not register Ctrl+Alt+Esc"
+                    message = ("Could not register the configured safe-release shortcut"
                                + (f" (Win32 error {error_code})"
-                                  if error_code else "")
+                                  if isinstance(error_code, int) and error_code else "")
                                + ". Tiling stayed off because safe release is required.")
+                    _log.warning("Tiling disabled: %s", message)
                     if warn:
                         QMessageBox.warning(self, "Safe release hotkey unavailable", message)
                     self._tiling_error = message
+                    self._tiling_release_status = message
                     return False
                 QApplication.instance().installNativeEventFilter(release_hotkey.filter)
                 self._tiling_release_hotkey = release_hotkey
+                self._tiling_error = ""
+                self._tiling_release_status = (
+                    f"Safe release: {release_hotkey.release_binding}"
+                    + (" (fallback)" if release_hotkey.release_fallback_used else ""))
                 self._tiling_hotkey_unavailable = release_hotkey.unavailable
                 self._tiling_hotkey_errors = release_hotkey.registration_errors
                 if self._tiling_hotkey_unavailable:
@@ -1085,6 +1093,20 @@ class Dock(QWidget):
         if settings is not None:
             settings.refresh()
         return self.cfg.get("tiling_enabled", False) == enabled
+
+    def set_tiling_release_hotkey(self, value):
+        from wm.hotkeys import parse_hotkey_spec
+        try:
+            binding = parse_hotkey_spec(value)
+        except ValueError as exc:
+            QMessageBox.warning(self, "Invalid safe-release shortcut", str(exc))
+            return False
+        self.cfg["tiling_release_hotkey"] = binding["spec"]
+        save_config(self.cfg)
+        settings = getattr(self, "_settings_window", None)
+        if settings is not None:
+            settings.refresh()
+        return True
 
     def _focus_next_tiled_window(self):
         if self._tiling_manager is not None:
@@ -1170,8 +1192,16 @@ class Dock(QWidget):
             self._tiling_manager.schedule_layout()
         save_config(self.cfg)
 
+    def _cycle_tiling_layout(self):
+        from wm.layouts import next_layout
+        self.set_tiling_layout(next_layout(self.cfg.get("tiling_layout", "bsp")))
+        settings = getattr(self, "_settings_window", None)
+        if settings is not None:
+            settings.refresh()
+
     def set_tiling_layout(self, value):
-        value = value if value in ("bsp", "columns", "stack") else "bsp"
+        from wm.layouts import normalize_layout
+        value = normalize_layout(value)
         self.cfg["tiling_layout"] = value
         if self._tiling_manager is not None:
             self._tiling_manager.layout = value
@@ -1234,5 +1264,6 @@ class Dock(QWidget):
         if self.is_primary_display:
             winapi.set_taskbar_autohide(False, self.appbar.hwnd, self.cfg)
         save_config(self.cfg)
+
 
 
