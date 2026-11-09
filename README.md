@@ -94,7 +94,18 @@ To try the custom window switcher, enable **Settings → Hotkeys → Use Windows
 
 Enable **Settings → Layout → Show draggable desktop widgets** to show a small clock and CPU/RAM/network panel on the primary display. Drag the panel to reposition it; its location is saved per display. It is placed at the bottom of the window z-order so ordinary app windows cover it.
 
-Phase 5 includes opt-in BSP, Columns, and Master / stack tiling in **Settings → Window manager**. It offers BSP, Columns, and Master / stack layouts for visible taskbar windows within each monitor's work area, supports configurable gaps and edge padding, and saves original positions for release. While enabled, **Ctrl+Alt+J** focuses the next tiled window, **Ctrl+Alt+K** swaps its BSP slot, **Ctrl+Alt+H/L** adjusts the focused BSP branch, **Ctrl+Alt+F** toggles floating, and **Ctrl+Alt+Shift+Left/Right** moves the focused window between virtual desktops when the Windows COM API is available. Floating rules can match executable names, window classes, or title regular expressions. **Ctrl+Alt+Esc** releases windows and restores their saved positions. BSP order and split ratios persist per virtual desktop when its ID is available; shortcut conflicts and virtual desktop availability appear in Settings.
+Phase 5 includes opt-in BSP, Columns, and Master / stack tiling in **Settings → Window manager**. It offers BSP, Columns, and Master / stack layouts for visible taskbar windows within each monitor's work area, supports configurable gaps and edge padding, and saves original positions for release. While enabled, **Ctrl+Alt+J** focuses the next tiled window, **Ctrl+Alt+K** swaps its BSP slot, **Ctrl+Alt+H/L** adjusts the focused split (the first column in Columns, the master in Master / stack), **Ctrl+Alt+T** cycles the layout, **Ctrl+Alt+F** toggles floating, and **Ctrl+Alt+Shift+Left/Right** moves the focused window between virtual desktops when the Windows COM API is available. Floating rules can match executable names, window classes, or title regular expressions. **Ctrl+Alt+Esc** releases windows and restores their saved positions. BSP order and split ratios persist per virtual desktop when its ID is available; shortcut conflicts and virtual desktop availability appear in Settings.
+
+## Backup and move your settings
+
+Settings are stored in `%APPDATA%\Windows Bar\config.json`. Close Windows Bar, then use:
+
+```
+python windowsbar.py --export-config my-settings.json
+python windowsbar.py --import-config my-settings.json
+```
+
+Export leaves private values (your calendar link) blank unless you add `--include-private`. Import validates the file first and keeps your previous settings as `config.before-import.bak`. When an update changes the settings format, the old file is kept once as `config.pre-v<N>.bak` before it is rewritten.
 
 ## Performance
 

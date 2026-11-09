@@ -1,12 +1,15 @@
 """Opt-in, reversible BSP window tiling for Windows."""
 import ctypes
-import re
 import sys
 
 from PySide6.QtCore import QObject, QTimer
 
 import winapi
-from wm.layouts import bsp_layout, columns_layout, master_stack_layout
+from wm.layouts import (LAYOUT_LABELS, bsp_layout, columns_layout,
+                        default_ratio, master_stack_layout, next_layout,
+                        normalize_layout, resize_sign)
+from wm.rules import FloatingRules, split_names
+from wm.hotkeys import parse_hotkey_spec
 
 
 class TilingManager(QObject):
@@ -17,13 +20,15 @@ class TilingManager(QObject):
         super().__init__(parent)
         self.tracker = tracker
         self.gap, self.padding = int(gap), int(padding)
-        self.layout = layout if layout in ("bsp", "columns", "stack") else "bsp"
+        self.layout = normalize_layout(layout)
         self.workspace_layouts = (workspace_layouts
                                   if isinstance(workspace_layouts, dict) else {})
-        if isinstance(floating_apps, str):
-            floating_apps = re.split(r"[,;\r\n]+", floating_apps)
-        self.floating_apps = {str(name).strip().lower() for name in floating_apps
-                              if str(name).strip()}
+        self.floating_apps = set()
+        self._rules = FloatingRules()
+        self.floating_rules = {}
+        self.invalid_title_patterns = []
+        self._rule_config = {}
+        self.set_floating_apps(floating_apps, notify=False)
         self.set_floating_rules(floating_rules or {}, notify=False)
         self.on_change = on_change
         self._original = {}
@@ -101,15 +106,12 @@ class TilingManager(QObject):
             ratios = state.get("ratios")
             if not isinstance(ratios, dict):
                 ratios = state["ratios"] = {}
-            try:
-                ratio = float(ratios.get(area_key, 0.5))
-            except (TypeError, ValueError):
-                ratio = 0.5
+            ratio = self._saved_ratio(ratios, area_key)
             layout_fn = {"bsp": bsp_layout, "columns": columns_layout,
                          "stack": master_stack_layout}[self.layout]
             for hwnd, rect in zip(order, layout_fn(
                     area, len(order), self.gap, self.padding, ratio=ratio)):
-                winapi.move_window_rect(hwnd, rect)
+                winapi.move_window_visible_rect(hwnd, rect)
             names = [winapi.window_process_name(hwnd) for hwnd in order]
             names = [name for name in names if name]
             if names and orders.get(area_key) != names:
@@ -154,13 +156,14 @@ class TilingManager(QObject):
         ratios = state.get("ratios")
         if not isinstance(ratios, dict):
             ratios = state["ratios"] = {}
-        try:
-            ratio = float(ratios.get(area_key, 0.5))
-        except (TypeError, ValueError):
-            ratio = 0.5
-        left_count = (len(order) + 1) // 2
-        ratio += float(delta) if order.index(current) < left_count else -float(delta)
-        ratios[area_key] = min(0.8, max(0.2, ratio))
+        sign = resize_sign(self.layout, order.index(current), len(order))
+        if not sign:
+            return
+        ratio = self._saved_ratio(ratios, area_key)
+        if ratio is None:               # even columns: start from equal share
+            ratio = 1.0 / len(order)
+        ratio += float(delta) * sign
+        ratios[self._ratio_key(area_key)] = min(0.8, max(0.2, ratio))
         self._changed()
         self.schedule_layout()
 
@@ -204,50 +207,58 @@ class TilingManager(QObject):
     def _is_floating(self, hwnd):
         if hwnd in self._floating_overrides:
             return self._floating_overrides[hwnd]
-        exe = winapi.window_process_name(hwnd)
-        if exe in self.floating_apps or exe in self.floating_rules["executables"]:
-            return True
-        klass = winapi.window_class_name(hwnd)
-        if klass in self.floating_rules["classes"]:
-            return True
-        patterns = self.floating_rules["title_regex"]
-        if patterns:
-            title = winapi.window_title(hwnd)
-            return any(pattern.search(title) for pattern in patterns)
-        return False
+        return self._rules.matches(
+            winapi.window_process_name(hwnd),
+            lambda: winapi.window_class_name(hwnd),
+            lambda: winapi.window_title(hwnd))
 
-    def set_floating_apps(self, names):
-        self.floating_apps = {str(name).strip().lower() for name in names
-                              if str(name).strip()}
-        self._changed()
-        self.schedule_layout()
-
-    def set_floating_rules(self, rules, notify=True):
-        rules = rules if isinstance(rules, dict) else {}
-        def values(key):
-            raw = rules.get(key, [])
-            if isinstance(raw, str):
-                return re.split(r"[,;\r\n]+", raw) if key != "title_regex" else [raw]
-            return raw if isinstance(raw, (list, tuple, set)) else []
-        patterns, invalid = [], []
-        for value in values("title_regex"):
-            try:
-                patterns.append(re.compile(str(value), re.IGNORECASE))
-            except re.error:
-                invalid.append(str(value))
-        self.floating_rules = {
-            "executables": {str(value).strip().lower()
-                            for value in values("executables")
-                            if str(value).strip()},
-            "classes": {str(value).strip().lower()
-                        for value in values("classes")
-                        if str(value).strip()},
-            "title_regex": patterns,
-        }
-        self.invalid_title_patterns = invalid
+    def set_floating_apps(self, names, notify=True):
+        self.floating_apps = split_names(names)
+        self._rebuild_rules()
         if notify:
             self._changed()
             self.schedule_layout()
+
+    def set_floating_rules(self, rules, notify=True):
+        self._rule_config = rules if isinstance(rules, dict) else {}
+        self._rebuild_rules()
+        if notify:
+            self._changed()
+            self.schedule_layout()
+
+    def _rebuild_rules(self):
+        self._rules = FloatingRules(self._rule_config, self.floating_apps)
+        self.floating_rules = {
+            "executables": set(self._rules.executables),
+            "classes": set(self._rules.classes),
+            "title_regex": list(self._rules.title_patterns),
+        }
+        self.invalid_title_patterns = list(self._rules.invalid_title_patterns)
+
+    # -- layout selection and per-layout ratios ---------------------------
+    def _ratio_key(self, area_key):
+        """BSP keeps its original key; other layouts get their own so a
+        ratio set for one layout never leaks into another."""
+        return area_key if self.layout == "bsp" else f"{area_key}|{self.layout}"
+
+    def _saved_ratio(self, ratios, area_key):
+        """Saved ratio for the current layout, or its default (maybe None)."""
+        value = ratios.get(self._ratio_key(area_key))
+        if value is None:
+            return default_ratio(self.layout)
+        try:
+            return min(0.8, max(0.2, float(value)))
+        except (TypeError, ValueError):
+            return default_ratio(self.layout)
+
+    def set_layout(self, name):
+        self.layout = normalize_layout(name)
+        self.schedule_layout()
+        return self.layout
+
+    def cycle_layout(self):
+        """Switch to the next layout; returns its display label."""
+        return LAYOUT_LABELS[self.set_layout(next_layout(self.layout))]
 
     def _workspace_id(self):
         import time
@@ -296,7 +307,7 @@ class TilingManager(QObject):
 
 
 class EmergencyReleaseHotkey:
-    """Global WM controls with Ctrl+Alt+Esc as the required safe release."""
+    """Global controls that require a registered safe-release shortcut."""
     HOTKEYS = {0xB19: (0x1B, "release", 0x0003),
                0xB1A: (0x4A, "focus", 0x0003),
                0xB1B: (0x4B, "swap", 0x0003),
@@ -304,10 +315,14 @@ class EmergencyReleaseHotkey:
                0xB1D: (0x48, "resize_smaller", 0x0003),
                0xB1E: (0x4C, "resize_larger", 0x0003),
                0xB1F: (0x25, "move_previous", 0x0007),
-               0xB20: (0x27, "move_next", 0x0007)}
+               0xB20: (0x27, "move_next", 0x0007),
+               0xB21: (0x54, "layout", 0x0003)}
     WM_HOTKEY = 0x0312
 
-    def __init__(self, callbacks):
+    RELEASE_ID = 0xB19
+    RELEASE_FALLBACKS = ("ctrl+alt+f12", "ctrl+shift+f12")
+
+    def __init__(self, callbacks, release_hotkey="ctrl+alt+esc"):
         from PySide6.QtCore import QAbstractNativeEventFilter, QTimer
         from ctypes import wintypes
 
@@ -329,28 +344,63 @@ class EmergencyReleaseHotkey:
         self.registered_ids = set()
         self.registered = False
         self.registration_errors = {}
+        self.release_binding = None
+        self.release_fallback_used = False
+        self.release_attempts = []
         self._actions = dict(callbacks)
         type(self)._actions = self._actions
         if winapi.IS_WIN:
-            for hotkey_id, (vk, action_name, modifiers) in self.HOTKEYS.items():
-                callback = callbacks.get(action_name)
-                if not callback:
+            candidates = []
+            preferred_spec = None
+            for spec in (release_hotkey, *self.RELEASE_FALLBACKS):
+                try:
+                    binding = parse_hotkey_spec(spec)
+                except ValueError as exc:
+                    self.registration_errors["release"] = str(exc)
                     continue
+                if preferred_spec is None:
+                    preferred_spec = binding["spec"]
+                if binding["spec"] not in [item["spec"] for item in candidates]:
+                    candidates.append(binding)
+            for binding in candidates:
                 try:
                     ok = ctypes.windll.user32.RegisterHotKey(
-                        None, hotkey_id, modifiers | 0x4000, vk)
+                        None, self.RELEASE_ID, binding["modifiers"] | 0x4000,
+                        binding["vk"])
                 except Exception:
                     ok = False
+                error = 0 if ok else int(ctypes.windll.kernel32.GetLastError())
+                self.release_attempts.append((binding["spec"], error))
                 if ok:
-                    self.registered_ids.add(hotkey_id)
-                elif hotkey_id == 0xB19:
-                    self.registration_errors[action_name] = int(
-                        ctypes.windll.kernel32.GetLastError())
+                    self.release_binding = binding["spec"]
+                    self.release_fallback_used = (
+                        binding["spec"] != preferred_spec)
+                    self.registered_ids.add(self.RELEASE_ID)
                     break
-                else:
-                    self.registration_errors[action_name] = int(
-                        ctypes.windll.kernel32.GetLastError())
-        self.registered = 0xB19 in self.registered_ids
+            if self.registered_ids:
+                self.registration_errors.pop("release", None)
+            else:
+                self.registration_errors["release"] = (
+                    self.release_attempts[-1][1] if self.release_attempts
+                    else "No valid release shortcut")
+            if self.registered_ids:
+                for hotkey_id, (vk, action_name, modifiers) in self.HOTKEYS.items():
+                    if hotkey_id == self.RELEASE_ID:
+                        continue
+                    callback = callbacks.get(action_name)
+                    if not callback:
+                        continue
+                    try:
+                        ok = ctypes.windll.user32.RegisterHotKey(
+                            None, hotkey_id, modifiers | 0x4000, vk)
+                    except Exception:
+                        ok = False
+                    if ok:
+                        self.registered_ids.add(hotkey_id)
+                    else:
+                        self.registration_errors[action_name] = int(
+                            ctypes.windll.kernel32.GetLastError())
+        self.registered = self.RELEASE_ID in self.registered_ids
         self.unavailable = [action for hotkey_id, (_vk, action, _mods)
                             in self.HOTKEYS.items()
                             if callbacks.get(action) and
@@ -364,3 +414,4 @@ class EmergencyReleaseHotkey:
                 pass
         self.registered_ids.clear()
         self.registered = False
+
