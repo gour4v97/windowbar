@@ -11,4 +11,6 @@ testpaths = ["tests"]
 
 [tool.ruff.lint.per-file-ignores]
 # native/windows.py re-exports the Win32 surface on purpose (see winapi.py facade).
+# widgets/system.py re-exports QuickCard for the Recycle Bin card.
 "native/windows.py" = ["F401"]
+"widgets/system.py" = ["F401"]
