@@ -14,13 +14,11 @@ from native.appbar import (ABM_GETSTATE, ABM_NEW, ABM_QUERYPOS, ABM_REMOVE,
 from native.glass import disable_glass, enable_glass
 
 
-# ------------------------------------------------------------------ glass --
 from native.system import (foreground_process, foreground_is_fullscreen, idle_seconds,
                            recycle_count, empty_recycle_bin, is_dark_mode,
                            set_dark_mode, lock_screen)
 from native.audio import get_volume, set_volume, set_mute
 
-# ---------------------------------------------------- power / keep awake ----
 def set_keep_awake(on):
     """Stop the display/system sleeping while `on` (cleared with off).
     Applies to the calling thread; call from the UI thread."""
@@ -136,7 +134,6 @@ def open_window_processes():
     return out
 
 
-# ------------------------------------------------------- windows / startup --
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 
 

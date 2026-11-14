@@ -1,34 +1,22 @@
-> **Current baseline (2026-11-08):** Product name is Windows Bar; repository remains `gour4v97/windowbar`. The existing source documents 28 configurable widgets plus a calendar detail popup and already includes a launcher, theme engine, wallpaper accent, and several Phase 2 features. The matrix is being reconciled against the source; see `AUDIT.md`.
 # Windows Bar Roadmap
 
-Goal: grow Windows Bar from a single smart dock into a full, customizable Windows desktop shell with the same *feature set* as [Seelen UI](https://github.com/eythaann/seelen-ui), plus the smart-dock extras from [Dockyard](https://github.com/aryansoni57/dockyard). Everything stays local: no account, no telemetry.
+Goal: grow Windows Bar from a single smart dock into a full, customizable Windows desktop shell with the same *feature set* as [Seelen UI](https://github.com/eythaann/seelen-ui), plus the smart-dock extras from [Dockyard](https://github.com/aryansoni57/dockyard).
 
 Legend: ✅ done · 🟡 partial · ⬜ not started · Effort: S (a session) · M (a few sessions) · L (weeks) · XL (a month+)
 
----
 
-## 0. Ground rules (read first)
+## 0. Ground rules
 
-**Licensing.** Seelen UI is AGPL-3.0. Windows Bar is MIT. Re-implementing *features and behaviour* is fine. Copying Seelen source, CSS, icons, logo or the name is not, and would force Windows Bar to become AGPL. Dockyard has no license file, so treat it as all-rights-reserved: take ideas, not code. Windows Bar gets its **own visual identity**; we match capabilities, not pixels.
+**Licensing.** Seelen UI is AGPL-3.0. Windows Bar is MIT. Re-implementing *features and behaviour* is fine. Copying Seelen source, CSS, icons, logo or the name is not, and would force Windows Bar to become AGPL. Dockyard has no license file, so treat it as all-rights-reserved: take ideas, not code.
 
 **Stack decision.** The written Phase 3 decision is to stay on Python + PySide6. See `docs/decisions/0001-stack.md`; remeasure the full shell and real key response after hook integration and before expanding into Phase 5 tiling.
 
-**GitHub rule.** Nothing exists until it is pushed. See section 7.
 
----
 
 ## 1. Where Windows Bar is today
 
-From the README and the source audit in `AUDIT.md`:
+Current state: see README.md and AUDIT.md.
 
-- Bar on each connected display with per-display widget/layout settings; combined or split Toolbar/Dock layout, snaps to edges, optional full-width or pill
-- AppBar space reservation, glass/acrylic, taskbar auto-hide with crash-safe restore
-- Auto-hide dock with fullscreen detection, start with Windows
-- 28 configurable widgets, including pinned apps, open windows, clock, system, weather, media, calendar, quick actions, notes, focus tools, storage, network, volume, and quick toggles; the calendar popup is a detail panel
-- Files: `windowsbar.py` (UI), `launcher.py`, `search.py`, `theme.py`, `services.py`, `extras.py`, `winapi.py`, `tests/`
-- MIT; see `LICENSE`
-
----
 
 ## 2. Feature matrix: Seelen UI → Windows Bar
 
@@ -57,11 +45,9 @@ From the README and the source audit in `AUDIT.md`:
 | Portable, plain-file config | 🟡 `%APPDATA%\Windows Bar\config.json`; schema v1 migration started | P1 (export/import remains) | S |
 | Signed installer / winget | ⬜ | P6 | M |
 
----
 
 ## 3. Dockyard ideas to adopt
 
-Already in Windows Bar: clock, stopwatch, focus timer, CPU/RAM/network, battery, weather, now playing, todos.
 
 | Dockyard idea | Notes for Windows | Phase |
 |---|---|---|
@@ -73,11 +59,9 @@ Already in Windows Bar: clock, stopwatch, focus timer, CPU/RAM/network, battery,
 | Disk usage widget | `psutil` | P2 |
 | Click-to-open **detail popup** per widget | Core UI pattern; build once in P1 | P1/P2 |
 | Quick toggles: mute, Wi-Fi, Bluetooth | mute via native Core Audio; radios via WinRT. Do Not Disturb and Night Light are undocumented on Windows and remain unsupported | P2 |
-| "Each module is one dumb view; data sources live once" | Adopt as the widget architecture | P1 |
-| Hidden modules stop their timers/sensors | Copy this behaviour exactly; big battery/CPU win | P1 |
+| Hidden modules stop their timers/sensors | — | P1 |
 | Glass desktop theme | Ship as a built-in theme | P3 |
 
----
 
 ## 4. Target architecture
 
@@ -103,20 +87,19 @@ tests/
 
 ```python
 class Widget:
-    id = "weather"                # unique
+    id = "weather"              
     name = "Weather"
     default_config = {...}
-    poll_seconds = 600            # None = event-driven
-    def start(self): ...          # begin timers/threads
-    def stop(self): ...           # called when hidden or disabled
+    poll_seconds = 600          
+    def start(self): ...        
+    def stop(self): ...         
     def card(self) -> QWidget: ...
-    def popup(self) -> QWidget | None: ...   # detail view on click
+    def popup(self) -> QWidget | None: ... 
     def on_click(self): ...
 ```
 
 Rules: widgets never touch Win32 directly (go through `native/`); all native hooks run on one dedicated thread and post events to Qt; no widget does network work on the UI thread.
 
----
 
 ## 5. Phases
 
@@ -139,7 +122,7 @@ Rules: widgets never touch Win32 directly (go through `native/`); all native hoo
 - [x] Detail-popup component (`ui/popup.py`, shared by calendar, notes, and todos panels)
 - [x] Rotating logging to `%APPDATA%\Windows Bar\logs` and a crash-recovery test for saved taskbar auto-hide state
 
-**Done when:** all 28 configured widgets run through the registry; adding a widget = one module + one config key.
+**Done when:** all 28 configured widgets run through the registry.
 
 ### Phase 2: Dockyard parity + keyboard basics *(M–L)*
 - [x] Pinned apps with running dots and focus/launch behaviour
@@ -148,7 +131,6 @@ Rules: widgets never touch Win32 directly (go through `native/`); all native hoo
 - [x] Quick toggles: mute, Wi-Fi, Bluetooth; DND / Night Light documented as unsupported
 - [x] Detail popups for clock, system, media, weather
 
-**Done when:** every Dockyard feature in section 3 is either shipped or documented as unsupported on Windows.
 
 ### Phase 3: Shell basics, Seelen tier 1 *(L)*
 - [x] **Theming engine:** JSON theme files, color/radius/font/spacing/blur tokens, QSS, and default/glass/light/dark built-ins
@@ -161,9 +143,8 @@ Rules: widgets never touch Win32 directly (go through `native/`); all native hoo
 - [x] Volume and brightness flyouts (brightness via optional WMI on supported internal panels; external DDC displays are not supported)
 - [x] Optional notification-centre integration: open the native Windows notification surface; Windows owns the notification feed and rendering
 
-**Done when:** a non-programmer can restyle and rearrange widgets and layouts from Settings without editing JSON. **Met.** Native notification feeds and the system tray remain rendered by Windows.
+**Done when:** a non-programmer can restyle and rearrange widgets and layouts from Settings without editing JSON.
 
-> **Decision gate (end of Phase 3):** stay on Python/PySide6. The available runtime baseline is recorded in `docs/decisions/0001-stack.md`; it does not measure the full dock or physical keyboard latency.
 
 ### Phase 4: Workspaces, Alt+Tab, desktop widgets, Seelen tier 2 *(L)*
 - [🟡] Virtual desktop control (switch, move window, create/remove) through the maintained `pyvda` wrapper; shortcut fallback for switching/creation and graceful errors for unsupported operations; live COM access is denied in this session
@@ -172,7 +153,7 @@ Rules: widgets never touch Win32 directly (go through `native/`); all native hoo
 - [🟡] Custom Alt+Tab: dedicated low-level hook, window switcher overlay, captured previews, keyboard + mouse selection implemented; live Windows hook/latency validation remains
 - [🟡] Desktop-widgets layer: draggable, theme-aware clock/system panel with bottom z-order implemented; live desktop stacking and interaction validation remains
 
-**Phase 4 implementation status:** all planned feature slices are present. Phase exit is pending interactive checks for the custom switcher, desktop layer, and per-desktop wallpaper. In this session, the isolated app launched with the hook and desktop layer enabled without resetting either option; the virtual-desktop COM activation fails with Windows access denied, and the automation surface could not capture the custom overlay. Keep these items partial until they can be checked in the user's interactive Windows session.
+**Phase 4 status:** all planned feature slices are present; exit is pending interactive checks for the custom switcher, desktop layer, and per-desktop wallpaper.
 
 ### Phase 5: Tiling window manager *(XL)*
 - [🟡] Dedicated-thread `SetWinEventHook` and debounced top-level window snapshots; filtered taskbar windows feed the opt-in tiler
@@ -184,7 +165,6 @@ Rules: widgets never touch Win32 directly (go through `native/`); all native hoo
 - [🟡] Move focused window to previous/next desktop (`Ctrl+Alt+Shift+Left/Right`) via pyvda; COM access denied in this session
 - [🟡] Ctrl+Alt+Esc safe release path implemented; host `RegisterHotKey` calls return Win32 error 5, so the app correctly refuses to enable tiling here
 
-Phase 5 implements opt-in BSP, columns, and master/stack tiling, keyboard focus/swap/resize, floating mode and executable/class/title-regex rules, original-position restoration, per-monitor layouts, and per-desktop order/ratio persistence when virtual desktop IDs are available. Adjacent-desktop movement uses pyvda. Native HWND tiling and restoration have been smoke-checked with temporary windows. This session cannot validate the safety and workspace controls: pyvda COM activation is denied, and `RegisterHotKey` returns Win32 error 5 for all attempted combinations; tiling stays disabled if the release key cannot register.
 ### Phase 6: Ecosystem and release *(M–L)*
 - [🟡] Source-level widget contract docs + copyable contribution template; stable runtime plugin API/loader remains
 - [x] Theme JSON sharing format documented and starter gallery added under `themes/gallery/`
@@ -192,7 +172,6 @@ Phase 5 implements opt-in BSP, columns, and master/stack tiling, keyboard focus/
 - [ ] Installer (Inno Setup / MSIX), code signing if feasible, GitHub Releases, winget manifest
 - [🟡] Contributor guide added in `CONTRIBUTING.md`; current README, screenshots/GIFs, and release-ready visuals still need work
 
----
 
 ## 6. Risks
 
@@ -201,25 +180,17 @@ Phase 5 implements opt-in BSP, columns, and master/stack tiling, keyboard focus/
 | Python latency for Alt+Tab / tiling | Dedicated hook thread; decision gate after Phase 3; native core if needed |
 | Undocumented Windows APIs (virtual desktops, DND, Night Light) | Use maintained wrappers, feature-flag them, degrade gracefully |
 | Windows updates break shell tricks | Pin tested Windows builds in docs; keep a tested "safe restore" path for taskbar/AppBar state |
-| Scope: Seelen has 2,700+ commits and many contributors | Ship phase by phase; Phase 3 is already a very usable product |
+| Scope: Seelen has 2,700+ commits and many contributors | Ship phase by phase. |
 | Accidental AGPL contamination | Never paste Seelen code or assets; implement from behaviour |
 | Locked-out desktop if the shell crashes | Crash-safe restore on next start + a documented recovery hotkey/command |
 
----
 
-## 7. GitHub workflow (so progress is never lost)
+## 7. GitHub workflow
 
 1. **Work on branches:** `phase-1-core`, `phase-2-dockyard`, … merge to `main` when the phase's "Done when" is met.
 2. **Checkpoint often:** run `scripts/checkpoint.ps1 "what you did"` at the end of every work session, and after any milestone. It commits and pushes.
 3. **Small commits:** `feat(widgets): add world clock`, `fix(appbar): restore taskbar on crash`, `refactor(core): split winapi`.
 4. **One Issue per roadmap bullet** (or group); close them from commits with `closes #N`.
-5. **Tag milestones:** `v0.1.0` (today) → `v0.2.0` (P1) → `v0.3.0` (P2) → `v0.4.0` (P3, first "shell" release) → …
-6. **Keep `AGENTS.md` current:** its "Current state" section is the handoff note. Any AI assistant (or you in a month) starts there.
+6. **Keep `AGENTS.md` current:**
 7. **Never commit secrets:** the Stripe key stays in `WINDOWSBAR_STRIPE_KEY`; check `.gitignore` before each push.
-
-
-
-
-
-
 

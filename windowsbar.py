@@ -1,11 +1,5 @@
 """
 Windows Bar - a smart dock for Windows 10/11.
-
-Run:   pip install -r requirements.txt
-       python windowsbar.py
-
-Right-click the dock for the menu. Settings live in %APPDATA%\\Windows Bar\\config.json
-Stripe revenue reads the key from the WINDOWSBAR_STRIPE_KEY environment variable.
 """
 import logging
 import sys

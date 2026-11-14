@@ -5,10 +5,6 @@ English source text (the message key) to its translation, as described in
 ``docs/localization.md``. English text is always the fallback, so a missing
 translation shows readable English instead of an empty label.
 
-    from core.i18n import set_locale, tr
-    set_locale("hi")
-    label = tr("Layout engine")
-    note = tr("{count} windows tiled", count=4)
 """
 import json
 import locale as _system_locale

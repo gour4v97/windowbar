@@ -6,7 +6,6 @@ from PySide6.QtWidgets import (QCalendarWidget, QHBoxLayout, QListWidget,
 from ui.popup import DetailPopup
 from widgets.base import clip
 class Popup(DetailPopup):
-    """Windows Bar positioning and theme adapter for detail popups."""
     def __init__(self, dock):
         self.dock = dock
         super().__init__(dock, edge=dock.cfg.get("position", "bottom"))
@@ -17,7 +16,6 @@ class Popup(DetailPopup):
 
 
 class WidgetDetailPopup(Popup):
-    """Compact detail view shared by the Phase 2 data widgets."""
 
     def __init__(self, dock, title, details, actions=()):
         super().__init__(dock)
@@ -80,8 +78,6 @@ class CalendarPopup(Popup):
 
 
 class TodosPanel(Popup):
-    """Full todo list: check to complete, completed section below,
-    bin button deletes the selected row."""
 
     def __init__(self, dock, cfg, save):
         super().__init__(dock)
@@ -149,7 +145,6 @@ class TodosPanel(Popup):
 
 
 class NotesPanel(Popup):
-    """Several notes: pick from the list, edit in place, add or delete."""
 
     def __init__(self, dock, cfg, save):
         super().__init__(dock)

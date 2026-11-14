@@ -235,7 +235,6 @@ class TilingManager(QObject):
         }
         self.invalid_title_patterns = list(self._rules.invalid_title_patterns)
 
-    # -- layout selection and per-layout ratios ---------------------------
     def _ratio_key(self, area_key):
         """BSP keeps its original key; other layouts get their own so a
         ratio set for one layout never leaks into another."""

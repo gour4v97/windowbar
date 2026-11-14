@@ -1,4 +1,3 @@
-"""Theme-aware informational widgets that sit at the bottom of the desktop."""
 
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget

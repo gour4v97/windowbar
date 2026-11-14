@@ -3,7 +3,7 @@
 It scans ``ui/``, ``widgets/`` and a few top-level modules for string literals
 passed to common Qt calls (labels, buttons, tabs, tooltips, form rows ...) and
 prints them as a JSON catalog seed. It is a helper for building
-``locales/en.json``; review the output, it cannot see strings built at runtime.
+``locales/en.json``; it cannot see strings built at runtime.
 
     python scripts/extract_strings.py            # print JSON
     python scripts/extract_strings.py --write    # write locales/en.json
@@ -50,8 +50,6 @@ def strings_in(source):
         elif name in CALLS_SECOND and len(args) > 1:
             picks.append(args[1])
         elif name in ROW_CALLS and len(args) > 1:
-            picks.append(args[0])
-        elif name == "QLabel" and args:
             picks.append(args[0])
         for pick in picks:
             text = _literal(pick)

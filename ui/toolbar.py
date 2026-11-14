@@ -8,7 +8,6 @@ from native import vdesktop
 
 
 class Toolbar(QWidget):
-    """Hosts the enabled information cards above the pinned-app dock."""
 
     def __init__(self, dock):
         super().__init__(dock)

@@ -13,7 +13,6 @@ from core.app_config import THEMES_DIR, WIDGET_LABELS, save_config
 
 
 class SettingsWindow(QDialog):
-    """Separate settings window; changes are applied to the running dock."""
 
     def __init__(self, dock):
         super().__init__(dock)

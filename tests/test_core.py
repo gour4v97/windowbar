@@ -1,5 +1,4 @@
-"""Tests for the parts of Windows Bar that do not need Windows or a display:
-the iCal parser and recurrence expansion, weather codes, and folder stats.
+"""Tests for the parts of Windows Bar that do not need Windows or a display.
 Run:  pip install pytest && pytest -q
 """
 import ast
@@ -72,7 +71,6 @@ def test_fmt_dur():
     assert fmt_dur(3660) == "1h 01m"
 
 
-# ---- theme engine / launcher helpers -------------------------------------
 def test_parse_ics_drop_before_discards_old_one_offs():
     events = parse_ics(ICS, drop_before=datetime(2026, 11, 5))
     assert [e["summary"] for e in events] == ["Design review", "Standup"]
@@ -133,9 +131,7 @@ def test_hotkey_and_calc():
     assert search.safe_calc("9**9**9") is None
 
 
-# ------------------------------------------------------- newer widgets ----
 def test_period_progress_bounds():
-    from datetime import datetime
     p = extras.period_progress(datetime(2026, 6, 15, 12, 0))
     assert set(p) == {"day", "week", "year"}
     assert all(0.0 <= v <= 1.0 for v in p.values())
@@ -330,7 +326,6 @@ def test_detail_popup_position_respects_edge_and_screen_bounds():
 
 def test_logging_creates_rotating_log_in_app_logs(tmp_path):
     import logging
-    import sys
     import threading
     from core.logging_setup import configure_logging
 

@@ -7,7 +7,6 @@ from native.window_events import WinEventHook
 
 
 class WindowTracker(QObject):
-    """Publish stable top-level window snapshots and foreground changes."""
 
     windows_changed = Signal(object)
     foreground_changed = Signal(int)

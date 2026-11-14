@@ -1,4 +1,3 @@
-
 from datetime import datetime
 import math
 from PySide6.QtCore import QPoint, QRectF, Qt
@@ -31,7 +30,7 @@ class ClockCard(Card):
 
 
 class AnalogClockCard(QFrame):
-    """Clock style: analogue face (the digital card is the other style)."""
+    """Analogue clock face."""
 
     INTERVAL = 1
 
@@ -83,9 +82,7 @@ class AnalogClockCard(QFrame):
         hand(now.second * 6, 21, accent, 1)
 
 
-# ------------------------------------------------------------- popups --------
 
-from core.app_config import save_config, in_quiet_hours
 
 WIDGET_ID = 'clock'
 WIDGET_ORDER = 1

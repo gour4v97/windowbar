@@ -1,17 +1,6 @@
-"""Small polling, system, and utility widget cards."""
+"""World-clock card."""
 from datetime import datetime
-import math
-import os
-import subprocess
-import time
-from pathlib import Path
-import psutil
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QInputDialog, QPushButton
-import extras
-import winapi
-from core.formatting import fmt_hms, fmt_speed
-from widgets.base import Card, clip
+from widgets.base import Card
 
 class WorldClockCard(Card):
     INTERVAL = 5
@@ -34,7 +23,6 @@ class WorldClockCard(Card):
         return self.set_texts(
             body=" · ".join(parts) if parts else "Bad time zone")
 
-from core.app_config import save_config, in_quiet_hours
 
 WIDGET_ID = 'world'
 WIDGET_ORDER = 2

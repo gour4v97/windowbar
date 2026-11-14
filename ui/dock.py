@@ -1,30 +1,20 @@
-"""Main dock window and its interaction orchestration."""
 import json
 import logging
-import math
 import os
 import re
-import subprocess
-import sys
 import threading
 import time
 from datetime import datetime
 from pathlib import Path
-import psutil
-from PySide6.QtCore import QPoint, QPropertyAnimation, QRectF, QSize, Qt, QTimer
+from PySide6.QtCore import QPropertyAnimation, QRectF, QSize, Qt, QTimer
 from PySide6.QtGui import (QAction, QActionGroup, QColor, QCursor, QFont,
                            QImageReader, QPainter, QPainterPath, QPixmap)
-from PySide6.QtWidgets import (QApplication, QCalendarWidget, QFrame,
-    QHBoxLayout, QInputDialog, QLabel, QLineEdit, QListWidget, QListWidgetItem,
-    QMenu, QMessageBox, QPlainTextEdit, QPushButton, QVBoxLayout, QWidget,
-    QColorDialog)
+from PySide6.QtWidgets import QApplication, QHBoxLayout, QInputDialog, QMenu, QMessageBox, QWidget, QColorDialog
 import extras
 import theme
 import winapi
 import widgets
-from core.app_config import (APP_DIR, SCREEN_TIME_FILE, THEMES_DIR, CUSTOM_QSS,
-    DEFAULTS, WIDGET_LABELS, load_config, save_config, in_quiet_hours,
-    autostart_command, PRESETS, MARGIN)
+from core.app_config import SCREEN_TIME_FILE, THEMES_DIR, CUSTOM_QSS, DEFAULTS, WIDGET_LABELS, load_config, save_config, autostart_command, PRESETS, MARGIN
 from core.registry import WidgetRegistry
 from launcher import HotkeyFilter, Launcher
 from ui.hotkeys import AppHotkeyFilter
@@ -221,7 +211,7 @@ class Dock(QWidget):
         if settings is not None:
             settings.refresh()
 
-    # -- build ---------------------------------------------------------------
+    # Build
     def rebuild(self):
         self._widget_registry.stop_all()
         if self.toolbar:
@@ -306,7 +296,6 @@ class Dock(QWidget):
         return self.polls[key]
 
     def _sync_services(self):
-        """Background work only runs for widgets that are switched on."""
         w = self.cfg["widgets"]
         meeting = bool(self.cfg["pause_before_meeting"])
         if w.get("screentime"):
@@ -321,7 +310,7 @@ class Dock(QWidget):
             if not w.get(key):
                 self.polls.pop(key).stop()
 
-    # -- theme / accent ------------------------------------------------------
+    # Theme / accent
     def apply_theme(self):
         self.tokens = theme.resolve(
             self.cfg["theme"], THEMES_DIR,
@@ -560,7 +549,7 @@ class Dock(QWidget):
                 self.place()
         self.automations()
 
-    # -- auto-hide -----------------------------------------------------------
+    # Auto-hide
     SLIVER = 4  # px left visible at the edge while hidden
 
     def _hidden_pos(self):
@@ -640,7 +629,7 @@ class Dock(QWidget):
         self._last_hover = time.monotonic()
         super().enterEvent(e)
 
-    # -- automations ---------------------------------------------------------
+    # Automations
     def automations(self):
         if not self.cfg["pause_before_meeting"]:
             return
@@ -654,7 +643,7 @@ class Dock(QWidget):
             if self.media.playing:
                 self.media.pause()
 
-    # -- dialogs -------------------------------------------------------------
+    # Dialogs
     def ask_text(self, key, title, label, refresh=None):
         text, ok = QInputDialog.getText(self, title, label, text=self.cfg[key])
         if ok:
@@ -689,7 +678,7 @@ class Dock(QWidget):
         self.ask_text("github_user", "GitHub", "GitHub username:",
                       lambda: self.poll("github").refresh())
 
-    # -- painting / dragging -------------------------------------------------
+    # Painting / dragging
     def resizeEvent(self, e):
         self._bg = None
         super().resizeEvent(e)
@@ -746,7 +735,7 @@ class Dock(QWidget):
             save_config(self.cfg)
         self.place()
 
-    # -- menu ----------------------------------------------------------------
+    # Menu
     def open_settings(self):
         if not getattr(self, "_settings_window", None):
             from ui.settings import SettingsWindow

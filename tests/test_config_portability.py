@@ -5,8 +5,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from core.config import (ConfigImportError, export_config, import_config,
-                         load, save)
+from core.config import ConfigImportError, export_config, import_config, save
 
 DEFAULTS = {"position": "bottom", "theme": "midnight", "calendar_url": "",
             "widgets": {"clock": True, "weather": True}}
@@ -31,7 +30,6 @@ def test_saving_over_a_legacy_file_keeps_a_one_time_backup(tmp_path):
     save(path, {"position": "bottom", "widgets": {}})
     backup = tmp_path / "config.pre-v0.bak"
     assert json.loads(backup.read_text(encoding="utf-8")) == legacy
-    # A second save must not overwrite the original backup.
     save(path, {"position": "left", "widgets": {}})
     assert json.loads(backup.read_text(encoding="utf-8")) == legacy
 

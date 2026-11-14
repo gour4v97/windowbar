@@ -1,11 +1,9 @@
-"""Open-window, pinned-app, and Recycle Bin cards."""
+"""Pinned-app card."""
 import subprocess
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QMenu, QPushButton
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QMenu, QPushButton
 import winapi
-from widgets.base import Card, clip
-from widgets.system import QuickCard
 
 def _exe_of(cmd):
     """'C:\\…\\Code.exe --flag' / 'notepad.exe' -> 'code.exe' / 'notepad.exe'."""
@@ -19,9 +17,7 @@ def _exe_of(cmd):
     return first.replace("/", "\\").rsplit("\\", 1)[-1].lower()
 
 class AppsCard(QFrame):
-    """Pinned apps: a dot marks the running ones; clicking
-    a running app focuses it (or minimises it when already focused),
-    clicking a stopped one launches it. Right-click an app for more."""
+    """Pinned apps, with a dot on the running ones."""
 
     INTERVAL = 2
 
@@ -103,7 +99,6 @@ class AppsCard(QFrame):
                 b.style().polish(b)
         return True
 
-from core.app_config import save_config, in_quiet_hours
 
 WIDGET_ID = 'apps'
 WIDGET_ORDER = 0

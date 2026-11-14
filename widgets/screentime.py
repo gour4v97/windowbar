@@ -1,11 +1,6 @@
-"""Focus, stopwatch, todo, and screen time cards."""
-import math
-import time
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QInputDialog
+"""Screen-time card."""
 import extras
-from core.formatting import fmt_hms
-from widgets.base import Card, clip
+from widgets.base import Card
 
 class ScreenTimeCard(Card):
     INTERVAL = 5
@@ -21,7 +16,6 @@ class ScreenTimeCard(Card):
             self.setToolTip(tip)
         return self.set_texts(body=extras.fmt_dur(total) + " today")
 
-from core.app_config import save_config, in_quiet_hours
 
 WIDGET_ID = 'screentime'
 WIDGET_ORDER = 18

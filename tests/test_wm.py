@@ -144,7 +144,7 @@ def test_resize_sign_matches_what_each_ratio_controls():
     assert resize_sign("columns", 0, 3) == 1
     assert resize_sign("columns", 2, 3) == -1
     assert resize_sign("stack", 0, 3) == 1
-    assert resize_sign("stack", 1, 3) == -1      # a stack window shrinks master
+    assert resize_sign("stack", 1, 3) == -1
 
 
 def test_split_names_accepts_text_and_lists():

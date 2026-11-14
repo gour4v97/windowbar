@@ -1,8 +1,5 @@
 """Theme engine (pure Python, no Qt, testable anywhere).
 
-* built-in themes + your own JSON themes in %APPDATA%\\Windows Bar\\themes\\*.json
-* QSS builders for the dock and the launcher
-* dominant_accent(): derive an accent colour from wallpaper pixels
 
 Colours are "#rrggbb", "#rrggbbaa" or [r, g, b] / [r, g, b, a] with a in 0-255.
 A user theme only needs the keys it wants to change; the rest come from
@@ -92,7 +89,7 @@ def resolve(name, user_dir=None, accent=None):
     for k, v in (data or {}).items():
         if k in tokens:
             tokens[k] = v
-    for k in COLOR_KEYS:                      # validate once, here
+    for k in COLOR_KEYS:
         try:
             to_rgba(tokens[k])
         except Exception:
@@ -118,7 +115,7 @@ WIDGET_OVERRIDE_KEYS = ("card", "border", "text", "muted", "button",
 
 
 def widget_tokens(base_tokens, overrides):
-    """Return validated theme tokens with safe per-widget overrides applied."""
+    """Return theme tokens with per-widget overrides applied."""
     tokens = dict(base_tokens)
     if not isinstance(overrides, dict):
         return tokens

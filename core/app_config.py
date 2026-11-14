@@ -144,7 +144,6 @@ def autostart_command():
     return f'"{exe}" "{Path(sys.argv[0]).resolve()}"' 
 
 
-# ----------------------------------------------------------------- cards ----
 PRESETS = {
     "Essentials": ["apps", "clock", "weather", "system", "battery",
                    "media", "calendar", "quick"],
@@ -158,6 +157,5 @@ PRESETS = {
 MARGIN = 8
 
 
-# ------------------------------------------------------------------ dock ----
 
 

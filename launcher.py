@@ -95,7 +95,7 @@ class Launcher(QWidget):
         self.list.itemClicked.connect(lambda _i: self.run_current())
         self._rescan()
 
-    # -- data ----------------------------------------------------------------
+    # data
     def _rescan(self):
         if self._scanning:
             return
@@ -116,7 +116,7 @@ class Launcher(QWidget):
         entries += [(t, h, "window") for h, t in winapi.list_open_windows(limit=30)]
         return entries
 
-    # -- show / hide -----------------------------------------------------------
+    # show / hide
     def toggle(self):
         if self.isVisible():
             self.hide()
@@ -149,7 +149,7 @@ class Launcher(QWidget):
         if self.isVisible() and not self.isActiveWindow():
             self.hide()
 
-    # -- results ---------------------------------------------------------------
+    # results
     def refresh(self):
         text = self.edit.text()
         rows = []

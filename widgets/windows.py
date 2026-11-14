@@ -1,16 +1,11 @@
-"""Open-window, pinned-app, and Recycle Bin cards."""
-import subprocess
+"""Open-windows card."""
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QAction
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QMenu, QPushButton
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton
 import winapi
-from widgets.base import Card, clip
-from widgets.system import QuickCard
+from widgets.base import clip
 
 class WindowsCard(QFrame):
-    """Buttons for the open windows (taskbar-style); click one to focus it.
-    The window list is gathered by a background poll; the focused window is
-    highlighted with the theme accent."""
+    """Buttons for the open windows (taskbar-style); click one to focus it."""
 
     INTERVAL = 2
 
@@ -34,7 +29,7 @@ class WindowsCard(QFrame):
         old_titles = [t for _, t in (self._state[0] if self._state else ())]
         self._state = state
         if old_titles == [t for _, t in wins] and self.lay.count() == len(wins):
-            for i, (hwnd, _) in enumerate(wins):     # only the highlight moved
+            for i, (hwnd, _) in enumerate(wins):
                 b = self.lay.itemAt(i).widget()
                 b.setProperty("active", "true" if hwnd == fg else "false")
                 b.style().unpolish(b)
@@ -58,7 +53,6 @@ class WindowsCard(QFrame):
             self.lay.addWidget(b)
         return True
 
-from core.app_config import save_config, in_quiet_hours
 
 WIDGET_ID = 'windows'
 WIDGET_ORDER = 7

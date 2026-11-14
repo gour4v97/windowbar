@@ -1,17 +1,8 @@
-"""Small polling, system, and utility widget cards."""
-from datetime import datetime
-import math
-import os
-import subprocess
+"""Network card."""
 import time
-from pathlib import Path
 import psutil
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QInputDialog, QPushButton
-import extras
-import winapi
-from core.formatting import fmt_hms, fmt_speed
-from widgets.base import Card, clip
+from core.formatting import fmt_speed
+from widgets.base import Card
 
 class NetworkCard(Card):
     INTERVAL = 1
@@ -37,7 +28,6 @@ class NetworkCard(Card):
         return self.set_texts(
             title, f"↓{fmt_speed(down)} ↑{fmt_speed(up)}")
 
-from core.app_config import save_config, in_quiet_hours
 
 WIDGET_ID = 'network'
 WIDGET_ORDER = 9

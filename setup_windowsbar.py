@@ -1,28 +1,5 @@
 #!/usr/bin/env python3
-"""
-Windows Bar setup tool
-==================
-Installs Windows Bar (the PySide6 smart dock) for the current Windows user.
-
-Run it from the repo folder (next to windowsbar.py), or on its own - if the app files
-are missing it downloads them from GitHub:
-
-    python setup_windowsbar.py              install / update
-    python setup_windowsbar.py --uninstall  remove it
-    python setup_windowsbar.py --help       all options
-
-What install does:
-  1. Copies the app files to %LOCALAPPDATA%\\Windows Bar
-  2. Creates a private virtual environment there and installs requirements.txt
-     (plus `winsdk` for the Now Playing widget, if it isn't already listed)
-  3. Adds Start Menu (and optionally Desktop / Startup) shortcuts that launch the
-     dock without a console window
-  4. Optionally stores your Stripe key in the WINDOWSBAR_STRIPE_KEY user variable
-  5. Optionally launches the dock
-
-Your settings (%APPDATA%\\Windows Bar\\config.json) are never touched, except with
-`--uninstall --purge`.
-"""
+"""Install or uninstall Windows Bar for the current Windows user (see --help)."""
 import argparse
 import getpass
 import os
@@ -61,7 +38,7 @@ def fetch_source():
         urllib.request.urlretrieve(REPO_ZIP, archive)
         with zipfile.ZipFile(archive) as zf:
             zf.extractall(tmp)
-    except Exception as exc:  # network, DNS, proxy, bad zip
+    except Exception as exc:
         fail(f"Download failed ({exc}).\n    Check your internet connection, or place the repo files "
              "next to this script and run again.")
     for sub in tmp.iterdir():
@@ -70,7 +47,6 @@ def fetch_source():
     fail("Downloaded archive did not contain windowsbar.py.")
 
 
-# --------------------------------------------------------------------------- helpers
 def say(msg=""):
     print(msg, flush=True)
 
@@ -145,7 +121,6 @@ def check_environment():
              "Get it from https://www.python.org/downloads/")
 
 
-# --------------------------------------------------------------------------- install
 def install(args):
     check_environment()
     say(f"== {APP_NAME} setup ==")
@@ -154,7 +129,6 @@ def install(args):
     if any(not (SRC_DIR / f).exists() for f in CORE_FILES):
         SRC_DIR = fetch_source()
 
-    # 1. copy files
     say(f"\n[1/5] Copying files to {INSTALL_DIR}")
     INSTALL_DIR.mkdir(parents=True, exist_ok=True)
     try:
@@ -171,7 +145,6 @@ def install(args):
         fail("Could not overwrite files - Windows Bar is probably running.\n"
              "    Right-click the dock, quit it, and run setup again.")
 
-    # 2. venv + dependencies
     say("\n[2/5] Creating virtual environment and installing dependencies (this can take a minute)")
     venv_python = VENV_DIR / "Scripts" / "python.exe"
     venv_pythonw = VENV_DIR / "Scripts" / "pythonw.exe"
@@ -196,7 +169,6 @@ def install(args):
             say("    (media support could not be installed - everything else works; only the\n"
                 "     Now playing widget is unavailable. No compiler is needed or used.)")
 
-    # 3. shortcuts
     say("\n[3/5] Creating shortcuts")
     script = str(INSTALL_DIR / "windowsbar.py")
     launch_args = f'"{script}"'
@@ -211,7 +183,6 @@ def install(args):
         if make_shortcut("Startup", str(venv_pythonw), launch_args, str(INSTALL_DIR)):
             say("    Startup folder: Windows Bar")
 
-    # 4. Stripe key
     say("\n[4/5] Optional: Stripe revenue widget")
     env = os.environ.copy()
     if not args.yes and confirm("Set your Stripe key now? (use a restricted read-only key)",
@@ -227,7 +198,6 @@ def install(args):
     else:
         say(f"    skipped - set it later with:  setx {STRIPE_VAR} \"your_key\"")
 
-    # 5. launch
     say("\n[5/5] Done.")
     say(f"    Installed to: {INSTALL_DIR}")
     say(f"    Settings:     {CONFIG_DIR / 'config.json'} (created on first run)")
@@ -238,7 +208,6 @@ def install(args):
         say("    launched.")
 
 
-# --------------------------------------------------------------------------- uninstall
 def uninstall(args):
     check_environment()
     say(f"== {APP_NAME} uninstall ==")
@@ -272,7 +241,6 @@ def uninstall(args):
     say("Uninstall complete.")
 
 
-# --------------------------------------------------------------------------- main
 def main():
     p = argparse.ArgumentParser(description="Install or remove the Windows Bar dock for this user.")
     p.add_argument("--uninstall", action="store_true", help="remove Windows Bar")

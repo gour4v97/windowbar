@@ -1,10 +1,6 @@
-"""Focus, stopwatch, todo, and screen time cards."""
-import math
-import time
+"""Todos card."""
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QInputDialog
-import extras
-from core.formatting import fmt_hms
+from PySide6.QtWidgets import QInputDialog
 from widgets.base import Card, clip
 
 class TodoCard(Card):
@@ -46,7 +42,6 @@ class TodoCard(Card):
             clip(open_[0], 24) if open_ else
             ("All done" if todos else "All clear"))
 
-from core.app_config import save_config, in_quiet_hours
 
 WIDGET_ID = 'todos'
 WIDGET_ORDER = 26

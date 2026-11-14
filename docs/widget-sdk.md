@@ -1,7 +1,6 @@
 # Widget contribution API
 
-This is the source-level widget contract used by Windows Bar's built-in widget
-registry. It is suitable for a widget contribution or a fork. Windows Bar does
+Windows Bar does
 not currently load third-party widget packages at runtime.
 
 ## Minimal module
@@ -40,9 +39,7 @@ use the existing worker/poller patterns for asynchronous work.
 ## Register it in the product
 
 Add the widget's default key to `core/app_config.py` under `DEFAULTS["widgets"]`
-and its label to `WIDGET_LABELS`. Add an appropriate module factory in
-`widgets/`, then use the widget registry to keep creation and lifecycle
-management centralized. Avoid network calls and file scans on the UI thread.
+and its label to `WIDGET_LABELS`.
 
 For a copyable scaffold, see [`widget-template/`](widget-template/).
 
@@ -51,5 +48,4 @@ For a copyable scaffold, see [`widget-template/`](widget-template/).
 The current context is the internal Dock object; its methods are not yet a
 stable external plugin API. Widgets are Python code and run with the same
 permissions as Windows Bar. There is no sandbox, package installer, or
-third-party runtime discovery. Do not treat this source-level contract as a
-promise of binary or runtime plugin compatibility.
+third-party runtime discovery.

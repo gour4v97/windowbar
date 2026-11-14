@@ -74,7 +74,7 @@ class _LifecycleService:
                     self._start_worker_locked()
 
 
-# -------------------------------------------------------------- weather ----
+# weather
 def wmo_text(code):
     if code == 0: return "Clear"
     if code in (1, 2): return "Partly cloudy"
@@ -133,7 +133,7 @@ class WeatherService(_LifecycleService):
         self.text = f"{cur['temperature_2m']:.0f}°C {wmo_text(cur['weather_code'])}"
 
 
-# ------------------------------------------------------------- calendar ----
+# calendar
 WD = {"MO": 0, "TU": 1, "WE": 2, "TH": 3, "FR": 4, "SA": 5, "SU": 6}
 
 
@@ -149,8 +149,7 @@ def _parse_dt(value, params=""):
 
 
 def _unfold(text):
-    """Yield iCal lines with RFC 5545 continuation lines joined, one at a time
-    (no giant intermediate string, so the GIL is never held for long)."""
+    """Yield iCal lines with RFC 5545 continuation lines joined."""
     cur = None
     for n, raw in enumerate(text.splitlines()):
         if raw[:1] in (" ", "\t") and cur is not None:
@@ -300,7 +299,7 @@ class CalendarService(_LifecycleService):
             self._wake.wait(60)
 
 
-# ---------------------------------------------------------------- media ----
+# media
 def _media_api():
     """(SessionManager, PlaybackStatus) from `winsdk`, or from its maintained
     successor `winrt`; None when neither is installed."""
@@ -329,10 +328,7 @@ class MediaService(_LifecycleService):
         self._task = None
         self._api = _media_api()
         super().__init__(worker_available=bool(self._api))
-        if self._api:
-            self.available = True
-        else:
-            self.available = False
+        self.available = bool(self._api)
 
     def _run(self):
         self.loop = asyncio.new_event_loop()
@@ -388,7 +384,7 @@ class MediaService(_LifecycleService):
         self._submit(go)
 
 
-# ---------------------------------------------------------------- radios ----
+# radios
 def _radios_api():
     """(Radio, RadioKind, RadioState) from winsdk or winrt; None if absent."""
     for root in ("winsdk", "winrt"):
@@ -417,10 +413,7 @@ class RadioService(_LifecycleService):
         self._api = _radios_api()
         self._radios = {}
         super().__init__(worker_available=bool(self._api))
-        if self._api:
-            self.available = True
-        else:
-            self.available = False
+        self.available = bool(self._api)
 
     def _run(self):
         self.loop = asyncio.new_event_loop()

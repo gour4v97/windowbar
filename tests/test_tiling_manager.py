@@ -90,7 +90,7 @@ def test_stack_resize_grows_master_when_master_is_focused(monkeypatch):
     manager, moves, _ = _manager(monkeypatch, layout="stack",
                                  floating_apps=["calc.exe", "chrome.exe"])
     manager.apply_layout()
-    manager.resize_focused(0.1)                 # focused window 1 is the master
+    manager.resize_focused(0.1)
     ratios = manager.workspace_layouts["default"]["ratios"]
     assert abs(ratios[AREA_KEY + "|stack"] - 0.7) < 1e-9
     manager.apply_layout()

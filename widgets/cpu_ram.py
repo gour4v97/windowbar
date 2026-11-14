@@ -1,15 +1,9 @@
-"""System, battery, media, calendar, and quick action cards."""
-from datetime import datetime
-import os
+"""CPU / RAM / network card."""
 import time
 import psutil
-from PySide6.QtCore import QPoint, Qt
-from PySide6.QtGui import QAction
-from PySide6.QtWidgets import (QFrame, QHBoxLayout, QInputDialog, QMessageBox,
-                               QPushButton, QMenu)
-import winapi
-from widgets.base import Card, clip
-from core.formatting import fmt_speed, fmt_delta
+from PySide6.QtCore import Qt
+from widgets.base import Card
+from core.formatting import fmt_speed
 
 class SystemCard(Card):
     STICKY = True
@@ -50,7 +44,6 @@ class SystemCard(Card):
         return self.set_texts(
             body=f"{cpu:.0f}%  {ram:.0f}%  ↓{fmt_speed(down)}")
 
-from core.app_config import save_config, in_quiet_hours
 
 WIDGET_ID = 'system'
 WIDGET_ORDER = 8

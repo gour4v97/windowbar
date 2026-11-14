@@ -1,20 +1,11 @@
-"""Small polling, system, and utility widget cards."""
-from datetime import datetime
-import math
-import os
-import subprocess
-import time
-from pathlib import Path
-import psutil
+"""Quick-toggles card."""
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QInputDialog, QPushButton
-import extras
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QPushButton
 import winapi
-from core.formatting import fmt_hms, fmt_speed
-from widgets.base import Card, clip
+from core.app_config import save_config
 
 class TogglesCard(QFrame):
-    """Quick toggles: Wi-Fi, Bluetooth, airplane mode, keep awake, mute.
+    """Quick toggles.
     Radio buttons only appear when the WinRT radios API is available."""
 
     INTERVAL = 4
@@ -45,7 +36,6 @@ class TogglesCard(QFrame):
         elif key == "airplane":
             states = self.radios.states
             if states:
-                # airplane on = every radio off, and back
                 self.radios.set("airplane", not any(states.values()))
         elif key == "awake":
             on = not self.cfg.get("keep_awake", False)
@@ -96,7 +86,6 @@ class TogglesCard(QFrame):
             "mute", "Muted" if muted else "Mute", muted) or changed
         return changed
 
-from core.app_config import save_config, in_quiet_hours
 
 WIDGET_ID = 'toggles'
 WIDGET_ORDER = 14

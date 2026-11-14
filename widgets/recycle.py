@@ -1,10 +1,6 @@
-"""Open-window, pinned-app, and Recycle Bin cards."""
-import subprocess
+"""Recycle Bin card."""
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QAction
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QMenu, QPushButton
-import winapi
-from widgets.base import Card, clip
+from widgets.base import Card
 from widgets.system import QuickCard
 
 class RecycleCard(Card):
@@ -25,7 +21,6 @@ class RecycleCard(Card):
         return self.set_texts(
             body="—" if n is None else f"{n} item{'s' if n != 1 else ''}")
 
-from core.app_config import save_config, in_quiet_hours
 
 WIDGET_ID = 'recycle'
 WIDGET_ORDER = 17

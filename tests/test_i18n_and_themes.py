@@ -35,7 +35,6 @@ def _locales(tmp_path):
     return folder
 
 
-# ---- core.i18n ----------------------------------------------------------
 def test_tr_translates_falls_back_and_formats(tmp_path):
     folder = _locales(tmp_path)
     assert i18n.set_locale("hi", folder) == "hi"
@@ -83,7 +82,6 @@ def test_broken_catalog_files_are_ignored(tmp_path):
     assert i18n.load_catalog("ok", folder) == {"a": "b"}
 
 
-# ---- scripts/check_locales.py ------------------------------------------
 def test_locale_check_accepts_valid_and_reports_coverage(tmp_path):
     check = _script("check_locales")
     errors, notes = check.check(_locales(tmp_path))
@@ -120,7 +118,6 @@ def test_repo_locales_pass_the_checker():
     assert errors == []
 
 
-# ---- scripts/extract_strings.py ----------------------------------------
 def test_extractor_finds_ui_strings_and_ignores_other_calls():
     extract = _script("extract_strings")
     source = '''
@@ -136,7 +133,6 @@ z = QLabel("1")
         "Layout engine", "Appearance", "Track windows", "Closes the bar"}
 
 
-# ---- scripts/validate_themes.py ----------------------------------------
 def test_gallery_themes_are_valid():
     validate = _script("validate_themes")
     for path in sorted((ROOT / "themes" / "gallery").glob("*.json")):

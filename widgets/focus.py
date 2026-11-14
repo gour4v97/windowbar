@@ -1,11 +1,11 @@
-"""Focus, stopwatch, todo, and screen time cards."""
+"""Focus (Pomodoro) card."""
 import math
 import time
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QInputDialog
-import extras
+from PySide6.QtWidgets import QApplication
 from core.formatting import fmt_hms
-from widgets.base import Card, clip
+from widgets.base import Card
+from core.app_config import in_quiet_hours
 
 class PomodoroCard(Card):
     ALWAYS = True
@@ -47,7 +47,6 @@ class PomodoroCard(Card):
             "FOCUS" + (" ▶" if self.running else " ❚❚"),
             fmt_hms(math.ceil(self.remaining)))
 
-from core.app_config import save_config, in_quiet_hours
 
 WIDGET_ID = 'pomodoro'
 WIDGET_ORDER = 22

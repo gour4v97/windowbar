@@ -1,4 +1,3 @@
-"""Reusable anchored detail popup component."""
 
 from PySide6.QtCore import QPoint, QRect, Qt
 from PySide6.QtGui import QGuiApplication
@@ -6,7 +5,6 @@ from PySide6.QtWidgets import QWidget
 
 
 def popup_position(anchor, popup_size, screen, edge="bottom", gap=6):
-    """Return a clamped global popup position for an anchor rectangle."""
     x = anchor.center().x() - popup_size.width() // 2
     if edge == "top":
         y = anchor.bottom() + 1 + gap
@@ -22,7 +20,6 @@ def popup_position(anchor, popup_size, screen, edge="bottom", gap=6):
 
 
 class DetailPopup(QWidget):
-    """Frameless popup positioned beside a widget on its current monitor."""
 
     def __init__(self, parent=None, edge="bottom"):
         super().__init__(parent)

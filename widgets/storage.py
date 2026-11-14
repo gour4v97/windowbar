@@ -1,17 +1,6 @@
-"""Small polling, system, and utility widget cards."""
-from datetime import datetime
-import math
-import os
-import subprocess
-import time
-from pathlib import Path
-import psutil
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QInputDialog, QPushButton
+"""Storage card."""
 import extras
-import winapi
-from core.formatting import fmt_hms, fmt_speed
-from widgets.base import Card, clip
+from widgets.base import Card
 
 class StorageCard(Card):
     INTERVAL = 10
@@ -29,7 +18,6 @@ class StorageCard(Card):
         return self.set_texts(f"DISK · {pct:.0f}% USED",
                               f"{extras.fmt_bytes(free)} free")
 
-from core.app_config import save_config, in_quiet_hours
 
 WIDGET_ID = 'storage'
 WIDGET_ORDER = 10

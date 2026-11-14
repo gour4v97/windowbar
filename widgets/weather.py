@@ -28,7 +28,6 @@ class WeatherCard(Card):
     def tick(self):
         return self.set_texts(self.weather.label, self.weather.text)
 
-from core.app_config import save_config, in_quiet_hours
 
 WIDGET_ID = 'weather'
 WIDGET_ORDER = 4

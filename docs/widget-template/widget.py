@@ -1,4 +1,3 @@
-"""Copy this module into widgets/<widget_id>.py in a source checkout."""
 
 from widgets.base import Card
 

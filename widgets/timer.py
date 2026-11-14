@@ -1,20 +1,14 @@
-"""Small polling, system, and utility widget cards."""
-from datetime import datetime
+"""Countdown timer card."""
 import math
-import os
-import subprocess
 import time
-from pathlib import Path
-import psutil
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QInputDialog, QPushButton
-import extras
-import winapi
-from core.formatting import fmt_hms, fmt_speed
-from widgets.base import Card, clip
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication, QInputDialog
+from core.formatting import fmt_hms
+from widgets.base import Card
+from core.app_config import save_config, in_quiet_hours
 
 class TimerCard(Card):
-    """Plain countdown timer (the Focus timer's simpler sibling)."""
+    """Countdown timer."""
 
     ALWAYS = True
     STICKY = True
@@ -61,7 +55,6 @@ class TimerCard(Card):
             "TIMER" + (" ▶" if self.running else " ❚❚"),
             fmt_hms(math.ceil(self.remaining)))
 
-from core.app_config import save_config, in_quiet_hours
 
 WIDGET_ID = 'timer'
 WIDGET_ORDER = 23

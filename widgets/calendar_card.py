@@ -1,15 +1,8 @@
-"""System, battery, media, calendar, and quick action cards."""
+"""Next-event calendar card."""
 from datetime import datetime
-import os
-import time
-import psutil
-from PySide6.QtCore import QPoint, Qt
-from PySide6.QtGui import QAction
-from PySide6.QtWidgets import (QFrame, QHBoxLayout, QInputDialog, QMessageBox,
-                               QPushButton, QMenu)
-import winapi
+from PySide6.QtCore import Qt
 from widgets.base import Card, clip
-from core.formatting import fmt_speed, fmt_delta
+from core.formatting import fmt_delta
 
 class CalendarCard(Card):
     INTERVAL = 5
@@ -39,7 +32,6 @@ class CalendarCard(Card):
         delta = fmt_delta((dt - datetime.now()).total_seconds())
         return self.set_texts("NEXT · " + delta.upper(), clip(title, 26))
 
-from core.app_config import save_config, in_quiet_hours
 
 WIDGET_ID = 'calendar'
 WIDGET_ORDER = 15

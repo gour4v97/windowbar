@@ -1,20 +1,7 @@
-"""Small polling, system, and utility widget cards."""
-from datetime import datetime
-import math
-import os
-import subprocess
-import time
-from pathlib import Path
-import psutil
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QInputDialog, QPushButton
-import extras
-import winapi
-from core.formatting import fmt_hms, fmt_speed
+from PySide6.QtCore import Qt
 from widgets.base import Card, clip
 
 class PollCard(Card):
-    """Shows the value of a background Poll, or its error."""
 
     INTERVAL = 5
 

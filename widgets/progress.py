@@ -1,20 +1,8 @@
-"""Small polling, system, and utility widget cards."""
-from datetime import datetime
-import math
-import os
-import subprocess
-import time
-from pathlib import Path
-import psutil
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QInputDialog, QPushButton
+"""Day / week / year progress card."""
 import extras
-import winapi
-from core.formatting import fmt_hms, fmt_speed
-from widgets.base import Card, clip
+from widgets.base import Card
 
 class ProgressCard(Card):
-    """How far through the day / week / year -- rotates every tick."""
 
     INTERVAL = 5
     STICKY = True
@@ -33,7 +21,6 @@ class ProgressCard(Card):
         bar = "█" * filled + "░" * (10 - filled)
         return self.set_texts(key.upper(), f"{bar} {v * 100:.0f}%")
 
-from core.app_config import save_config, in_quiet_hours
 
 WIDGET_ID = 'progress'
 WIDGET_ORDER = 3

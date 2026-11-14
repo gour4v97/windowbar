@@ -104,7 +104,6 @@ def master_stack_layout(rect, count, gap=12, padding=16, ratio=0.6):
     return boxes
 
 
-# --- layout names, cycling and resize direction (pure helpers) -------------
 DEFAULT_LAYOUT = "bsp"
 LAYOUT_ORDER = ("bsp", "columns", "stack")
 LAYOUT_LABELS = {"bsp": "BSP", "columns": "Columns", "stack": "Master / stack"}

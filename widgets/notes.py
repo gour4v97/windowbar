@@ -31,7 +31,6 @@ class NotesCard(Card):
             f"NOTES · {count}" if count > 1 else "NOTES",
             clip(first, 26) if first else "Click to write")
 
-from core.app_config import save_config, in_quiet_hours
 
 WIDGET_ID = 'notes'
 WIDGET_ORDER = 21

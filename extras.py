@@ -91,7 +91,6 @@ def fmt_dur(seconds):
     return f"{h}h {m:02d}m" if h else f"{m}m"
 
 
-# ------------------------------------------------------- extra sources ----
 def disk_summary(path=None):
     """(percent_used, free_bytes, total_bytes) for a drive (default C:)."""
     import psutil

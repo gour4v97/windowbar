@@ -1,11 +1,8 @@
-"""Focus, stopwatch, todo, and screen time cards."""
-import math
+"""Stopwatch card."""
 import time
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QInputDialog
-import extras
 from core.formatting import fmt_hms
-from widgets.base import Card, clip
+from widgets.base import Card
 
 class StopwatchCard(Card):
     ALWAYS = True
@@ -38,7 +35,6 @@ class StopwatchCard(Card):
         self._advance()
         return self.set_texts(body=fmt_hms(int(self.elapsed)))
 
-from core.app_config import save_config, in_quiet_hours
 
 WIDGET_ID = 'stopwatch'
 WIDGET_ORDER = 24

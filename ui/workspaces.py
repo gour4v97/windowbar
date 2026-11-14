@@ -12,7 +12,6 @@ from native import vdesktop
 
 
 class WorkspaceViewer(QDialog):
-    """Browse desktops, rename them, move the last focused app, and set wallpapers."""
 
     def __init__(self, dock):
         super().__init__(dock)
