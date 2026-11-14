@@ -11,4 +11,27 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt pytest
+      - name: Byte-compile every module
+        run: python -m compileall -q core native ui widgets wm scripts tests windowsbar.py
+      - name: Translation catalogs (syntax, placeholders, stale keys)
+        run: python scripts/check_locales.py
+      - name: English catalog matches the UI code
+        run: python scripts/extract_strings.py --check
+      - name: Theme gallery
+        run: python scripts/validate_themes.py
       - run: pytest -q
+
+  # Experimental: pure-Python and offscreen-Qt tests on Linux, plus a linter.
+  # Windows-only code paths are skipped or fail here, so this never blocks merging.
+  linux:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1 libxkbcommon0 libdbus-1-3
+      - run: pip install -r requirements.txt pytest ruff
+      - run: ruff check .
+      - run: QT_QPA_PLATFORM=offscreen pytest -q
