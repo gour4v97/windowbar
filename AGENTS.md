@@ -18,6 +18,4 @@ The repository is `gour4v97/windowbar`; the product is **Windows Bar**. It is a 
 - New features need a platform-independent test where practical.
 
 ## Session handoff
-Phase 1–3 complete: registry, versioned config, themes, split Toolbar/Dock, multi-monitor, launcher.
-Phase 4–5 implemented, interactive verification pending (Alt+Tab, desktop layer, per-desktop wallpaper, tiling hotkeys).
-Phase 6 begun: theme gallery + widget-contribution docs; runtime plugin loading still unsupported.
+Phase 6 begun: runtime plugin loader (opt-in, API v1 unstable, no sandbox), CLI config export/import, Settings > General (language, plugins), PyInstaller/Inno/winget packaging (unbuilt, unsigned), tag-triggered release workflow. Still unverified on Windows: Settings tab, plugin end-to-end, installer builds.

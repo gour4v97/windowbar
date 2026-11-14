@@ -40,9 +40,9 @@ Current state: see README.md and AUDIT.md.
 | Multi-monitor, per-display config | ✅ one bar and settings profile per connected display | — | — |
 | Settings app with live preview | ✅ separate live Settings window | — | — |
 | Keyboard-first (everything reachable) | 🟡 pinned-app Alt+1..9 (modifier configurable); remaining controls still need keyboard paths | P2 → P3 | M |
-| i18n (Seelen: 70+ languages) | ⬜ | P6 | M |
-| Widget SDK | ⬜ | P1 (internal), P6 (public) | M |
-| Portable, plain-file config | 🟡 `%APPDATA%\Windows Bar\config.json`; schema v1 migration started | P1 (export/import remains) | S |
+| i18n (Seelen: 70+ languages) | 🟡 loader, language picker, CI checks; only Settings translated, no non-English locale yet | P6 | M |
+| Widget SDK | 🟡 opt-in runtime plugin loader + docs + example; API v1 unstable, no sandbox | P6 | M |
+| Portable, plain-file config | ✅ `config.json`, schema v1 migration, export/import (CLI and Settings) | — | — |
 | Signed installer / winget | ⬜ | P6 | M |
 
 
@@ -166,10 +166,10 @@ Rules: widgets never touch Win32 directly (go through `native/`); all native hoo
 - [🟡] Ctrl+Alt+Esc safe release path implemented; host `RegisterHotKey` calls return Win32 error 5, so the app correctly refuses to enable tiling here
 
 ### Phase 6: Ecosystem and release *(M–L)*
-- [🟡] Source-level widget contract docs + copyable contribution template; stable runtime plugin API/loader remains
+- [x] Widget contract docs, copyable template, and an opt-in runtime plugin loader (`core/plugins.py`, example in `plugins-example/`); plugins get a small stable `PluginContext`; a frozen `PLUGIN_API = 2` and sandboxing remain future work
 - [x] Theme JSON sharing format documented and starter gallery added under `themes/gallery/`
-- [🟡] Localization conventions and rollout checklist documented in `docs/localization.md`; runtime extraction, locale selection, and CI parity checks remain
-- [ ] Installer (Inno Setup / MSIX), code signing if feasible, GitHub Releases, winget manifest
+- [🟡] Localization: loader, language picker, string extractor and CI catalog checks done; static UI text is translatable; runtime-built strings and a reviewed non-English locale remain
+- [🟡] Release pipeline: tag-triggered GitHub Release with a source bundle and an experimental PyInstaller build (`.github/workflows/release.yml`, `packaging/windowbar.spec`, both unverified on Windows); an Inno Setup script (`packaging/windowbar.iss`) and winget templates (`packaging/winget/`) are written but unbuilt; code signing, a verified installer and the winget submission remain
 - [🟡] Contributor guide added in `CONTRIBUTING.md`; current README, screenshots/GIFs, and release-ready visuals still need work
 
 
@@ -194,3 +194,30 @@ Rules: widgets never touch Win32 directly (go through `native/`); all native hoo
 6. **Keep `AGENTS.md` current:**
 7. **Never commit secrets:** the Stripe key stays in `WINDOWSBAR_STRIPE_KEY`; check `.gitignore` before each push.
 
+---
+## 8. What is left to finish (prioritised)
+
+Done since the last revision: most static UI routed through `tr()` (a few runtime strings remain — see C1); `PluginContext` (stable plugin surface); Inno Setup script and winget templates; Linux CI job (experimental) with offscreen Qt tests and ruff.
+
+**A. Needs a real Windows session (cannot be checked from CI or a sandbox)**
+1. Run the app and click through Settings > General: language, plugins, export/import. Check that menus and popups still behave after the `tr()` wrapping.
+2. Phase 4/5 live checks: custom Alt+Tab hook and latency, desktop-layer widgets, per-desktop wallpaper, `pyvda` COM access, tiling hotkeys (`RegisterHotKey`) and safe release.
+3. Drop `plugins-example/hello_plugin.py` into the plugins folder, enable plugins, restart, and confirm the widget appears.
+4. Build the PyInstaller bundle, then the Inno Setup installer (`packaging/windowbar.iss`), on a clean account and test install, autostart and uninstall.
+
+**B. Release readiness**
+1. Push, confirm CI is green (Windows job; the Linux job is advisory), tag `v0.1.0`, then `v0.2.0`.
+2. Run `scripts/create_issues.ps1` to create the issues.
+3. README screenshots and a short GIF (needs the running app).
+4. Fill in `packaging/winget/` after the first public installer, and sign it if feasible.
+
+**C. Code**
+1. Route runtime-built strings through `tr()`, then ship one reviewed non-English locale (needs a native-speaker review).
+2. Freeze `PLUGIN_API = 2` around `PluginContext` once it has had real use; consider a per-plugin allow-list.
+3. Keyboard paths for the controls that still need a mouse.
+4. Live reload for language/plugin changes (currently needs a restart).
+
+**D. Quality**
+1. Grow the offscreen Qt tests (`tests/test_ui_offscreen.py`) to cover the Settings window; make the Linux CI job blocking once it is green.
+
+**Suggested order:** A -> B1/B2 -> C1 -> B4 -> C2 -> D.

@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (QApplication, QLineEdit, QListWidget,
 import search
 import theme
 import winapi
+from core.i18n import tr
 
 WM_HOTKEY = 0x0312
 MOD_NOREPEAT = 0x4000
@@ -82,7 +83,7 @@ class Launcher(QWidget):
         lay.setContentsMargins(16, 16, 16, 16)
         lay.setSpacing(8)
         self.edit = QLineEdit()
-        self.edit.setPlaceholderText("Search apps and windows…   > command   = math")
+        self.edit.setPlaceholderText(tr("Search apps and windows…   > command   = math"))
         self.list = QListWidget()
         self.list.setFocusPolicy(Qt.NoFocus)
         self.list.setUniformItemSizes(True)

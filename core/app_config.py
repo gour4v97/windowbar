@@ -10,6 +10,7 @@ CONFIG = APP_DIR / "config.json"
 SCREEN_TIME_FILE = APP_DIR / "screentime.json"
 THEMES_DIR = APP_DIR / "themes"
 CUSTOM_QSS = APP_DIR / "custom.qss"
+PLUGINS_DIR = APP_DIR / "plugins"
 _CONFIG_SAVE_LOCK = threading.RLock()
 DEFAULTS = {
     "position": "bottom",
@@ -55,6 +56,8 @@ DEFAULTS = {
     "theme": "midnight",
     "widget_styles": {},
     "dynamic_accent": True,
+    "language": "system",
+    "plugins_enabled": False,
     "launcher": True,
     "launcher_hotkey": "alt+space",
     "custom_alt_tab": False,
@@ -119,6 +122,14 @@ def save_config(cfg):
             key: value for key, value in cfg.items()
             if key not in ("_display_id", "display_profiles")
         }
+        config_store.save(CONFIG, root)
+
+
+def save_global_setting(key, value):
+    """Store an app-wide setting in the root config (not a display profile)."""
+    with _CONFIG_SAVE_LOCK:
+        root = config_store.load(CONFIG, DEFAULTS)
+        root[key] = value
         config_store.save(CONFIG, root)
 
 

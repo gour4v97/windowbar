@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
 
 import winapi
 from native.keyboard_hook import LowLevelKeyboardHook
+from core.i18n import tr
 
 
 class SwitcherDialog(QDialog):
@@ -16,7 +17,7 @@ class SwitcherDialog(QDialog):
 
     def __init__(self, parent, windows, current_hwnd):
         super().__init__(parent)
-        self.setWindowTitle("Windows Bar — Switch windows")
+        self.setWindowTitle(tr("Windows Bar — Switch windows"))
         self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint
                             | Qt.WindowStaysOnTopHint)
         self.setAttribute(Qt.WA_DeleteOnClose)
@@ -25,20 +26,20 @@ class SwitcherDialog(QDialog):
         self._frames = {}
 
         root = QVBoxLayout(self)
-        title = QLabel("Switch windows")
+        title = QLabel(tr("Switch windows"))
         title.setObjectName("cardtitle")
         root.addWidget(title)
         body = QHBoxLayout()
         self.listing = QListWidget()
         self.listing.setMinimumWidth(240)
-        self.preview = QLabel("Choose a window")
+        self.preview = QLabel(tr("Choose a window"))
         self.preview.setAlignment(Qt.AlignCenter)
         self.preview.setMinimumSize(320, 180)
         self.preview.setObjectName("card")
         body.addWidget(self.listing, 1)
         body.addWidget(self.preview, 2)
         root.addLayout(body, 1)
-        hint = QLabel("Alt+Tab / Alt+Shift+Tab · arrows · Enter to switch · Esc to cancel")
+        hint = QLabel(tr("Alt+Tab / Alt+Shift+Tab · arrows · Enter to switch · Esc to cancel"))
         hint.setObjectName("cardbody")
         root.addWidget(hint)
 
@@ -62,7 +63,7 @@ class SwitcherDialog(QDialog):
         if not 0 <= row < len(self._windows):
             return
         hwnd = self._windows[row][0]
-        self.preview.setText("Loading preview…")
+        self.preview.setText(tr("Loading preview…"))
         # Capture after the overlay is visible so the first paint is responsive.
         QTimer.singleShot(35, lambda: self._capture(hwnd))
 
@@ -75,11 +76,11 @@ class SwitcherDialog(QDialog):
         if pixmap is None:
             screen = QGuiApplication.primaryScreen()
             if screen is None:
-                self.preview.setText("Preview unavailable")
+                self.preview.setText(tr("Preview unavailable"))
                 return
             pixmap = screen.grabWindow(int(hwnd))
             if pixmap.isNull():
-                self.preview.setText("Preview unavailable")
+                self.preview.setText(tr("Preview unavailable"))
                 return
             self._frames[hwnd] = pixmap
         self.preview.setText("")

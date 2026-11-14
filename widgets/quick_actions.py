@@ -29,7 +29,7 @@ class QuickCard(QFrame):
                 self.theme_btn = b
             b.clicked.connect(fn)
             lay.addWidget(b)
-        power = QPushButton("Power")
+        power = QPushButton(tr("Power"))
         power.setCursor(Qt.PointingHandCursor)
         power.clicked.connect(self.power_menu)
         lay.addWidget(power)
@@ -92,6 +92,7 @@ class QuickCard(QFrame):
             pass
         return False
 
+from core.i18n import tr
 
 WIDGET_ID = 'quick'
 WIDGET_ORDER = 16

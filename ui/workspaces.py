@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
 import winapi
 from core.app_config import save_config
 from native import vdesktop
+from core.i18n import tr
 
 
 class WorkspaceViewer(QDialog):
@@ -23,7 +24,7 @@ class WorkspaceViewer(QDialog):
         self.setWindowFlag(Qt.FramelessWindowHint, True)
         self.setWindowFlag(Qt.WindowStaysOnTopHint, True)
         self.setStyleSheet(dock.styleSheet())
-        self.setWindowTitle("Workspaces")
+        self.setWindowTitle(tr("Workspaces"))
         self.resize(760, 600)
         root = QVBoxLayout(self)
         self.status = QLabel()
@@ -37,12 +38,12 @@ class WorkspaceViewer(QDialog):
         scroll.setWidget(self.cards_host)
         root.addWidget(scroll)
         actions = QHBoxLayout()
-        self.create_button = QPushButton("New workspace")
+        self.create_button = QPushButton(tr("New workspace"))
         self.create_button.clicked.connect(self._create)
-        task_view = QPushButton("Windows Task View")
+        task_view = QPushButton(tr("Windows Task View"))
         task_view.clicked.connect(
             lambda: winapi.virtual_desktop_action("overview"))
-        close = QPushButton("Close")
+        close = QPushButton(tr("Close"))
         close.clicked.connect(self.close)
         actions.addWidget(self.create_button)
         actions.addStretch(1)
@@ -89,10 +90,10 @@ class WorkspaceViewer(QDialog):
         current = vdesktop.current()
         if not desktops:
             self.status.setText(
-                "Windows virtual desktop control is unavailable in this "
+                tr("Windows virtual desktop control is unavailable in this "
                 "session. Check the pyvda installation and run Windows Bar "
                 "in an interactive Windows session; keyboard shortcuts and "
-                "Task View remain available.")
+                "Task View remain available."))
             self.create_button.setEnabled(True)
             return
         self.create_button.setEnabled(True)
@@ -120,8 +121,8 @@ class WorkspaceViewer(QDialog):
             head.addWidget(icon)
             head.addWidget(title, 1)
             if str(desktop.id) == current_id:
-                head.addWidget(QLabel("Current"))
-            switch = QPushButton("Switch")
+                head.addWidget(QLabel(tr("Current")))
+            switch = QPushButton(tr("Switch"))
             switch.clicked.connect(
                 lambda _=False, item=desktop: self._switch(item))
             head.addWidget(switch)
@@ -132,22 +133,22 @@ class WorkspaceViewer(QDialog):
             layout.addWidget(summary)
 
             buttons = QHBoxLayout()
-            rename = QPushButton("Rename")
+            rename = QPushButton(tr("Rename"))
             rename.clicked.connect(
                 lambda _=False, item=desktop: self._rename(item))
-            edit_icon = QPushButton("Set icon")
+            edit_icon = QPushButton(tr("Set icon"))
             edit_icon.clicked.connect(
                 lambda _=False, item=desktop: self._set_icon(item))
-            move = QPushButton("Move window here")
-            move.setToolTip("Move the last active app window to this workspace")
+            move = QPushButton(tr("Move window here"))
+            move.setToolTip(tr("Move the last active app window to this workspace"))
             move.setEnabled(bool(self.target_hwnd)
                             and str(desktop.id) != current_id)
             move.clicked.connect(
                 lambda _=False, item=desktop: self._move_window(item))
-            wallpaper = QPushButton("Wallpaper…")
+            wallpaper = QPushButton(tr("Wallpaper…"))
             wallpaper.clicked.connect(
                 lambda _=False, item=desktop: self._set_wallpaper(item))
-            remove = QPushButton("Remove")
+            remove = QPushButton(tr("Remove"))
             remove.setEnabled(len(desktops) > 1)
             remove.clicked.connect(
                 lambda _=False, item=desktop: self._remove(item))
@@ -206,7 +207,7 @@ class WorkspaceViewer(QDialog):
         if not self.target_hwnd:
             return
         if vdesktop.move_window(self.target_hwnd, desktop):
-            self.status.setText("Window moved to the selected workspace.")
+            self.status.setText(tr("Window moved to the selected workspace."))
             self.reload()
         else:
             QMessageBox.warning(
@@ -224,7 +225,7 @@ class WorkspaceViewer(QDialog):
             meta = self._metadata(desktop)
             meta["wallpaper"] = path
             save_config(self.cfg)
-            self.status.setText("Wallpaper applied to this workspace.")
+            self.status.setText(tr("Wallpaper applied to this workspace."))
         else:
             QMessageBox.information(
                 self, "Wallpaper unavailable",

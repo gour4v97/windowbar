@@ -2,6 +2,8 @@
 
 from PySide6.QtWidgets import QFrame, QLabel, QVBoxLayout
 
+from core.i18n import tr
+
 
 def clip(text, n):
     text = str(text)
@@ -22,7 +24,7 @@ class Card(QFrame):
         lay = QVBoxLayout(self)
         lay.setContentsMargins(12, 6, 12, 6)
         lay.setSpacing(0)
-        self.title = QLabel(title.upper())
+        self.title = QLabel(tr(title).upper())
         self.title.setObjectName("cardtitle")
         self.body = QLabel("")
         self.body.setObjectName("cardbody")

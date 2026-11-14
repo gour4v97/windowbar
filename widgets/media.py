@@ -10,7 +10,7 @@ class MediaCard(Card):
         self.media = media
         self.open_popup = None
         self.setCursor(Qt.PointingHandCursor)
-        self.setToolTip("Click: details and playback controls")
+        self.setToolTip(tr("Click: details and playback controls"))
 
     def mousePressEvent(self, e):
         if e.button() == Qt.LeftButton:
@@ -29,6 +29,7 @@ class MediaCard(Card):
         return self.set_texts("NOW PLAYING " + ("▶" if m.playing else "❚❚"),
                               clip(text, 28))
 
+from core.i18n import tr
 
 WIDGET_ID = 'media'
 WIDGET_ORDER = 12

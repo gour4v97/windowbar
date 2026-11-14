@@ -16,7 +16,7 @@ class WeatherCard(Card):
         self.weather, self.ask_city = weather, ask_city
         self.open_popup = None
         self.setCursor(Qt.PointingHandCursor)
-        self.setToolTip("Click for weather details")
+        self.setToolTip(tr("Click for weather details"))
 
     def mousePressEvent(self, e):
         if e.button() == Qt.LeftButton:
@@ -28,6 +28,7 @@ class WeatherCard(Card):
     def tick(self):
         return self.set_texts(self.weather.label, self.weather.text)
 
+from core.i18n import tr
 
 WIDGET_ID = 'weather'
 WIDGET_ORDER = 4

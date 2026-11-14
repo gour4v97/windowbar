@@ -12,7 +12,7 @@ class TodoCard(Card):
         self.save = save
         self.open_panel = None
         self.setCursor(Qt.PointingHandCursor)
-        self.setToolTip("Click: open the list   Right-click: complete first")
+        self.setToolTip(tr("Click: open the list   Right-click: complete first"))
 
     def mousePressEvent(self, e):
         if e.button() == Qt.LeftButton:
@@ -42,6 +42,7 @@ class TodoCard(Card):
             clip(open_[0], 24) if open_ else
             ("All done" if todos else "All clear"))
 
+from core.i18n import tr
 
 WIDGET_ID = 'todos'
 WIDGET_ORDER = 26

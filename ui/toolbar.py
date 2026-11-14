@@ -5,6 +5,7 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QWidget
 import winapi
 from core.app_config import MARGIN
 from native import vdesktop
+from core.i18n import tr
 
 
 class Toolbar(QWidget):
@@ -26,7 +27,7 @@ class Toolbar(QWidget):
         self.active_window = QLabel()
         self.active_window.setMinimumWidth(100)
         self.active_window.setMaximumWidth(360)
-        self.active_window.setToolTip("Active window")
+        self.active_window.setToolTip(tr("Active window"))
         self.row.addWidget(self.active_window)
         self._add_desktop_button("‹", "Previous desktop", "previous")
         self._add_desktop_button("›", "Next desktop", "next")

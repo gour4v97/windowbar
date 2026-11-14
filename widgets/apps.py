@@ -66,7 +66,7 @@ class AppsCard(QFrame):
     def _menu(self, name, btn, pos):
         hwnd = self._hwnd(name)
         m = QMenu(self)
-        a = QAction("Open new window", self)
+        a = QAction(tr("Open new window"), self)
         a.triggered.connect(lambda: self.launch(self.apps[name]))
         m.addAction(a)
         if hwnd:
@@ -99,6 +99,7 @@ class AppsCard(QFrame):
                 b.style().polish(b)
         return True
 
+from core.i18n import tr
 
 WIDGET_ID = 'apps'
 WIDGET_ORDER = 0

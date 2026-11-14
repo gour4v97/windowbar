@@ -14,7 +14,10 @@ import extras
 import theme
 import winapi
 import widgets
-from core.app_config import SCREEN_TIME_FILE, THEMES_DIR, CUSTOM_QSS, DEFAULTS, WIDGET_LABELS, load_config, save_config, autostart_command, PRESETS, MARGIN
+from core.app_config import (APP_DIR, SCREEN_TIME_FILE, THEMES_DIR, CUSTOM_QSS,
+    DEFAULTS, WIDGET_LABELS, load_config, save_config,
+    autostart_command, PRESETS, MARGIN)
+from core import plugins
 from core.registry import WidgetRegistry
 from launcher import HotkeyFilter, Launcher
 from ui.hotkeys import AppHotkeyFilter
@@ -27,6 +30,7 @@ from widgets.clock import ClockCard, AnalogClockCard
 from widgets.apps import AppsCard, _exe_of
 from widgets.notes import NotesCard
 from widgets.todos import TodoCard
+from core.i18n import tr
 
 _log = logging.getLogger("windowsbar")
 class Dock(QWidget):
@@ -102,7 +106,7 @@ class Dock(QWidget):
 
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
                             | Qt.Tool)
-        self.setWindowTitle("Windows Bar")
+        self.setWindowTitle(tr("Windows Bar"))
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.apply_theme()
         self.row = QHBoxLayout(self)
@@ -223,6 +227,10 @@ class Dock(QWidget):
         registry = WidgetRegistry()
         registry.register_package(
             widgets, self, DEFAULTS["widgets"], WIDGET_LABELS)
+        registry.register_modules(
+            plugins.loaded_modules(),
+            plugins.PluginContext(self, app_dir=APP_DIR),
+            DEFAULTS["widgets"], WIDGET_LABELS)
         active = registry.start_enabled(self.cfg)
         configured_order = self.cfg.get("widget_order", [])
         order_index = {key: index for index, key in enumerate(
@@ -769,10 +777,10 @@ class Dock(QWidget):
         pos.setEnabled(self.cfg.get("shell_layout") != "split")
         pos.triggered.connect(self.toggle_position)
         m.addAction(pos)
-        settings = QAction("Settings…", self)
+        settings = QAction(tr("Settings…"), self)
         settings.triggered.connect(self.open_settings)
         m.addAction(settings)
-        workspaces = QAction("Workspaces…", self)
+        workspaces = QAction(tr("Workspaces…"), self)
         workspaces.triggered.connect(self.open_workspaces)
         m.addAction(workspaces)
         m.addSeparator()
@@ -800,16 +808,16 @@ class Dock(QWidget):
         app_keys = QAction(f"Pinned-app hotkeys ({modifier}+1…9)…", self)
         app_keys.triggered.connect(self.ask_app_hotkey_modifier)
         m.addAction(app_keys)
-        auto = QAction("Start with Windows", self, checkable=True)
+        auto = QAction(tr("Start with Windows"), self, checkable=True)
         auto.setChecked(winapi.autostart_enabled())
         auto.toggled.connect(
             lambda on: winapi.set_autostart(on, "Windows Bar", autostart_command()))
         m.addAction(auto)
         style_menu = m.addMenu("Widget styles")
-        edit_style = QAction("Set widget style override…", style_menu)
+        edit_style = QAction(tr("Set widget style override…"), style_menu)
         edit_style.triggered.connect(self.edit_widget_style)
         style_menu.addAction(edit_style)
-        reset_style = QAction("Reset widget style…", style_menu)
+        reset_style = QAction(tr("Reset widget style…"), style_menu)
         reset_style.triggered.connect(self.clear_widget_style)
         style_menu.addAction(reset_style)
         tm = m.addMenu("Theme")
@@ -821,19 +829,19 @@ class Dock(QWidget):
             tm.addAction(a)
             a.triggered.connect(lambda _=False, n=name: self.set_theme(n))
         tm.addSeparator()
-        folder = QAction("Open themes folder…", tm)
+        folder = QAction(tr("Open themes folder…"), tm)
         folder.triggered.connect(self.open_themes_folder)
         tm.addAction(folder)
-        launch = QAction("Open launcher", self)
+        launch = QAction(tr("Open launcher"), self)
         launch.triggered.connect(self.launcher.open)
         m.addAction(launch)
-        notifications = QAction("Open Windows notification center", self)
+        notifications = QAction(tr("Open Windows notification center"), self)
         notifications.triggered.connect(winapi.open_notification_center)
         m.addAction(notifications)
-        quiet = QAction("Set quiet hours…", self)
+        quiet = QAction(tr("Set quiet hours…"), self)
         quiet.triggered.connect(self.ask_quiet_hours)
         m.addAction(quiet)
-        delay = QAction("Set auto-hide delay…", self)
+        delay = QAction(tr("Set auto-hide delay…"), self)
         delay.triggered.connect(self.ask_autohide_delay)
         m.addAction(delay)
         m.addSeparator()
@@ -849,19 +857,19 @@ class Dock(QWidget):
             a.triggered.connect(
                 lambda _=False, ks=keys: self.apply_preset(ks))
             presets.addAction(a)
-        style = QAction("Clock style: analogue", self, checkable=True)
+        style = QAction(tr("Clock style: analogue"), self, checkable=True)
         style.setChecked(self.cfg.get("clock_style") == "analog")
         style.toggled.connect(
             lambda on: self.set_clock_style("analog" if on else "digital"))
         m.addAction(style)
-        script = QAction("Set script command…", self)
+        script = QAction(tr("Set script command…"), self)
         script.triggered.connect(self.ask_script)
         m.addAction(script)
-        zones = QAction("Set world clock zones…", self)
+        zones = QAction(tr("Set world clock zones…"), self)
         zones.triggered.connect(self.ask_zones)
         m.addAction(zones)
         m.addSeparator()
-        q = QAction("Quit", self)
+        q = QAction(tr("Quit"), self)
         q.triggered.connect(QApplication.quit)
         m.addAction(q)
         m.exec(e.globalPos())

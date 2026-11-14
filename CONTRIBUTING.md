@@ -12,13 +12,14 @@ Thanks for helping improve Windows Bar. Keep changes local-first, respect the MI
 ## Make a change
 
 - Keep UI work on the Qt thread. Put Win32 integration in `native/` and background work in a worker or service.
-- For widgets, follow [`docs/widget-sdk.md`](docs/widget-sdk.md) and the copyable [`docs/widget-template/`](docs/widget-template/) scaffold.
-- Preserve crash-safe restoration for taskbar, hooks, and window geometry.
+- For widgets, follow [`docs/widget-sdk.md`](docs/widget-sdk.md) and the copyable [`docs/widget-template/`](docs/widget-template/) scaffold. Runtime plugins (`core/plugins.py`) are opt-in and the plugin API is version 1 and may still change.
+- For themes, validate JSON against the existing theme format and include a readable preview description.
+- Preserve crash-safe restoration for taskbar, hooks, and window geometry. Native features should degrade gracefully when Windows denies access.
 - Do not include credentials, personal paths, machine-specific logs, or generated runtime folders in commits.
 
 ## Check your work
 
-The CI workflow runs the repository's Python checks on Windows. For UI or native changes, also describe which Windows version and interaction path you exercised; automated checks cannot prove behavior of desktop hooks, COM, or window stacking.
+Run focused checks relevant to your change. The CI workflow runs, on Windows: byte-compile, `scripts/check_locales.py`, `scripts/extract_strings.py --check`, `scripts/validate_themes.py` and `pytest -q`. Run the same commands locally before pushing; if you add UI text, wrap it in `tr()` and run `python scripts/extract_strings.py --write`. For UI or native changes, also describe which Windows version and interaction path you exercised; automated checks cannot prove behavior of desktop hooks, COM, or window stacking.
 
 ## Submit a contribution
 

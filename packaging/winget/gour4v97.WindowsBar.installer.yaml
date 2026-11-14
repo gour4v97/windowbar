@@ -1,0 +1,10 @@
+PackageIdentifier: gour4v97.WindowsBar
+PackageVersion: <version>
+Installers:
+  - Architecture: x64
+    InstallerType: inno
+    Scope: user
+    InstallerUrl: <https://github.com/gour4v97/windowbar/releases/download/vX.Y.Z/WindowsBar-Setup-X.Y.Z.exe>
+    InstallerSha256: <sha256 of that file>
+ManifestType: installer
+ManifestVersion: 1.6.0

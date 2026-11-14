@@ -40,7 +40,7 @@ class WindowsCard(QFrame):
             if item.widget():
                 item.widget().deleteLater()
         if not wins:
-            lab = QLabel("No open windows")
+            lab = QLabel(tr("No open windows"))
             lab.setObjectName("cardbody")
             self.lay.addWidget(lab)
             return True
@@ -53,6 +53,7 @@ class WindowsCard(QFrame):
             self.lay.addWidget(b)
         return True
 
+from core.i18n import tr
 
 WIDGET_ID = 'windows'
 WIDGET_ORDER = 7

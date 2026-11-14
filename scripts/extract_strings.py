@@ -22,6 +22,7 @@ CALLS_FIRST = {"QLabel", "QCheckBox", "QPushButton", "QGroupBox", "QAction",
 CALLS_SECOND = {"addTab"}            # addTab(widget, "Title")
 ROW_CALLS = {"addRow"}               # addRow("Label", widget)
 SCAN = ["ui", "widgets", "launcher.py", "search.py"]
+LABELS_FILE = "core/app_config.py"   # WIDGET_LABELS values are UI text too
 
 
 def _name(func):
@@ -45,7 +46,14 @@ def strings_in(source):
             continue
         name, args = _name(node.func), node.args
         picks = []
-        if name in CALLS_FIRST and args:
+        if name == "tr" and args:
+            picks.append(args[0])
+        elif (name == "__init__" and args
+              and isinstance(node.func, ast.Attribute)
+              and isinstance(node.func.value, ast.Call)
+              and _name(node.func.value.func) == "super"):
+            picks.append(args[0])           # Card title: super().__init__("Weather")
+        elif name in CALLS_FIRST and args:
             picks.append(args[0])
         elif name in CALLS_SECOND and len(args) > 1:
             picks.append(args[1])
@@ -58,8 +66,23 @@ def strings_in(source):
     return found
 
 
+def widget_labels(root=ROOT):
+    """String values of the WIDGET_LABELS dict literal in app_config."""
+    try:
+        tree = ast.parse((Path(root) / LABELS_FILE).read_text(encoding="utf-8"))
+    except (OSError, SyntaxError, UnicodeDecodeError):
+        return []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign) and any(
+                isinstance(t, ast.Name) and t.id == "WIDGET_LABELS"
+                for t in node.targets) and isinstance(node.value, ast.Dict):
+            return [v.value for v in node.value.values
+                    if isinstance(v, ast.Constant) and isinstance(v.value, str)]
+    return []
+
+
 def collect(root=ROOT):
-    texts = {}
+    texts = {text: LABELS_FILE for text in widget_labels(root)}
     for entry in SCAN:
         path = Path(root) / entry
         files = sorted(path.rglob("*.py")) if path.is_dir() else [path]

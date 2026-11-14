@@ -7,6 +7,7 @@ import winapi
 import theme
 from native import brightness
 from ui.popup import DetailPopup
+from core.i18n import tr
 
 
 class ControlFlyout(DetailPopup):
@@ -28,7 +29,7 @@ class ControlFlyout(DetailPopup):
         self._pending_brightness = None
 
         volume = winapi.get_volume()
-        self.volume_label = QLabel("Unavailable")
+        self.volume_label = QLabel(tr("Unavailable"))
         self.volume_slider = QSlider(Qt.Horizontal)
         self.volume_slider.setRange(0, 100)
         self.volume_slider.setEnabled(volume is not None)
@@ -36,7 +37,7 @@ class ControlFlyout(DetailPopup):
             self.volume_slider.setValue(round(volume[0] * 100))
             self.volume_label.setText(f"{round(volume[0] * 100)}%")
         self.volume_slider.valueChanged.connect(self._set_volume)
-        form.addRow("Volume", self.volume_slider)
+        form.addRow(tr("Volume"), self.volume_slider)
         form.addRow("", self.volume_label)
         self.mute_button = QPushButton(
             "Unmute" if volume and volume[1] else "Mute")
@@ -52,7 +53,7 @@ class ControlFlyout(DetailPopup):
             self.brightness_slider.setValue(level)
             self.brightness_slider.valueChanged.connect(
                 self._queue_brightness)
-            form.addRow("Brightness", self.brightness_slider)
+            form.addRow(tr("Brightness"), self.brightness_slider)
             form.addRow("", self.brightness_label)
 
     def _set_volume(self, value):

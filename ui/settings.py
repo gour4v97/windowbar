@@ -4,12 +4,16 @@ from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QDialog, QFormLayout, QFrame, QGridLayout,
     QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem, QPushButton,
     QPlainTextEdit, QScrollArea, QSpinBox, QTabWidget, QVBoxLayout, QWidget,
-    QMessageBox,
+    QMessageBox, QFileDialog,
 )
 
 import theme
 import search
-from core.app_config import THEMES_DIR, WIDGET_LABELS, save_config
+from core import config as config_store
+from core import plugins
+from core.app_config import (CONFIG, DEFAULTS, PLUGINS_DIR, THEMES_DIR,
+                             WIDGET_LABELS, save_config, save_global_setting)
+from core.i18n import available_locales, tr
 
 
 class SettingsWindow(QDialog):
@@ -31,7 +35,8 @@ class SettingsWindow(QDialog):
         self._build_appearance_tab()
         self._build_hotkeys_tab()
         self._build_window_manager_tab()
-        close = QPushButton("Close")
+        self._build_general_tab()
+        close = QPushButton(tr("Close"))
         close.clicked.connect(self.close)
         row = QHBoxLayout()
         row.addStretch(1)
@@ -42,14 +47,14 @@ class SettingsWindow(QDialog):
     def _build_widgets_tab(self):
         page = QWidget()
         layout = QVBoxLayout(page)
-        layout.addWidget(QLabel("Choose which widgets appear on the bar."))
+        layout.addWidget(QLabel(tr("Choose which widgets appear on the bar.")))
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         content = QWidget()
         grid = QGridLayout(content)
         self.widget_checks = {}
         for i, (key, label) in enumerate(WIDGET_LABELS.items()):
-            check = QCheckBox(label)
+            check = QCheckBox(tr(label))
             check.toggled.connect(
                 lambda enabled, widget_id=key:
                 self.dock.set_widget(widget_id, enabled))
@@ -57,14 +62,14 @@ class SettingsWindow(QDialog):
             self.widget_checks[key] = check
         scroll.setWidget(content)
         layout.addWidget(scroll)
-        order_button = QPushButton("Arrange widget order…")
+        order_button = QPushButton(tr("Arrange widget order…"))
         order_button.clicked.connect(self._arrange_widgets)
         layout.addWidget(order_button)
-        self.tabs.addTab(page, "Widgets")
+        self.tabs.addTab(page, tr("Widgets"))
 
     def _arrange_widgets(self):
         dialog = QDialog(self)
-        dialog.setWindowTitle("Arrange widgets")
+        dialog.setWindowTitle(tr("Arrange widgets"))
         dialog.setMinimumSize(360, 420)
         layout = QVBoxLayout(dialog)
         listing = QListWidget(dialog)
@@ -73,13 +78,13 @@ class SettingsWindow(QDialog):
         order = sorted(fallback, key=lambda key: stored.index(key)
                        if key in stored else len(stored) + fallback.index(key))
         for key in order:
-            item = QListWidgetItem(WIDGET_LABELS[key])
+            item = QListWidgetItem(tr(WIDGET_LABELS[key]))
             item.setData(Qt.UserRole, key)
             listing.addItem(item)
         layout.addWidget(listing)
         move_row = QHBoxLayout()
-        up = QPushButton("Move up")
-        down = QPushButton("Move down")
+        up = QPushButton(tr("Move up"))
+        down = QPushButton(tr("Move down"))
         move_row.addWidget(up)
         move_row.addWidget(down)
         layout.addLayout(move_row)
@@ -95,8 +100,8 @@ class SettingsWindow(QDialog):
         up.clicked.connect(lambda: move_item(-1))
         down.clicked.connect(lambda: move_item(1))
         buttons = QHBoxLayout()
-        save = QPushButton("Save order")
-        cancel = QPushButton("Cancel")
+        save = QPushButton(tr("Save order"))
+        cancel = QPushButton(tr("Cancel"))
         save.clicked.connect(dialog.accept)
         cancel.clicked.connect(dialog.reject)
         buttons.addStretch(1)
@@ -114,24 +119,24 @@ class SettingsWindow(QDialog):
         page = QWidget()
         form = QFormLayout(page)
         form.addRow(QLabel(
-            "Widget and layout choices are saved independently per display."))
+            tr("Widget and layout choices are saved independently per display.")))
         self.position = QComboBox()
         self.position.addItems(["bottom", "top"])
         self.position.currentTextChanged.connect(self._set_position)
-        form.addRow("Bar position", self.position)
+        form.addRow(tr("Bar position"), self.position)
         self.shell_layout = QComboBox()
-        self.shell_layout.addItem("Combined bar", "combined")
-        self.shell_layout.addItem("Separate top toolbar and app dock", "split")
+        self.shell_layout.addItem(tr("Combined bar"), "combined")
+        self.shell_layout.addItem(tr("Separate top toolbar and app dock"), "split")
         self.shell_layout.currentIndexChanged.connect(self._set_shell_layout)
-        form.addRow("Shell layout", self.shell_layout)
+        form.addRow(tr("Shell layout"), self.shell_layout)
         self.option_checks = {}
         for key, label in (
-            ("full_width", "Full width"),
-            ("reserve_space", "Reserve screen space"),
-            ("auto_hide", "Auto-hide dock"),
-            ("glass", "Glass effect"),
-            ("dynamic_accent", "Dynamic wallpaper accent"),
-            ("desktop_widgets", "Show draggable desktop widgets"),
+            ("full_width", tr("Full width")),
+            ("reserve_space", tr("Reserve screen space")),
+            ("auto_hide", tr("Auto-hide dock")),
+            ("glass", tr("Glass effect")),
+            ("dynamic_accent", tr("Dynamic wallpaper accent")),
+            ("desktop_widgets", tr("Show draggable desktop widgets")),
         ):
             check = QCheckBox(label)
             check.toggled.connect(
@@ -139,7 +144,7 @@ class SettingsWindow(QDialog):
                 self.dock.set_option(option, enabled))
             form.addRow(check)
             self.option_checks[key] = check
-        self.tabs.addTab(page, "Layout")
+        self.tabs.addTab(page, tr("Layout"))
 
     def _build_appearance_tab(self):
         page = QWidget()
@@ -148,114 +153,220 @@ class SettingsWindow(QDialog):
         self.theme_choice = QComboBox()
         self.theme_choice.addItems(theme.list_themes(THEMES_DIR))
         self.theme_choice.currentTextChanged.connect(self._set_theme)
-        form.addRow("Theme", self.theme_choice)
+        form.addRow(tr("Theme"), self.theme_choice)
         layout.addLayout(form)
-        layout.addWidget(QLabel("Preview"))
+        layout.addWidget(QLabel(tr("Preview")))
         self.preview = QFrame()
         self.preview.setObjectName("card")
         preview_layout = QVBoxLayout(self.preview)
-        title = QLabel("WINDOWS BAR")
+        title = QLabel(tr("WINDOWS BAR"))
         title.setObjectName("cardtitle")
-        body = QLabel("A live theme preview")
+        body = QLabel(tr("A live theme preview"))
         body.setObjectName("cardbody")
         preview_layout.addWidget(title)
         preview_layout.addWidget(body)
         layout.addWidget(self.preview)
         styles = QHBoxLayout()
-        edit = QPushButton("Edit widget style…")
+        edit = QPushButton(tr("Edit widget style…"))
         edit.clicked.connect(self._edit_widget_style)
-        reset = QPushButton("Reset widget style…")
+        reset = QPushButton(tr("Reset widget style…"))
         reset.clicked.connect(self._reset_widget_style)
         styles.addWidget(edit)
         styles.addWidget(reset)
         layout.addLayout(styles)
         layout.addStretch(1)
-        self.tabs.addTab(page, "Appearance")
+        self.tabs.addTab(page, tr("Appearance"))
+
+    def _build_general_tab(self):
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        form = QFormLayout()
+        self.language_choice = QComboBox()
+        self.language_choice.addItem(tr("System default"), "system")
+        for tag in available_locales():
+            self.language_choice.addItem(tag, tag)
+        current = self.dock.cfg.get("language", "system")
+        index = self.language_choice.findData(current)
+        self.language_choice.setCurrentIndex(max(index, 0))
+        self.language_choice.currentIndexChanged.connect(self._set_language)
+        form.addRow(tr("Language"), self.language_choice)
+        self.plugins_enabled = QCheckBox(
+            tr("Load widget plugins from the plugins folder"))
+        self.plugins_enabled.setChecked(
+            bool(self.dock.cfg.get("plugins_enabled")))
+        self.plugins_enabled.toggled.connect(self._set_plugins_enabled)
+        form.addRow(tr("Plugins"), self.plugins_enabled)
+        layout.addLayout(form)
+        note = QLabel(tr(
+            "Language and plugin changes apply after restarting Windows Bar. "
+            "Plugins are Python code and run with your permissions; only "
+            "enable ones you trust."))
+        note.setWordWrap(True)
+        layout.addWidget(note)
+        self.plugin_status = QLabel("")
+        self.plugin_status.setWordWrap(True)
+        layout.addWidget(self.plugin_status)
+        open_plugins = QPushButton(tr("Open plugins folder"))
+        open_plugins.clicked.connect(self._open_plugins_folder)
+        layout.addWidget(open_plugins)
+        backup = QHBoxLayout()
+        export = QPushButton(tr("Export settings…"))
+        export.clicked.connect(self._export_settings)
+        import_ = QPushButton(tr("Import settings…"))
+        import_.clicked.connect(self._import_settings)
+        backup.addWidget(export)
+        backup.addWidget(import_)
+        layout.addLayout(backup)
+        layout.addStretch(1)
+        self.tabs.addTab(page, tr("General"))
+        self._refresh_plugin_status()
+
+    def _set_language(self, index):
+        value = self.language_choice.itemData(index)
+        if value and value != self.dock.cfg.get("language", "system"):
+            self.dock.cfg["language"] = value
+            save_global_setting("language", value)
+
+    def _set_plugins_enabled(self, enabled):
+        self.dock.cfg["plugins_enabled"] = bool(enabled)
+        save_global_setting("plugins_enabled", bool(enabled))
+        self._refresh_plugin_status()
+
+    def _refresh_plugin_status(self):
+        loaded = [module.WIDGET_ID for module in plugins.loaded_modules()]
+        errors = plugins.load_errors()
+        lines = []
+        if loaded:
+            lines.append(tr("Loaded plugins: {names}", names=", ".join(loaded)))
+        for error in errors:
+            lines.append(f"{error.name}: {error.reason}")
+        if not lines and self.dock.cfg.get("plugins_enabled"):
+            lines.append(tr("Plugins load when the app restarts."))
+        self.plugin_status.setText("\n".join(lines))
+
+    def _open_plugins_folder(self):
+        PLUGINS_DIR.mkdir(parents=True, exist_ok=True)
+        try:
+            import os
+            os.startfile(str(PLUGINS_DIR))
+        except (AttributeError, OSError) as exc:
+            QMessageBox.warning(self, tr("Plugins"), str(exc))
+
+    def _export_settings(self):
+        path, _ = QFileDialog.getSaveFileName(
+            self, tr("Export settings"), "windows-bar-settings.json",
+            "JSON (*.json)")
+        if not path:
+            return
+        try:
+            redacted = config_store.export_config(CONFIG, DEFAULTS, path)
+        except OSError as exc:
+            QMessageBox.warning(self, tr("Export settings"), str(exc))
+            return
+        if redacted:
+            QMessageBox.information(
+                self, tr("Export settings"),
+                tr("Private values were left out: {keys}",
+                   keys=", ".join(redacted)))
+
+    def _import_settings(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, tr("Import settings"), "", "JSON (*.json)")
+        if not path:
+            return
+        try:
+            config_store.import_config(path, CONFIG, DEFAULTS)
+        except config_store.ConfigImportError as exc:
+            QMessageBox.warning(self, tr("Import settings"), str(exc))
+            return
+        QMessageBox.information(
+            self, tr("Import settings"),
+            tr("Settings imported. Restart Windows Bar to apply them."))
 
     def _build_hotkeys_tab(self):
         page = QWidget()
         form = QFormLayout(page)
         self.launcher_key = QLineEdit()
-        self.launcher_key.setPlaceholderText("alt+space")
+        self.launcher_key.setPlaceholderText(tr("alt+space"))
         self.launcher_key.editingFinished.connect(self._set_launcher_hotkey)
-        form.addRow("Launcher hotkey", self.launcher_key)
+        form.addRow(tr("Launcher hotkey"), self.launcher_key)
         self.app_modifier = QComboBox()
         self.app_modifier.addItems(["Alt", "Ctrl+Alt", "Win"])
         self.app_modifier.currentTextChanged.connect(self._set_app_modifier)
-        form.addRow("Pinned apps 1–9", self.app_modifier)
-        form.addRow(QLabel("Pinned shortcuts open or focus the first nine apps."))
-        self.custom_alt_tab = QCheckBox("Use Windows Bar window switcher for Alt+Tab")
+        form.addRow(tr("Pinned apps 1–9"), self.app_modifier)
+        form.addRow(QLabel(tr("Pinned shortcuts open or focus the first nine apps.")))
+        self.custom_alt_tab = QCheckBox(tr("Use Windows Bar window switcher for Alt+Tab"))
         self.custom_alt_tab.toggled.connect(self._set_custom_alt_tab)
         form.addRow(self.custom_alt_tab)
         form.addRow(QLabel(
-            "Use Alt+Tab / Alt+Shift+Tab to browse. Arrow keys also navigate; "
-            "release Alt or press Enter to switch, Esc to cancel."))
+            tr("Use Alt+Tab / Alt+Shift+Tab to browse. Arrow keys also navigate; "
+            "release Alt or press Enter to switch, Esc to cancel.")))
         if not self.dock.is_primary_display:
             page.setEnabled(False)
-            form.addRow(QLabel("Global hotkeys are configured on the primary display."))
-        self.tabs.addTab(page, "Hotkeys")
+            form.addRow(QLabel(tr("Global hotkeys are configured on the primary display.")))
+        self.tabs.addTab(page, tr("Hotkeys"))
 
     def _build_window_manager_tab(self):
         page = QWidget()
         form = QFormLayout(page)
-        self.window_tracking = QCheckBox("Track open application windows")
+        self.window_tracking = QCheckBox(tr("Track open application windows"))
         self.window_tracking.toggled.connect(self._set_window_tracking)
         form.addRow(self.window_tracking)
-        self.tiling_enabled = QCheckBox("Automatically tile windows")
+        self.tiling_enabled = QCheckBox(tr("Automatically tile windows"))
         self.tiling_enabled.toggled.connect(self._set_tiling_enabled)
         form.addRow(self.tiling_enabled)
         self.tiling_release_key = QLineEdit()
-        self.tiling_release_key.setPlaceholderText("ctrl+alt+esc")
-        self.save_tiling_release_key = QPushButton("Save safe-release shortcut")
+        self.tiling_release_key.setPlaceholderText(tr("ctrl+alt+esc"))
+        self.save_tiling_release_key = QPushButton(tr("Save safe-release shortcut"))
         self.save_tiling_release_key.clicked.connect(self._save_tiling_release_key)
-        form.addRow("Safe-release shortcut", self.tiling_release_key)
+        form.addRow(tr("Safe-release shortcut"), self.tiling_release_key)
         form.addRow(self.save_tiling_release_key)
         self.tiling_layout = QComboBox()
-        self.tiling_layout.addItem("BSP", "bsp")
-        self.tiling_layout.addItem("Columns", "columns")
-        self.tiling_layout.addItem("Master / stack", "stack")
+        self.tiling_layout.addItem(tr("BSP"), "bsp")
+        self.tiling_layout.addItem(tr("Columns"), "columns")
+        self.tiling_layout.addItem(tr("Master / stack"), "stack")
         self.tiling_layout.currentIndexChanged.connect(
             lambda index: self.dock.set_tiling_layout(
                 self.tiling_layout.itemData(index)))
-        form.addRow("Layout engine", self.tiling_layout)
+        form.addRow(tr("Layout engine"), self.tiling_layout)
         self.tiling_gap = QSpinBox()
         self.tiling_gap.setRange(0, 80)
         self.tiling_gap.setSuffix(" px")
         self.tiling_gap.valueChanged.connect(self._set_tiling_spacing)
-        form.addRow("Gap between windows", self.tiling_gap)
+        form.addRow(tr("Gap between windows"), self.tiling_gap)
         self.tiling_padding = QSpinBox()
         self.tiling_padding.setRange(0, 120)
         self.tiling_padding.setSuffix(" px")
         self.tiling_padding.valueChanged.connect(self._set_tiling_spacing)
-        form.addRow("Screen edge padding", self.tiling_padding)
+        form.addRow(tr("Screen edge padding"), self.tiling_padding)
         self.floating_apps = QLineEdit()
-        self.floating_apps.setPlaceholderText("One executable per line, e.g. spotify.exe")
-        form.addRow("Float executable names", self.floating_apps)
+        self.floating_apps.setPlaceholderText(tr("One executable per line, e.g. spotify.exe"))
+        form.addRow(tr("Float executable names"), self.floating_apps)
         self.floating_classes = QLineEdit()
-        self.floating_classes.setPlaceholderText("One window class per line")
-        form.addRow("Float window classes", self.floating_classes)
+        self.floating_classes.setPlaceholderText(tr("One window class per line"))
+        form.addRow(tr("Float window classes"), self.floating_classes)
         self.floating_titles = QPlainTextEdit()
         self.floating_titles.setPlaceholderText(
-            "One case-insensitive title regular expression per line")
+            tr("One case-insensitive title regular expression per line"))
         self.floating_titles.setMaximumHeight(72)
-        form.addRow("Float title patterns", self.floating_titles)
-        self.save_floating_rules = QPushButton("Save floating rules")
+        form.addRow(tr("Float title patterns"), self.floating_titles)
+        self.save_floating_rules = QPushButton(tr("Save floating rules"))
         self.save_floating_rules.clicked.connect(self._save_floating_rules)
         form.addRow(self.save_floating_rules)
         self.tiling_status = QLabel()
         form.addRow(self.tiling_status)
         form.addRow(QLabel(
-            "BSP tiling moves visible taskbar windows on each monitor. "
+            tr("BSP tiling moves visible taskbar windows on each monitor. "
             "Ctrl+Alt+J focuses the next tiled window, Ctrl+Alt+K swaps its "
             "slot, Ctrl+Alt+H/L resizes the focused split, Ctrl+Alt+T cycles the layout, Ctrl+Alt+F "
             "toggles floating, and Ctrl+Alt+Shift+Left/Right moves the "
             "focused window to the previous/next virtual desktop. Ctrl+Alt+Esc "
-            "releases windows. Per-workspace order and split sizes are saved."))
+            "releases windows. Per-workspace order and split sizes are saved.")))
         if not self.dock.is_primary_display:
             page.setEnabled(False)
             form.addRow(QLabel(
-                "Window tracking is configured on the primary display."))
-        self.tabs.addTab(page, "Window manager")
+                tr("Window tracking is configured on the primary display.")))
+        self.tabs.addTab(page, tr("Window manager"))
 
     def _edit_widget_style(self):
         self.dock.edit_widget_style()

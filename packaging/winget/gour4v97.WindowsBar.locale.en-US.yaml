@@ -1,0 +1,10 @@
+PackageIdentifier: gour4v97.WindowsBar
+PackageVersion: <version>
+PackageLocale: en-US
+Publisher: gour4v97
+PackageName: Windows Bar
+License: MIT
+ShortDescription: A customizable smart dock and desktop shell for Windows 10/11.
+PackageUrl: https://github.com/gour4v97/windowbar
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0

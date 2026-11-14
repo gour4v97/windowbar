@@ -6,6 +6,7 @@ import theme
 from core.app_config import display_config_id, save_config
 from widgets.clock import ClockCard
 from widgets.cpu_ram import SystemCard
+from core.i18n import tr
 
 
 class DesktopWidgetsWindow(QWidget):
@@ -18,7 +19,7 @@ class DesktopWidgetsWindow(QWidget):
         self.dock = dock
         self.cfg = dock.cfg
         self.setObjectName("desktopWidgets")
-        self.setWindowTitle("Windows Bar Desktop Widgets")
+        self.setWindowTitle(tr("Windows Bar Desktop Widgets"))
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setMinimumWidth(340)
         self.setStyleSheet(dock.styleSheet())
@@ -27,7 +28,7 @@ class DesktopWidgetsWindow(QWidget):
         root = QVBoxLayout(self)
         root.setContentsMargins(10, 8, 10, 10)
         root.setSpacing(6)
-        self.handle = QLabel("WINDOWS BAR · DRAG TO MOVE")
+        self.handle = QLabel(tr("WINDOWS BAR · DRAG TO MOVE"))
         self.handle.setObjectName("cardbody")
         self.handle.setAlignment(Qt.AlignCenter)
         root.addWidget(self.handle)

@@ -12,7 +12,7 @@ class ScriptCard(Card):
         self.poll, self.cfg = poll, cfg
         if cfg.get("script_click_command"):
             self.setCursor(Qt.PointingHandCursor)
-            self.setToolTip("Click to run the click command")
+            self.setToolTip(tr("Click to run the click command"))
 
     def mousePressEvent(self, e):
         cmd = self.cfg.get("script_click_command", "")
@@ -34,6 +34,7 @@ class ScriptCard(Card):
             clip(lines[1].upper(), 30) if len(lines) > 1 else "SCRIPT",
             clip(lines[0], 30))
 
+from core.i18n import tr
 
 WIDGET_ID = 'script'
 WIDGET_ORDER = 25

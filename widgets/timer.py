@@ -22,7 +22,7 @@ class TimerCard(Card):
         self.running = False
         self._t = time.monotonic()
         self.setCursor(Qt.PointingHandCursor)
-        self.setToolTip("Click: start/pause   Double-click: set minutes")
+        self.setToolTip(tr("Click: start/pause   Double-click: set minutes"))
 
     def _advance(self):
         now = time.monotonic()
@@ -55,6 +55,7 @@ class TimerCard(Card):
             "TIMER" + (" ▶" if self.running else " ❚❚"),
             fmt_hms(math.ceil(self.remaining)))
 
+from core.i18n import tr
 
 WIDGET_ID = 'timer'
 WIDGET_ORDER = 23

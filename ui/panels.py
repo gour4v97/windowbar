@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (QCalendarWidget, QHBoxLayout, QListWidget,
                                QPushButton, QVBoxLayout, QLabel)
 from ui.popup import DetailPopup
 from widgets.base import clip
+from core.i18n import tr
 class Popup(DetailPopup):
     def __init__(self, dock):
         self.dock = dock
@@ -48,7 +49,7 @@ class CalendarPopup(Popup):
         self.list = QListWidget()
         self.list.setMaximumHeight(110)
         lay.addWidget(self.list)
-        link = QPushButton("Set calendar link…")
+        link = QPushButton(tr("Set calendar link…"))
         link.clicked.connect(lambda: (self.close(), ask_link()))
         lay.addWidget(link)
         self.cal.currentPageChanged.connect(lambda *_: self._mark())
@@ -72,7 +73,7 @@ class CalendarPopup(Popup):
         events = self.calendar.events_in_month(d.year(), d.month()).get(
             d.day(), [])
         if not events:
-            self.list.addItem("No events")
+            self.list.addItem(tr("No events"))
         for when, title in events:
             self.list.addItem(f"{when.strftime('%H:%M')}  {title}")
 
@@ -88,10 +89,10 @@ class TodosPanel(Popup):
         lay.addWidget(self.list)
         row = QHBoxLayout()
         self.edit = QLineEdit()
-        self.edit.setPlaceholderText("New todo… (Enter adds)")
+        self.edit.setPlaceholderText(tr("New todo… (Enter adds)"))
         self.edit.returnPressed.connect(self._add)
         row.addWidget(self.edit)
-        del_btn = QPushButton("Delete")
+        del_btn = QPushButton(tr("Delete"))
         del_btn.clicked.connect(self._delete)
         row.addWidget(del_btn)
         lay.addLayout(row)
@@ -158,10 +159,10 @@ class NotesPanel(Popup):
         self.edit.textChanged.connect(self._edited)
         lay.addWidget(self.edit)
         row = QHBoxLayout()
-        new_btn = QPushButton("New note")
+        new_btn = QPushButton(tr("New note"))
         new_btn.clicked.connect(self._new)
         row.addWidget(new_btn)
-        del_btn = QPushButton("Delete note")
+        del_btn = QPushButton(tr("Delete note"))
         del_btn.clicked.connect(self._delete)
         row.addWidget(del_btn)
         lay.addLayout(row)

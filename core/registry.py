@@ -51,10 +51,14 @@ class WidgetRegistry:
 
     def register_package(self, package, context, widget_defaults, labels):
         """Discover widget modules that export WIDGET_ID and make_card()."""
+        modules = [importlib.import_module(f"{package.__name__}.{item.name}")
+                   for item in pkgutil.iter_modules(package.__path__)]
+        return self.register_modules(modules, context, widget_defaults, labels)
+
+    def register_modules(self, modules, context, widget_defaults, labels):
+        """Register already-imported modules (built-in or plugin widgets)."""
         discovered = []
-        for item in pkgutil.iter_modules(package.__path__):
-            module = importlib.import_module(
-                f"{package.__name__}.{item.name}")
+        for module in modules:
             widget_id = getattr(module, "WIDGET_ID", None)
             make_card = getattr(module, "make_card", None)
             if not widget_id or not callable(make_card):
@@ -62,7 +66,10 @@ class WidgetRegistry:
             order = getattr(module, "WIDGET_ORDER", 10_000)
             discovered.append((order, widget_id, module, make_card))
 
-        for _, widget_id, _module, make_card in sorted(discovered):
+        for _, widget_id, _module, make_card in sorted(
+                discovered, key=lambda item: item[:2]):
+            if widget_id in self._definitions:
+                continue                  # first registration wins
             name = labels.get(widget_id, widget_id.title())
             default = bool(widget_defaults.get(widget_id, False))
             self.register(WidgetDefinition(

@@ -70,7 +70,8 @@ Windows Bar starts a bar on each connected display, each with its own Settings w
 - **Launcher** — press `Alt+Space` anywhere. Fuzzy-search your apps, Start Menu programs and open windows; `↑ ↓` to pick, `Enter` to run, `Esc` to close. Type `> command` to run a shell command, `= 2*(3+4)` (or just `2*(3+4)`) to calculate (Enter copies the result), or a path to open it. Change the key with `launcher_hotkey` in config.json (e.g. `ctrl+shift+k`); turn it off from the menu.
 - **Themes** — menu > Theme: midnight (default), daylight, aurora, rose, mono. Add your own as JSON in `%APPDATA%\Windows Bar\themes\` (menu > Theme > Open themes folder creates an example). A theme only lists the keys it changes: `panel`, `glass`, `border`, `card`, `text`, `muted`, `button`, `accent` (`"#rrggbb"` or `[r,g,b,a]`, alpha 0-255), `radius`, `panel_radius`, `font`.
 - **Theme gallery** — starter `nord`, `forest`, and `ember` JSON themes live in [`themes/gallery/`](themes/gallery/); copy a JSON file into `%APPDATA%\Windows Bar\themes\` to use it.
-- **Widget contributions** — see [docs/widget-sdk.md](docs/widget-sdk.md).
+- **Widget contributions** — the source-level widget contract and template are in [`docs/widget-sdk.md`](docs/widget-sdk.md). Runtime plugins are supported but off by default: see [Plugins and language](#plugins-and-language).
+- **Contributing and localization** — see [`CONTRIBUTING.md`](CONTRIBUTING.md) and the [localization workflow](docs/localization.md); runtime translation is still in progress.
 - **Custom CSS** — drop a `custom.qss` into `%APPDATA%\Windows Bar\` and it is applied on top of the theme (Qt style sheets, a CSS subset).
 - **Dynamic accent** — the accent colour is derived from your wallpaper and follows it when it changes (hover, focused window, launcher selection). Turn it off in the menu to use the theme's own accent.
 
@@ -94,6 +95,14 @@ python windowsbar.py --import-config my-settings.json
 ```
 
 Export leaves private values (your calendar link) blank unless you add `--include-private`. Import validates the file first and keeps your previous settings as `config.before-import.bak`. When an update changes the settings format, the old file is kept once as `config.pre-v<N>.bak` before it is rewritten.
+
+## Plugins and language
+
+Open **Settings > General** to:
+
+- pick the interface **language** (applies after a restart; menus, popups, the launcher and widget titles are translatable; no non-English catalog ships yet; see `docs/localization.md`);
+- turn on **widget plugins**: drop a `.py` file into `%APPDATA%\\Windows Bar\\plugins` (example: `plugins-example/hello_plugin.py`), enable the option, restart, then tick the widget in Settings > Widgets. Plugins run with your permissions, so only use ones you trust;
+- **export / import** your settings from a file dialog (the same as the `--export-config` / `--import-config` command-line flags above).
 
 ## Performance
 

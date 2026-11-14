@@ -12,7 +12,7 @@ class CalendarCard(Card):
         self.calendar, self.ask_link = calendar, ask_link
         self.open_popup = None
         self.setCursor(Qt.PointingHandCursor)
-        self.setToolTip("Click: month view")
+        self.setToolTip(tr("Click: month view"))
 
     def mousePressEvent(self, e):
         if e.button() == Qt.LeftButton:
@@ -32,6 +32,7 @@ class CalendarCard(Card):
         delta = fmt_delta((dt - datetime.now()).total_seconds())
         return self.set_texts("NEXT · " + delta.upper(), clip(title, 26))
 
+from core.i18n import tr
 
 WIDGET_ID = 'calendar'
 WIDGET_ORDER = 15

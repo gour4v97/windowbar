@@ -16,7 +16,7 @@ class NotesCard(Card):
         self.cfg = cfg
         self.open_panel = None
         self.setCursor(Qt.PointingHandCursor)
-        self.setToolTip("Click: open notes")
+        self.setToolTip(tr("Click: open notes"))
 
     def mousePressEvent(self, e):
         if e.button() == Qt.LeftButton and self.open_panel:
@@ -31,6 +31,7 @@ class NotesCard(Card):
             f"NOTES · {count}" if count > 1 else "NOTES",
             clip(first, 26) if first else "Click to write")
 
+from core.i18n import tr
 
 WIDGET_ID = 'notes'
 WIDGET_ORDER = 21

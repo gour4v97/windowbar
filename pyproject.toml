@@ -1,0 +1,14 @@
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+# Conservative: real errors only (syntax, undefined names, unused imports).
+select = ["E9", "F63", "F7", "F82", "F401"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff.lint.per-file-ignores]
+# native/windows.py re-exports the Win32 surface on purpose (see winapi.py facade).
+"native/windows.py" = ["F401"]

@@ -19,7 +19,7 @@ class PomodoroCard(Card):
         self.running = False
         self._t = time.monotonic()
         self.setCursor(Qt.PointingHandCursor)
-        self.setToolTip("Click: start/pause   Double-click: reset")
+        self.setToolTip(tr("Click: start/pause   Double-click: reset"))
 
     def _advance(self):
         now = time.monotonic()
@@ -47,6 +47,7 @@ class PomodoroCard(Card):
             "FOCUS" + (" ▶" if self.running else " ❚❚"),
             fmt_hms(math.ceil(self.remaining)))
 
+from core.i18n import tr
 
 WIDGET_ID = 'pomodoro'
 WIDGET_ORDER = 22

@@ -7,7 +7,11 @@ import sys
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QApplication
 
-from core.app_config import APP_DIR
+from core import plugins
+from core.app_config import (APP_DIR, CONFIG, DEFAULTS, PLUGINS_DIR,
+                             WIDGET_LABELS, load_config)
+from core.cli import run_config_command
+from core.i18n import set_locale
 from core.logging_setup import configure_logging
 from ui.dock import Dock
 
@@ -15,8 +19,19 @@ _log = logging.getLogger("windowsbar")
 
 
 def main():
+    exit_code = run_config_command(sys.argv[1:], CONFIG, DEFAULTS)
+    if exit_code is not None:          # --export-config / --import-config
+        sys.exit(exit_code)
     log_path = configure_logging(APP_DIR)
     _log.info("Windows Bar starting (log file: %s)", log_path)
+    settings = load_config()
+    _log.info("language: %s", set_locale(settings.get("language", "system")))
+    if settings.get("plugins_enabled"):
+        built_in = set(DEFAULTS["widgets"])
+        loaded, errors = plugins.load_plugins(PLUGINS_DIR, built_in)
+        plugins.apply_plugins(loaded, DEFAULTS["widgets"], WIDGET_LABELS)
+        for error in errors:
+            _log.warning("plugin skipped: %s (%s)", error.name, error.reason)
     app = QApplication(sys.argv)
     app.setFont(QFont("Segoe UI", 10))
     all_screens = app.screens() or [None]

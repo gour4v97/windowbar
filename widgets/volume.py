@@ -11,7 +11,7 @@ class VolumeCard(Card):
         super().__init__("Volume")
         self.dock = dock
         self.setCursor(Qt.PointingHandCursor)
-        self.setToolTip("Click: volume and brightness controls   Scroll: volume")
+        self.setToolTip(tr("Click: volume and brightness controls   Scroll: volume"))
 
     def mousePressEvent(self, e):
         if e.button() == Qt.LeftButton:
@@ -38,6 +38,7 @@ class VolumeCard(Card):
         level, muted = v
         return self.set_texts(body="Muted" if muted else f"{level * 100:.0f}%")
 
+from core.i18n import tr
 
 WIDGET_ID = 'volume'
 WIDGET_ORDER = 13

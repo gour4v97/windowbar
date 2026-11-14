@@ -10,7 +10,7 @@ class RecycleCard(Card):
         super().__init__("Recycle Bin")
         self.poll = poll
         self.setCursor(Qt.PointingHandCursor)
-        self.setToolTip("Click to empty the Recycle Bin")
+        self.setToolTip(tr("Click to empty the Recycle Bin"))
 
     def mousePressEvent(self, e):
         if e.button() == Qt.LeftButton:
@@ -21,6 +21,7 @@ class RecycleCard(Card):
         return self.set_texts(
             body="—" if n is None else f"{n} item{'s' if n != 1 else ''}")
 
+from core.i18n import tr
 
 WIDGET_ID = 'recycle'
 WIDGET_ORDER = 17

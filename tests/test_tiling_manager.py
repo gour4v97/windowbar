@@ -13,6 +13,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 QtCore = pytest.importorskip("PySide6.QtCore")
+QtWidgets = pytest.importorskip("PySide6.QtWidgets")
 
 EXE = {1: "code.exe", 2: "chrome.exe", 3: "calc.exe", 4: "term.exe"}
 CLASS = {1: "A", 2: "B", 3: "CalcWnd", 4: "D"}
@@ -35,8 +36,10 @@ class _Tracker:
 
 def _manager(monkeypatch, **kwargs):
     import wm.tiling as tiling
-    if QtCore.QCoreApplication.instance() is None:
-        QtCore.QCoreApplication([])
+    # QApplication, not QCoreApplication: the offscreen Qt tests need a real
+    # QApplication in this process, and Qt allows only one app object.
+    if QtWidgets.QApplication.instance() is None:
+        QtWidgets.QApplication([])
     moves = {}
     fake = types.SimpleNamespace(
         IS_WIN=True, is_window=lambda h: True,
