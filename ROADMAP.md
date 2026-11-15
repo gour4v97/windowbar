@@ -197,7 +197,7 @@ Rules: widgets never touch Win32 directly (go through `native/`); all native hoo
 ---
 ## 8. What is left to finish (prioritised)
 
-Done since the last revision: most static UI routed through `tr()` (a few runtime strings remain — see C1); `PluginContext` (stable plugin surface); Inno Setup script and winget templates; Linux CI job (experimental) with offscreen Qt tests and ruff. Since then: the remaining UI strings (dock menus, dialogs, tooltips, launcher rows) are routed through `tr()` too, and the Hindi locale (`locales/hi.json`, 226/226 keys) was reviewed by a native speaker (Hinglish mix: 78 strings translated, 148 kept in English) and is advertised as supported. Since then: `PLUGIN_API = 2` frozen with a per-plugin allow-list (see C2).
+Done since the last revision: most static UI routed through `tr()` (a few runtime strings remain — see C1); `PluginContext` (stable plugin surface); Inno Setup script and winget templates; Linux CI job (now blocking) with offscreen Qt tests and ruff. Since then: the remaining UI strings (dock menus, dialogs, tooltips, launcher rows) are routed through `tr()` too, and the Hindi locale (`locales/hi.json`, 226/226 keys) was reviewed by a native speaker (Hinglish mix: 78 strings translated, 148 kept in English) and is advertised as supported. Since then: `PLUGIN_API = 2` frozen with a per-plugin allow-list (see C2).
 
 **A. Needs a real Windows session (cannot be checked from CI or a sandbox)**
 1. Run the app and click through Settings > General: language, plugins, export/import. Check that menus and popups still behave after the `tr()` wrapping.
@@ -218,6 +218,6 @@ Done since the last revision: most static UI routed through `tr()` (a few runtim
 4. Live reload for language/plugin changes (currently needs a restart).
 
 **D. Quality**
-1. Grow the offscreen Qt tests (`tests/test_ui_offscreen.py`) to cover the Settings window; make the Linux CI job blocking once it is green.
+1. Offscreen Qt tests cover the Settings window (11 tests: tabs, widget/language/plugin toggles, plugin status, refresh, hotkeys, tiling controls, secondary-display disabling, export/import); the Linux CI job is now blocking — `continue-on-error` removed from `.github/workflows/ci.yml` (upload the updated file via the web UI).
 
 **Suggested order:** A -> B1/B2 -> C1 -> B4 -> C2 -> D.
