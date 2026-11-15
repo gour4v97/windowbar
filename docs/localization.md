@@ -25,5 +25,6 @@ To add a string: write it as `tr("English text")` in the UI code, then run `pyth
 - [x] Add locale selection and fallback behavior in Settings/config (`language` key; restart to apply).
 - [x] Add key parity, JSON syntax, placeholder and catalog-freshness checks to CI.
 - [x] Route the static UI (dock menus, popups, launcher, card titles) through `tr()`.
-- [ ] Route runtime-built strings (f-strings, service messages) through `tr()` with placeholders.
+- [x] Route runtime-built strings (f-strings, service messages) through `tr()` with placeholders.
+- [x] First non-English locale drafted: `locales/hi.json`, 226/226 keys, `check_locales.py --strict` passes.
 - [ ] Complete a native-speaker review before advertising a locale as supported.

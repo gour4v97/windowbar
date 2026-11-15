@@ -163,7 +163,7 @@ class Dock(QWidget):
         selected = next((item for item in choices
                          if item.lower() == current), "Alt")
         value, ok = QInputDialog.getItem(
-            self, "Pinned-app hotkeys", "Modifier for 1–9:", choices,
+            self, tr("Pinned-app hotkeys"), tr("Modifier for 1–9:"), choices,
             choices.index(selected), False)
         if ok:
             self.cfg["app_hotkey_modifier"] = value.lower()
@@ -661,29 +661,29 @@ class Dock(QWidget):
                 refresh()
 
     def ask_city(self):
-        self.ask_text("weather_city", "Weather", "City:", self.weather.refresh)
+        self.ask_text("weather_city", tr("Weather"), tr("City:"), self.weather.refresh)
 
     def ask_calendar(self):
-        self.ask_text("calendar_url", "Calendar",
-                      "Secret iCal link (Google: Settings > calendar > "
-                      "'Secret address in iCal format'):",
+        self.ask_text("calendar_url", tr("Calendar"),
+                      tr("Secret iCal link (Google: Settings > calendar > "
+                      "'Secret address in iCal format'):"),
                       self.calendar.refresh)
 
     def ask_autohide_delay(self):
         val, ok = QInputDialog.getInt(
-            self, "Auto-hide", "Hide after this many seconds away:",
+            self, tr("Auto-hide"), tr("Hide after this many seconds away:"),
             int(self.cfg.get("auto_hide_delay", 5)), 2, 120)
         if ok:
             self.cfg["auto_hide_delay"] = val
             save_config(self.cfg)
 
     def ask_quiet_hours(self):
-        self.ask_text("quiet_hours", "Quiet hours",
-                      "Quiet hours for sounds, e.g. 23:00-07:00 "
-                      "(blank = off):")
+        self.ask_text("quiet_hours", tr("Quiet hours"),
+                      tr("Quiet hours for sounds, e.g. 23:00-07:00 "
+                      "(blank = off):"))
 
     def ask_github(self):
-        self.ask_text("github_user", "GitHub", "GitHub username:",
+        self.ask_text("github_user", tr("GitHub"), tr("GitHub username:"),
                       lambda: self.poll("github").refresh())
 
     # Painting / dragging
@@ -772,8 +772,8 @@ class Dock(QWidget):
 
     def _build_menu(self, e):
         m = QMenu(self)
-        pos = QAction("Move to top" if self.cfg["position"] == "bottom"
-                      else "Move to bottom", self)
+        pos = QAction(tr("Move to top") if self.cfg["position"] == "bottom"
+                      else tr("Move to bottom"), self)
         pos.setEnabled(self.cfg.get("shell_layout") != "split")
         pos.triggered.connect(self.toggle_position)
         m.addAction(pos)
@@ -785,27 +785,27 @@ class Dock(QWidget):
         m.addAction(workspaces)
         m.addSeparator()
         for key, label in WIDGET_LABELS.items():
-            a = QAction(label, self, checkable=True)
+            a = QAction(tr(label), self, checkable=True)
             a.setChecked(self.cfg["widgets"].get(key, False))
             a.toggled.connect(lambda on, k=key: self.set_widget(k, on))
             m.addAction(a)
         m.addSeparator()
         for key, label in [
-            ("reserve_space", "Reserve screen space"),
-            ("hide_taskbar", "Auto-hide Windows taskbar"),
-            ("glass", "Glass effect"),
-            ("pause_before_meeting", "Pause music before meetings"),
-            ("full_width", "Full width"),
-            ("auto_hide", "Auto-hide dock (fullscreen friendly)"),
-            ("dynamic_accent", "Dynamic accent (from wallpaper)"),
-            ("launcher", f"Launcher hotkey ({self.cfg['launcher_hotkey']})"),
+            ("reserve_space", tr("Reserve screen space")),
+            ("hide_taskbar", tr("Auto-hide Windows taskbar")),
+            ("glass", tr("Glass effect")),
+            ("pause_before_meeting", tr("Pause music before meetings")),
+            ("full_width", tr("Full width")),
+            ("auto_hide", tr("Auto-hide dock (fullscreen friendly)")),
+            ("dynamic_accent", tr("Dynamic accent (from wallpaper)")),
+            ("launcher", tr("Launcher hotkey ({hotkey})", hotkey=self.cfg["launcher_hotkey"])),
         ]:
             a = QAction(label, self, checkable=True)
             a.setChecked(self.cfg[key])
             a.toggled.connect(lambda on, k=key: self.set_option(k, on))
             m.addAction(a)
         modifier = self.cfg.get("app_hotkey_modifier", "alt").title()
-        app_keys = QAction(f"Pinned-app hotkeys ({modifier}+1…9)…", self)
+        app_keys = QAction(tr("Pinned-app hotkeys ({modifier}+1…9)…", modifier=modifier), self)
         app_keys.triggered.connect(self.ask_app_hotkey_modifier)
         m.addAction(app_keys)
         auto = QAction(tr("Start with Windows"), self, checkable=True)
@@ -891,14 +891,14 @@ class Dock(QWidget):
             if poll:
                 poll.refresh()
             self.rebuild()
-        self.ask_text("script_command", "Script widget",
-                      "Shell command whose output the Script widget shows:",
+        self.ask_text("script_command", tr("Script widget"),
+                      tr("Shell command whose output the Script widget shows:"),
                       refresh)
 
     def ask_zones(self):
         text, ok = QInputDialog.getText(
-            self, "World clocks",
-            "IANA zones, comma-separated (e.g. Europe/London, Asia/Tokyo):",
+            self, tr("World clocks"),
+            tr("IANA zones, comma-separated (e.g. Europe/London, Asia/Tokyo):"),
             text=", ".join(self.cfg["world_zones"]))
         if ok:
             self.cfg["world_zones"] = [z.strip() for z in text.split(",")
@@ -1041,22 +1041,26 @@ class Dock(QWidget):
                     self._sync_window_tracking()
                     error_code = release_hotkey.registration_errors.get(
                         "release")
-                    message = ("Could not register the configured safe-release shortcut"
-                               + (f" (Win32 error {error_code})"
-                                  if isinstance(error_code, int) and error_code else "")
-                               + ". Tiling stayed off because safe release is required.")
+                    message = tr("Could not register the configured safe-release shortcut{error}. "
+                               "Tiling stayed off because safe release is required.",
+                               error=f" (Win32 error {error_code})"
+                               if isinstance(error_code, int) and error_code else "")
                     _log.warning("Tiling disabled: %s", message)
                     if warn:
-                        QMessageBox.warning(self, "Safe release hotkey unavailable", message)
+                        QMessageBox.warning(self, tr("Safe release hotkey unavailable"), message)
                     self._tiling_error = message
                     self._tiling_release_status = message
                     return False
                 QApplication.instance().installNativeEventFilter(release_hotkey.filter)
                 self._tiling_release_hotkey = release_hotkey
                 self._tiling_error = ""
-                self._tiling_release_status = (
-                    f"Safe release: {release_hotkey.release_binding}"
-                    + (" (fallback)" if release_hotkey.release_fallback_used else ""))
+                if release_hotkey.release_fallback_used:
+                    self._tiling_release_status = tr(
+                        "Safe release: {binding} (fallback)",
+                        binding=release_hotkey.release_binding)
+                else:
+                    self._tiling_release_status = tr(
+                        "Safe release: {binding}", binding=release_hotkey.release_binding)
                 self._tiling_hotkey_unavailable = release_hotkey.unavailable
                 self._tiling_hotkey_errors = release_hotkey.registration_errors
                 if self._tiling_hotkey_unavailable:

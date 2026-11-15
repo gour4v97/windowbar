@@ -32,7 +32,7 @@ class Toolbar(QWidget):
         self._add_desktop_button("‹", "Previous desktop", "previous")
         self._add_desktop_button("›", "Next desktop", "next")
         self._add_desktop_button("+", "Create desktop", "new")
-        self._add_desktop_button("▦", "Open Windows Bar workspace viewer",
+        self._add_desktop_button("▦", tr("Open Windows Bar workspace viewer"),
                                  "viewer")
         self._window_timer = QTimer(self)
         self._window_timer.timeout.connect(self._refresh_active_window)

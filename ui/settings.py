@@ -13,7 +13,7 @@ from core import config as config_store
 from core import plugins
 from core.app_config import (CONFIG, DEFAULTS, PLUGINS_DIR, THEMES_DIR,
                              WIDGET_LABELS, save_config, save_global_setting)
-from core.i18n import available_locales, tr
+from core.i18n import available_locales, locale_display_name, tr
 
 
 class SettingsWindow(QDialog):
@@ -184,7 +184,7 @@ class SettingsWindow(QDialog):
         self.language_choice = QComboBox()
         self.language_choice.addItem(tr("System default"), "system")
         for tag in available_locales():
-            self.language_choice.addItem(tag, tag)
+            self.language_choice.addItem(locale_display_name(tag), tag)
         current = self.dock.cfg.get("language", "system")
         index = self.language_choice.findData(current)
         self.language_choice.setCurrentIndex(max(index, 0))

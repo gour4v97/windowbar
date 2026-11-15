@@ -1,5 +1,6 @@
 """Battery card."""
 import psutil
+from core.i18n import tr
 from widgets.base import Card
 
 class BatteryCard(Card):
@@ -12,7 +13,7 @@ class BatteryCard(Card):
     def tick(self):
         b = psutil.sensors_battery()
         if b is None:
-            return self.set_texts(body="No battery")
+            return self.set_texts(body=tr("No battery"))
         return self.set_texts(
             body=f"{b.percent:.0f}% {'⚡' if b.power_plugged else ''}")
 

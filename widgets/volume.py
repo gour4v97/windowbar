@@ -34,9 +34,9 @@ class VolumeCard(Card):
     def tick(self):
         v = winapi.get_volume()
         if v is None:
-            return self.set_texts(body="No device")
+            return self.set_texts(body=tr("No device"))
         level, muted = v
-        return self.set_texts(body="Muted" if muted else f"{level * 100:.0f}%")
+        return self.set_texts(body=tr("Muted") if muted else f"{level * 100:.0f}%")
 
 from core.i18n import tr
 

@@ -68,7 +68,7 @@ class QuickCard(QFrame):
 
     def open_path(self):
         text, ok = QInputDialog.getText(
-            self, "Open", "Folder or file path (e.g. D:\\work, %USERPROFILE%):")
+            self, tr("Open"), tr("Folder or file path (e.g. D:\\work, %USERPROFILE%):"))
         if ok and text.strip():
             try:
                 os.startfile(os.path.expandvars(text.strip().strip('"')))
@@ -76,15 +76,14 @@ class QuickCard(QFrame):
                 pass
 
     def empty_bin(self):
-        if QMessageBox.question(self, "Empty Recycle Bin",
-                                "Permanently delete everything in the Recycle Bin?"
-                                ) == QMessageBox.Yes:
+        if QMessageBox.question(self, tr("Empty Recycle Bin"),
+                                tr("Permanently delete everything in the Recycle Bin?")) == QMessageBox.Yes:
             winapi.empty_recycle_bin()
 
     def tick(self):
         try:
             dark = winapi.is_dark_mode()
-            text = "Light" if dark else "Dark"
+            text = tr("Light") if dark else tr("Dark")
             if text != self.theme_btn.text():
                 self.theme_btn.setText(text)
                 return True

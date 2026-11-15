@@ -36,7 +36,7 @@ class TimerCard(Card):
             self.running = not self.running
 
     def mouseDoubleClickEvent(self, e):
-        val, ok = QInputDialog.getInt(self, "Timer", "Minutes:",
+        val, ok = QInputDialog.getInt(self, tr("Timer"), tr("Minutes:"),
                                       int(self.cfg["timer_minutes"]), 1, 480)
         if ok:
             self.cfg["timer_minutes"] = val

@@ -37,6 +37,14 @@ def load_catalog(tag, directory=None):
             if isinstance(value, str) and value}
 
 
+_DISPLAY_NAMES = {"en": "English", "hi": "हिन्दी"}
+
+
+def locale_display_name(tag):
+    """Name to show in the language picker (native name when known)."""
+    return _DISPLAY_NAMES.get(tag, tag)
+
+
 def available_locales(directory=None):
     """Locale tags that have a catalog file, with ``en`` always first."""
     tags = []

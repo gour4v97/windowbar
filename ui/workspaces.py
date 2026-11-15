@@ -128,7 +128,7 @@ class WorkspaceViewer(QDialog):
             head.addWidget(switch)
             layout.addLayout(head)
             windows = self._window_titles(desktop)
-            summary = QLabel(", ".join(windows) if windows else "No open windows")
+            summary = QLabel(", ".join(windows) if windows else tr("No open windows"))
             summary.setObjectName("cardbody")
             layout.addWidget(summary)
 
@@ -185,7 +185,7 @@ class WorkspaceViewer(QDialog):
     def _rename(self, desktop):
         meta = self._metadata(desktop)
         current = self._desktop_name(desktop, meta)
-        name, ok = QInputDialog.getText(self, "Rename workspace", "Name:",
+        name, ok = QInputDialog.getText(self, tr("Rename workspace"), tr("Name:"),
                                         text=current)
         if ok and name.strip():
             meta["name"] = name.strip()[:64]
@@ -196,7 +196,7 @@ class WorkspaceViewer(QDialog):
     def _set_icon(self, desktop):
         meta = self._metadata(desktop)
         icon, ok = QInputDialog.getText(
-            self, "Workspace icon", "Enter one emoji or short symbol:",
+            self, tr("Workspace icon"), tr("Enter one emoji or short symbol:"),
             text=meta.get("icon", "▦"))
         if ok and icon.strip():
             meta["icon"] = icon.strip()[:4]
@@ -211,14 +211,14 @@ class WorkspaceViewer(QDialog):
             self.reload()
         else:
             QMessageBox.warning(
-                self, "Could not move window",
-                "Windows did not allow this window to move. Some system and "
-                "tool windows cannot be assigned to a virtual desktop.")
+                self, tr("Could not move window"),
+                tr("Windows did not allow this window to move. Some system and "
+                "tool windows cannot be assigned to a virtual desktop."))
 
     def _set_wallpaper(self, desktop):
         path, _ = QFileDialog.getOpenFileName(
-            self, "Choose workspace wallpaper", "",
-            "Images (*.png *.jpg *.jpeg *.bmp *.webp)")
+            self, tr("Choose workspace wallpaper"), "",
+            tr("Images (*.png *.jpg *.jpeg *.bmp *.webp)"))
         if not path:
             return
         if vdesktop.set_wallpaper(desktop, path):
@@ -228,16 +228,16 @@ class WorkspaceViewer(QDialog):
             self.status.setText(tr("Wallpaper applied to this workspace."))
         else:
             QMessageBox.information(
-                self, "Wallpaper unavailable",
-                "Per-workspace wallpaper needs a supported Windows build. "
-                "This build did not accept the request.")
+                self, tr("Wallpaper unavailable"),
+                tr("Per-workspace wallpaper needs a supported Windows build. "
+                "This build did not accept the request."))
 
     def _remove(self, desktop):
         meta = self._metadata(desktop)
         name = self._desktop_name(desktop, meta)
         answer = QMessageBox.question(
-            self, "Remove workspace?",
-            f"Remove {name}? Windows will move its windows to another desktop.")
+            self, tr("Remove workspace?"),
+            tr("Remove {name}? Windows will move its windows to another desktop.", name=name))
         if answer != QMessageBox.Yes:
             return
         if vdesktop.remove(desktop):

@@ -3,6 +3,7 @@ from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QPushButton
 import winapi
 from core.app_config import save_config
+from core.i18n import tr
 
 class TogglesCard(QFrame):
     """Quick toggles.
@@ -21,7 +22,7 @@ class TogglesCard(QFrame):
         for key, label in [("wifi", "Wi-Fi"), ("bluetooth", "BT"),
                            ("airplane", "Plane"), ("awake", "Awake"),
                            ("mute", "Mute")]:
-            b = QPushButton(label)
+            b = QPushButton(tr(label))
             b.setCursor(Qt.PointingHandCursor)
             b.clicked.connect(lambda _=False, k=key: self.toggle(k))
             lay.addWidget(b)
@@ -70,20 +71,21 @@ class TogglesCard(QFrame):
             self.btns[key].setVisible(on is not None)
             if on is not None:
                 changed = self._set_btn(
-                    key, f"{label} {'On' if on else 'Off'}", on) or changed
+                    key, tr("{label} On", label=label) if on else tr("{label} Off", label=label),
+                    on) or changed
         all_off = bool(states) and not any(states.values())
         self.btns["airplane"].setVisible(bool(states))
         if states:
             changed = self._set_btn(
-                "airplane", "Plane On" if all_off else "Plane", all_off) \
+                "airplane", tr("Plane On") if all_off else tr("Plane"), all_off) \
                 or changed
         awake = bool(self.cfg.get("keep_awake"))
         changed = self._set_btn(
-            "awake", "Awake On" if awake else "Awake", awake) or changed
+            "awake", tr("Awake On") if awake else tr("Awake"), awake) or changed
         v = winapi.get_volume()
         muted = bool(v and v[1])
         changed = self._set_btn(
-            "mute", "Muted" if muted else "Mute", muted) or changed
+            "mute", tr("Muted") if muted else tr("Mute"), muted) or changed
         return changed
 
 

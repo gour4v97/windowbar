@@ -1,5 +1,6 @@
 """Optional temperature widget for psutil or LibreHardwareMonitor sensors."""
 import psutil
+from core.i18n import tr
 from widgets.base import Card
 
 WIDGET_ID = "temperature"
@@ -35,7 +36,7 @@ class TemperatureCard(Card):
     def tick(self):
         readings = temperature_readings()
         if not readings:
-            return self.set_texts(body="No sensor available")
+            return self.set_texts(body=tr("No sensor available"))
         name, value = readings[0]
         return self.set_texts(body=f"{name[:10]} {value:.0f}°C")
 

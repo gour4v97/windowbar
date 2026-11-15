@@ -40,7 +40,7 @@ class ControlFlyout(DetailPopup):
         form.addRow(tr("Volume"), self.volume_slider)
         form.addRow("", self.volume_label)
         self.mute_button = QPushButton(
-            "Unmute" if volume and volume[1] else "Mute")
+            tr("Unmute") if volume and volume[1] else tr("Mute"))
         self.mute_button.setEnabled(volume is not None)
         self.mute_button.clicked.connect(self._toggle_mute)
         form.addRow("", self.mute_button)
@@ -64,7 +64,7 @@ class ControlFlyout(DetailPopup):
         volume = winapi.get_volume()
         if volume:
             winapi.set_mute(not volume[1])
-            self.mute_button.setText("Unmute" if not volume[1] else "Mute")
+            self.mute_button.setText(tr("Unmute") if not volume[1] else tr("Mute"))
 
     def _queue_brightness(self, value):
         self._pending_brightness = value

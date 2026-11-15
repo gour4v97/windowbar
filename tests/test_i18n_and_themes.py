@@ -118,6 +118,26 @@ def test_repo_locales_pass_the_checker():
     assert errors == []
 
 
+def test_hindi_locale_is_complete_and_translates():
+    hi = json.loads((ROOT / "locales" / "hi.json").read_text(encoding="utf-8"))
+    en = json.loads((ROOT / "locales" / "en.json").read_text(encoding="utf-8"))
+    assert set(hi) == set(en)  # no missing keys, no stale keys
+    assert i18n.set_locale("hi") == "hi"
+    try:
+        assert i18n.tr("Weather") == "मौसम"
+        assert i18n.tr("Settings…") == "सेटिंग्स…"
+        assert i18n.tr("Run: {cmd}", cmd="notepad.exe") == "चलाएँ: notepad.exe"
+        assert i18n.missing_keys() == []
+    finally:
+        i18n.set_locale("en")
+
+
+def test_locale_display_names():
+    assert i18n.locale_display_name("en") == "English"
+    assert i18n.locale_display_name("hi") == "हिन्दी"
+    assert i18n.locale_display_name("xx") == "xx"
+
+
 def test_extractor_finds_ui_strings_and_ignores_other_calls():
     extract = _script("extract_strings")
     source = '''

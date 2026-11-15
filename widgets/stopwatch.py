@@ -2,6 +2,7 @@
 import time
 from PySide6.QtCore import Qt
 from core.formatting import fmt_hms
+from core.i18n import tr
 from widgets.base import Card
 
 class StopwatchCard(Card):
@@ -14,7 +15,7 @@ class StopwatchCard(Card):
         self.running = False
         self._t = time.monotonic()
         self.setCursor(Qt.PointingHandCursor)
-        self.setToolTip("Click: start/pause   Double-click: reset")
+        self.setToolTip(tr("Click: start/pause   Double-click: reset"))
 
     def _advance(self):
         now = time.monotonic()

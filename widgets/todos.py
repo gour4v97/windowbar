@@ -19,7 +19,7 @@ class TodoCard(Card):
             if self.open_panel:
                 self.open_panel()
             else:
-                text, ok = QInputDialog.getText(self, "New todo", "Todo:")
+                text, ok = QInputDialog.getText(self, tr("New todo"), tr("Todo:"))
                 if ok and text.strip():
                     self.cfg["todos"].append({"t": text.strip(),
                                                "done": False})

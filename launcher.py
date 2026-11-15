@@ -157,16 +157,16 @@ class Launcher(QWidget):
         if text.startswith(">"):
             cmd = text[1:].strip()
             if cmd:
-                rows.append((f"Run: {cmd}", cmd, "shell"))
+                rows.append((tr("Run: {cmd}", cmd=cmd), cmd, "shell"))
         else:
             expr = text[1:] if text.startswith("=") else text
             if text.startswith("=") or any(c in text for c in "+*/^%"):
                 res = search.safe_calc(expr.replace("^", "**"))
                 if res is not None:
-                    rows.append((f"= {res}   (Enter copies)", res, "copy"))
+                    rows.append((tr("= {result}   (Enter copies)", result=res), res, "copy"))
             path = os.path.expandvars(text.strip().strip('"'))
             if len(path) > 2 and os.path.exists(path):
-                rows.append((f"Open {path}", path, "path"))
+                rows.append((tr("Open {path}", path=path), path, "path"))
             rows += search.rank(text, getattr(self, "_all", []), self.MAX_ROWS)
         self.list.clear()
         for name, target, kind in rows[: self.MAX_ROWS]:
