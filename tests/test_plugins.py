@@ -89,6 +89,74 @@ def test_reloading_replaces_previous_results(tmp_path):
     assert plugins.loaded_modules() == [] and plugins.load_errors() == []
 
 
+def test_reload_plugins_applies_new_and_retracts_removed(tmp_path):
+    defaults, labels = {"clock": True}, {"clock": "Clock"}
+    _write(tmp_path, "a.py", GOOD)
+    modules, errors = plugins.reload_plugins(
+        tmp_path, defaults, labels)
+    assert errors == []
+    assert [m.WIDGET_ID for m in modules] == ["hello_plugin"]
+    assert defaults["hello_plugin"] is True and labels["hello_plugin"] == "Hello"
+    (tmp_path / "a.py").unlink()
+    _write(tmp_path, "b.py", GOOD.replace("hello_plugin", "second_plugin"))
+    modules, errors = plugins.reload_plugins(
+        tmp_path, defaults, labels)
+    assert errors == []
+    assert [m.WIDGET_ID for m in modules] == ["second_plugin"]
+    assert "hello_plugin" not in defaults and "hello_plugin" not in labels
+    assert defaults["second_plugin"] is True
+
+
+def test_disable_plugins_retracts_ids_and_unloads(tmp_path):
+    defaults, labels = {"clock": True}, {"clock": "Clock"}
+    _write(tmp_path, "a.py", GOOD)
+    plugins.reload_plugins(tmp_path, defaults, labels)
+    assert plugins.loaded_modules()
+    plugins.disable_plugins(defaults, labels)
+    assert plugins.loaded_modules() == []
+    assert defaults == {"clock": True} and labels == {"clock": "Clock"}
+
+
+def test_reload_plugins_respects_allow_list(tmp_path):
+    defaults, labels = {"clock": True}, {"clock": "Clock"}
+    _write(tmp_path, "hello.py", GOOD)
+    _write(tmp_path, "evil.py", "raise RuntimeError('boom')\n")
+    modules, errors = plugins.reload_plugins(
+        tmp_path, defaults, labels, allowed=["hello"])
+    assert [m.WIDGET_ID for m in modules] == ["hello_plugin"]
+    assert [(e.name, e.reason) for e in errors] == [
+        ("evil", "not in the plugins allow-list")]  # never imported: no boom
+    assert "hello" not in defaults  # ids are widget ids, not entry names
+
+
+def test_reload_reports_broken_plugin_and_keeps_good_one(tmp_path):
+    defaults, labels = {"clock": True}, {"clock": "Clock"}
+    _write(tmp_path, "good.py", GOOD)
+    _write(tmp_path, "bad.py", "def broken(:\n")
+    modules, errors = plugins.reload_plugins(tmp_path, defaults, labels)
+    assert [m.WIDGET_ID for m in modules] == ["hello_plugin"]
+    assert [e.name for e in errors] == ["bad"]
+    assert defaults["hello_plugin"] is True
+
+
+def test_registry_skips_widget_whose_card_fails_to_build():
+    import logging
+    broken = SimpleNamespace(
+        WIDGET_ID="broken_card", make_card=lambda c: 1 / 0)
+    records = []
+    handler = logging.Handler()
+    handler.emit = records.append
+    logging.getLogger("windowsbar.registry").addHandler(handler)
+    try:
+        registry = WidgetRegistry()
+        registry.register_modules([broken], None, {"broken_card": True}, {})
+        active = registry.start_enabled({"widgets": {"broken_card": True}})
+    finally:
+        logging.getLogger("windowsbar.registry").removeHandler(handler)
+    assert active == {}                       # skipped, dock keeps running
+    assert any("failed to build" in r.getMessage() for r in records)
+
+
 def test_apply_plugins_adds_defaults_and_labels_without_overriding():
     defaults, labels = {"clock": True}, {"clock": "Clock"}
     fancy = SimpleNamespace(WIDGET_ID="fancy_one", WIDGET_LABEL="Fancy",

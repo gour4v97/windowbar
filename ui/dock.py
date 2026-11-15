@@ -14,9 +14,9 @@ import extras
 import theme
 import winapi
 import widgets
-from core.app_config import (APP_DIR, SCREEN_TIME_FILE, THEMES_DIR, CUSTOM_QSS,
-    DEFAULTS, WIDGET_LABELS, load_config, save_config,
-    autostart_command, PRESETS, MARGIN)
+from core.app_config import (APP_DIR, PLUGINS_DIR, SCREEN_TIME_FILE,
+    THEMES_DIR, CUSTOM_QSS, DEFAULTS, WIDGET_LABELS, load_config,
+    save_config, autostart_command, PRESETS, MARGIN)
 from core import plugins
 from core.registry import WidgetRegistry
 from launcher import HotkeyFilter, Launcher
@@ -30,7 +30,7 @@ from widgets.clock import ClockCard, AnalogClockCard
 from widgets.apps import AppsCard, _exe_of
 from widgets.notes import NotesCard
 from widgets.todos import TodoCard
-from core.i18n import tr
+from core.i18n import set_locale, tr
 
 _log = logging.getLogger("windowsbar")
 class Dock(QWidget):
@@ -218,6 +218,25 @@ class Dock(QWidget):
         settings = getattr(self, "_settings_window", None)
         if settings is not None:
             settings.refresh()
+
+    def apply_language(self, value):
+        """Switch the interface language and rebuild, no restart."""
+        set_locale(value)
+        self.setWindowTitle(tr("Windows Bar"))
+        self.rebuild()
+        settings = getattr(self, "_settings_window", None)
+        if settings is not None:
+            settings.retranslate()
+
+    def reload_plugins(self):
+        """Reload plugins live from the config, then rebuild."""
+        if self.cfg.get("plugins_enabled"):
+            plugins.reload_plugins(
+                PLUGINS_DIR, DEFAULTS["widgets"], WIDGET_LABELS,
+                self.cfg.get("plugins_allowed"))
+        else:
+            plugins.disable_plugins(DEFAULTS["widgets"], WIDGET_LABELS)
+        self.rebuild()
 
     # Build
     def rebuild(self):

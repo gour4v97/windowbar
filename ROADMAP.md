@@ -197,12 +197,12 @@ Rules: widgets never touch Win32 directly (go through `native/`); all native hoo
 ---
 ## 8. What is left to finish (prioritised)
 
-Done since the last revision: most static UI routed through `tr()` (a few runtime strings remain — see C1); `PluginContext` (stable plugin surface); Inno Setup script and winget templates; Linux CI job (now blocking) with offscreen Qt tests and ruff. Since then: the remaining UI strings (dock menus, dialogs, tooltips, launcher rows) are routed through `tr()` too, and the Hindi locale (`locales/hi.json`, 226/226 keys) was reviewed by a native speaker (Hinglish mix: 78 strings translated, 148 kept in English) and is advertised as supported. Since then: `PLUGIN_API = 2` frozen with a per-plugin allow-list (see C2).
+Done since the last revision: most static UI routed through `tr()` (a few runtime strings remain — see C1); `PluginContext` (stable plugin surface); Inno Setup script and winget templates; Linux CI job (now blocking) with offscreen Qt tests and ruff. Since then: the remaining UI strings (dock menus, dialogs, tooltips, launcher rows) are routed through `tr()` too, and the Hindi locale (`locales/hi.json`, 226/226 keys) was reviewed by a native speaker (Hinglish mix: 78 strings translated, 148 kept in English) and is advertised as supported. Since then: `PLUGIN_API = 2` frozen with a per-plugin allow-list (see C2). Since then: live reload for language/plugin changes (C4) — no restart needed.
 
 **A. Needs a real Windows session (cannot be checked from CI or a sandbox)**
 1. Run the app and click through Settings > General: language, plugins, export/import. Check that menus and popups still behave after the `tr()` wrapping.
 2. Phase 4/5 live checks: custom Alt+Tab hook and latency, desktop-layer widgets, per-desktop wallpaper, `pyvda` COM access, tiling hotkeys (`RegisterHotKey`) and safe release.
-3. Drop `plugins-example/hello_plugin.py` into the plugins folder, enable plugins, restart, and confirm the widget appears.
+3. Drop `plugins-example/hello_plugin.py` into the plugins folder, enable plugins and confirm the widget appears.
 4. Build the PyInstaller bundle, then the Inno Setup installer (`packaging/windowbar.iss`), on a clean account and test install, autostart and uninstall.
 
 **B. Release readiness**
@@ -215,9 +215,9 @@ Done since the last revision: most static UI routed through `tr()` (a few runtim
 1. Hindi locale (`locales/hi.json`) reviewed and supported (see above). Weather descriptions from the API stay English (they arrive as data, not UI text).
 2. `PLUGIN_API = 2` frozen around `PluginContext` (`get_config`, `tokens`, `app_dir`, `logger` guaranteed; Dock forwarding deprecated, removed in API 3). Version 1 still loads with a deprecation warning. Per-plugin allow-list added: `plugins_allowed` in config.json (entry names, checked before import; `null` = allow all).
 3. Keyboard paths for the controls that still need a mouse — done: clickable cards are Tab-focusable with Enter/Space running `activate()` (the click action) and Shift+Enter running `activate_alternate()` (reset / set-minutes); focused cards get an accent outline; Ctrl+Alt+D focuses the dock from anywhere (`focus_hotkey`, Settings > Hotkeys); Alt+Up/Down moves rows in the Arrange widgets dialog. Not done on purpose: the desktop-widgets panel is `WindowDoesNotAcceptFocus` by design, so it stays drag-only; dock drag-to-edge already has a keyboard path via Settings > Layout.
-4. Live reload for language/plugin changes (currently needs a restart).
+4. Live reload for language/plugin changes — done: changing the language or enabling/disabling a plugin in Settings > General applies right away, no restart.
 
 **D. Quality**
 1. Offscreen Qt tests cover the Settings window (14 tests: tabs, widget/language/plugin toggles, plugin status, refresh, hotkeys, tiling controls, secondary-display disabling, export/import, Arrange widgets dialog incl. save/cancel/stored order); the Linux CI job is blocking and green on GitHub (run 254).
 
-**Suggested order:** A -> B1/B2 -> C1 -> B4 -> C2 -> D. Done since: C3 (keyboard paths), D (Settings tests + blocking Linux CI).
+**Suggested order:** A -> B1/B2 -> C1 -> B4 -> C2 -> D. Done since: C3 (keyboard paths), D (Settings tests + blocking Linux CI), C4 (live reload).

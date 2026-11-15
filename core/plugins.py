@@ -20,6 +20,11 @@ deprecation warning; declare ``PLUGIN_API = 2`` for new plugins. The optional
 ``plugins_allowed`` config list names the plugin files/packages that may load
 (by folder entry name, checked before import); when it is set, anything not
 listed is skipped and reported instead of imported.
+
+Live reload (``reload_plugins`` / ``disable_plugins``) re-reads the folder
+without a restart: ids added to the widget defaults and labels by
+``apply_plugins`` are tracked and retracted again when the plugin goes away,
+so a removed plugin leaves no stale widget behind.
 """
 import importlib.util
 import logging
@@ -36,6 +41,7 @@ _log = logging.getLogger("windowsbar.plugins")
 
 _loaded = []          # modules of successfully loaded plugins
 _errors = []          # PluginError records from the last load
+_applied = set()      # widget ids apply_plugins added to the defaults/labels
 
 
 @dataclass(frozen=True)
@@ -136,11 +142,43 @@ def apply_plugins(modules, widget_defaults, labels):
     """Add plugin ids/labels to the config defaults and label maps in place."""
     for module in modules:
         widget_id = module.WIDGET_ID
+        new_id = widget_id not in widget_defaults
         widget_defaults.setdefault(widget_id, bool(
             getattr(module, "WIDGET_DEFAULT", False)))
         label = getattr(module, "WIDGET_LABEL", None)
         labels.setdefault(widget_id, str(label) if label
                           else widget_id.replace("_", " ").title())
+        if new_id:
+            _applied.add(widget_id)
+
+
+def remove_applied(widget_defaults, labels):
+    """Retract the ids ``apply_plugins`` added, so removed plugins vanish."""
+    for widget_id in list(_applied):
+        widget_defaults.pop(widget_id, None)
+        labels.pop(widget_id, None)
+    _applied.clear()
+
+
+def reload_plugins(plugins_dir, widget_defaults, labels, allowed=None):
+    """Re-read ``plugins_dir`` live; return ``(modules, errors)``.
+
+    Retracts the previously applied plugin ids first, then loads the folder
+    again (``allowed`` is the allow-list, checked before import) and applies
+    the new set. A plugin that fails is reported in ``errors`` and skipped,
+    like at startup — it never stops the reload.
+    """
+    remove_applied(widget_defaults, labels)
+    modules, errors = load_plugins(
+        plugins_dir, set(widget_defaults), allowed)
+    apply_plugins(modules, widget_defaults, labels)
+    return modules, errors
+
+
+def disable_plugins(widget_defaults, labels):
+    """Unload every plugin and retract its ids from the defaults/labels."""
+    remove_applied(widget_defaults, labels)
+    unload_plugins()
 
 
 def loaded_modules():

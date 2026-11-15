@@ -1,7 +1,7 @@
 r"""Example Windows Bar plugin.
 
 Copy this file to  %APPDATA%\Windows Bar\plugins\hello_plugin.py,
-turn on Settings > General > "Load widget plugins", restart Windows Bar,
+turn on Settings > General > "Load widget plugins",
 then enable "Hello" in Settings > Widgets.
 
 If ``plugins_allowed`` is set in config.json, add "hello_plugin" to it —

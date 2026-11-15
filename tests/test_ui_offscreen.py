@@ -138,6 +138,9 @@ def _fake_dock(monkeypatch, primary=True, screen=None, tiling_ok=True):
     dock.clear_widget_style = lambda: dock.calls.append(
         ("clear_widget_style",))
     dock.rebuild = lambda: dock.calls.append(("rebuild",))
+    dock.apply_language = lambda value: dock.calls.append(
+        ("apply_language", value))
+    dock.reload_plugins = lambda: dock.calls.append(("reload_plugins",))
     return dock
 
 
@@ -215,7 +218,7 @@ def test_settings_plugins_toggle_and_status(qapp, monkeypatch, tmp_path):
     window.plugins_enabled.setChecked(True)
     assert dock.cfg["plugins_enabled"] is True
     assert ("save_global", "plugins_enabled", True) in saved
-    assert window.plugin_status.text() == "Plugins load when the app restarts."
+    assert window.plugin_status.text() == "No plugins loaded."
     (tmp_path / "hello.py").write_text(
         'WIDGET_ID = "hello_plugin"\nWIDGET_LABEL = "Hello"\n'
         'def make_card(c): pass\n', encoding="utf-8")
@@ -226,6 +229,82 @@ def test_settings_plugins_toggle_and_status(qapp, monkeypatch, tmp_path):
         window._refresh_plugin_status()
         status = window.plugin_status.text()
         assert "Loaded plugins: hello_plugin" in status
+        assert "broken" in status and "import failed" in status
+    finally:
+        plugins.unload_plugins()
+
+
+def test_settings_language_switch_applies_live(qapp, monkeypatch):
+    from core import i18n
+    window, dock, saved = _settings(monkeypatch, qapp)
+    window.language_choice.setCurrentIndex(
+        window.language_choice.findData("hi"))
+    assert dock.cfg["language"] == "hi"
+    assert ("save_global", "language", "hi") in saved
+    assert ("apply_language", "hi") in dock.calls
+    # The real Dock switches the catalog and rebuilds; simulate that here.
+    try:
+        i18n.set_locale("hi")
+        window.retranslate()
+        assert window._widgets_intro.text() == (
+            "Bar par kaunse widgets dikhane hain, choose karein.")
+        assert window.tabs.tabText(0) == "Widgets"  # untranslated in hi
+        assert window.language_choice.currentData() == "hi"
+        assert window.tabs.currentIndex() == 0  # tab selection kept
+    finally:
+        i18n.set_locale("en")
+        window.retranslate()
+
+
+def test_settings_plugin_enable_loads_live_and_disable_removes_live(
+        qapp, monkeypatch, tmp_path):
+    from core import plugins
+    from core.registry import WidgetRegistry
+    window, dock, saved = _settings(monkeypatch, qapp)
+    (tmp_path / "hello.py").write_text(
+        'WIDGET_ID = "hello_plugin"\nWIDGET_LABEL = "Hello"\n'
+        'def make_card(c): pass\n', encoding="utf-8")
+    try:
+        plugins.load_plugins(tmp_path)  # what dock.reload_plugins does
+        window.plugins_enabled.setChecked(True)
+        assert dock.cfg["plugins_enabled"] is True
+        assert ("save_global", "plugins_enabled", True) in saved
+        assert ("reload_plugins",) in dock.calls
+        assert window.plugin_status.text() == "Loaded plugins: hello_plugin"
+        # The card the dock rebuilds from the loaded modules is live now.
+        registry = WidgetRegistry()
+        registry.register_modules(
+            plugins.loaded_modules(), plugins.PluginContext(dock),
+            {"hello_plugin": True}, {"hello_plugin": "Hello"})
+        active = registry.start_enabled({"widgets": {"hello_plugin": True}})
+        assert "hello_plugin" in active
+        registry.stop_all()
+        window.plugins_enabled.setChecked(False)
+        assert dock.calls.count(("reload_plugins",)) == 2
+        plugins.unload_plugins()  # what dock.reload_plugins does when off
+        window._refresh_plugin_status()
+        assert window.plugin_status.text() == ""
+        assert plugins.loaded_modules() == []
+        registry = WidgetRegistry()
+        registry.register_modules(
+            plugins.loaded_modules(), plugins.PluginContext(dock),
+            {"hello_plugin": True}, {"hello_plugin": "Hello"})
+        assert registry.start_enabled(
+            {"widgets": {"hello_plugin": True}}) == {}
+    finally:
+        plugins.unload_plugins()
+
+
+def test_settings_broken_plugin_fails_cleanly_on_enable(
+        qapp, monkeypatch, tmp_path):
+    from core import plugins
+    window, dock, saved = _settings(monkeypatch, qapp)
+    (tmp_path / "broken.py").write_text("def broken(:\n", encoding="utf-8")
+    try:
+        plugins.load_plugins(tmp_path)
+        window.plugins_enabled.setChecked(True)
+        assert ("reload_plugins",) in dock.calls
+        status = window.plugin_status.text()
         assert "broken" in status and "import failed" in status
     finally:
         plugins.unload_plugins()

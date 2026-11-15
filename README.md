@@ -100,8 +100,8 @@ Export leaves private values (your calendar link) blank unless you add `--includ
 
 Open **Settings > General** to:
 
-- pick the interface **language** (applies after a restart; menus, popups, the launcher and widget titles are translatable; no non-English catalog ships yet; see `docs/localization.md`);
-- turn on **widget plugins**: drop a `.py` file into `%APPDATA%\\Windows Bar\\plugins` (example: `plugins-example/hello_plugin.py`), enable the option, restart, then tick the widget in Settings > Widgets. Plugins run with your permissions, so only use ones you trust;
+- pick the interface **language** (applies right away; menus, popups, the launcher and widget titles are translatable; no non-English catalog ships yet; see `docs/localization.md`);
+- turn on **widget plugins**: drop a `.py` file into `%APPDATA%\\Windows Bar\\plugins` (example: `plugins-example/hello_plugin.py`), enable the option, then tick the widget in Settings > Widgets. Plugins run with your permissions, so only use ones you trust;
 - **export / import** your settings from a file dialog (the same as the `--export-config` / `--import-config` command-line flags above).
 
 ## Performance

@@ -1,9 +1,12 @@
 """Small widget registry and lifecycle bridge for Windows Bar."""
 
+import logging
 from dataclasses import dataclass
 import importlib
 import pkgutil
 from typing import Callable, Protocol, runtime_checkable
+
+_log = logging.getLogger("windowsbar.registry")
 
 
 @runtime_checkable
@@ -93,7 +96,14 @@ class WidgetRegistry:
             if widget_id in self._active:
                 continue
             if enabled.get(widget_id, definition.default_config):
-                widget = definition.factory()
+                try:
+                    widget = definition.factory()
+                except Exception:
+                    # A widget whose card fails to build (a broken plugin,
+                    # for example) is skipped, not allowed to kill the dock.
+                    _log.warning("widget %s failed to build; skipped",
+                                 widget_id, exc_info=True)
+                    continue
                 widget.start()
                 self._active[widget_id] = widget
         return dict(self._active)

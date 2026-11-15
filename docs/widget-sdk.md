@@ -75,7 +75,7 @@ widget module, plus optional metadata:
 `make_card(context)` receives a `PluginContext` (see "Compatibility and security").
 
 Turn on **Settings > General > Load widget plugins** (or set
-`"plugins_enabled": true` in `config.json`) and restart. Then enable the widget
+`"plugins_enabled": true` in `config.json`); no restart needed. Then enable the widget
 in Settings > Widgets. A copyable example is in
 [`plugins-example/hello_plugin.py`](../plugins-example/hello_plugin.py).
 

@@ -53,6 +53,7 @@ class SettingsWindow(QDialog):
         self._build_window_manager_tab()
         self._build_general_tab()
         close = QPushButton(tr("Close"))
+        self._close_button = close
         close.clicked.connect(self.close)
         row = QHBoxLayout()
         row.addStretch(1)
@@ -63,7 +64,9 @@ class SettingsWindow(QDialog):
     def _build_widgets_tab(self):
         page = QWidget()
         layout = QVBoxLayout(page)
-        layout.addWidget(QLabel(tr("Choose which widgets appear on the bar.")))
+        self._widgets_intro = QLabel(
+            tr("Choose which widgets appear on the bar."))
+        layout.addWidget(self._widgets_intro)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         content = QWidget()
@@ -209,17 +212,19 @@ class SettingsWindow(QDialog):
         form.addRow(tr("Language"), self.language_choice)
         self.plugins_enabled = QCheckBox(
             tr("Load widget plugins from the plugins folder"))
+        self.plugins_enabled.blockSignals(True)
         self.plugins_enabled.setChecked(
             bool(self.dock.cfg.get("plugins_enabled")))
+        self.plugins_enabled.blockSignals(False)
         self.plugins_enabled.toggled.connect(self._set_plugins_enabled)
         form.addRow(tr("Plugins"), self.plugins_enabled)
         layout.addLayout(form)
-        note = QLabel(tr(
-            "Language and plugin changes apply after restarting Windows Bar. "
-            "Plugins are Python code and run with your permissions; only "
-            "enable ones you trust."))
-        note.setWordWrap(True)
-        layout.addWidget(note)
+        self._general_note = QLabel(tr(
+            "Language and plugin changes apply right away \u2014 no restart "
+            "needed. Plugins are Python code and run with your permissions; "
+            "only enable ones you trust."))
+        self._general_note.setWordWrap(True)
+        layout.addWidget(self._general_note)
         self.plugin_status = QLabel("")
         self.plugin_status.setWordWrap(True)
         layout.addWidget(self.plugin_status)
@@ -243,10 +248,12 @@ class SettingsWindow(QDialog):
         if value and value != self.dock.cfg.get("language", "system"):
             self.dock.cfg["language"] = value
             save_global_setting("language", value)
+            self.dock.apply_language(value)
 
     def _set_plugins_enabled(self, enabled):
         self.dock.cfg["plugins_enabled"] = bool(enabled)
         save_global_setting("plugins_enabled", bool(enabled))
+        self.dock.reload_plugins()
         self._refresh_plugin_status()
 
     def _refresh_plugin_status(self):
@@ -258,8 +265,25 @@ class SettingsWindow(QDialog):
         for error in errors:
             lines.append(f"{error.name}: {error.reason}")
         if not lines and self.dock.cfg.get("plugins_enabled"):
-            lines.append(tr("Plugins load when the app restarts."))
+            lines.append(tr("No plugins loaded."))
         self.plugin_status.setText("\n".join(lines))
+
+    def retranslate(self):
+        """Rebuild every tab with the active locale (no restart)."""
+        index = self.tabs.currentIndex()
+        for i in reversed(range(self.tabs.count())):
+            page = self.tabs.widget(i)
+            self.tabs.removeTab(i)
+            page.deleteLater()
+        self._build_widgets_tab()
+        self._build_layout_tab()
+        self._build_appearance_tab()
+        self._build_hotkeys_tab()
+        self._build_window_manager_tab()
+        self._build_general_tab()
+        self._close_button.setText(tr("Close"))
+        self.tabs.setCurrentIndex(max(0, min(index, self.tabs.count() - 1)))
+        self.refresh()
 
     def _open_plugins_folder(self):
         PLUGINS_DIR.mkdir(parents=True, exist_ok=True)
