@@ -58,6 +58,7 @@ DEFAULTS = {
     "dynamic_accent": True,
     "language": "system",
     "plugins_enabled": False,
+    "plugins_allowed": None,   # None = any plugin may load; a list restricts by entry name
     "launcher": True,
     "launcher_hotkey": "alt+space",
     "custom_alt_tab": False,

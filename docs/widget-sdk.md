@@ -57,7 +57,7 @@ widget module, plus optional metadata:
 | `WIDGET_LABEL` | no | Name shown in Settings (default: the id, title-cased) |
 | `WIDGET_DEFAULT` | no | Enabled on first run (default `False`) |
 | `WIDGET_ORDER` | no | Discovery order |
-| `PLUGIN_API` | no | Must be `1` if present |
+| `PLUGIN_API` | no | Must be `1` or `2`; `2` is current, `1` still loads but is deprecated |
 
 `make_card(context)` receives a `PluginContext` (see "Compatibility and security").
 
@@ -72,10 +72,12 @@ Loading is off by default.
 
 ## Compatibility and security
 
-Built-in widgets receive the internal Dock object as context. Runtime plugins instead receive a `PluginContext` (below); its surface is the stable plugin API, currently version 1. Widgets are Python code and run with the same
+Built-in widgets receive the internal Dock object as context. Runtime plugins instead receive a `PluginContext`; its surface is the stable plugin API, currently version 2 (frozen). Widgets are Python code and run with the same
 permissions as Windows Bar. There is no sandbox and no package installer: **a plugin can do anything you
-can do**, so only enable plugins you have read or trust. `PLUGIN_API = 1` is
-the first version. Plugins receive a `PluginContext` with a small stable surface:
+can do**, so only enable plugins you have read or trust.
+
+`PLUGIN_API = 2` is the current version. Version 1 plugins still load, but log a deprecation warning — declare `PLUGIN_API = 2` for new plugins. Plugins receive a `PluginContext` with a frozen surface:
 `get_config(key, default)` (a copy), `tokens` (theme colours), `app_dir` and
-`logger`. Other attributes are forwarded to the internal Dock for compatibility,
-but log a one-time warning and may break in a future version.
+`logger`. Other attributes are still forwarded to the internal Dock, but log a one-time warning and are deprecated — they stop being forwarded in API 3.
+
+Optional allow-list: set `"plugins_allowed": ["hello_plugin"]` in `config.json` to name the plugin files/packages that may load (by folder entry name, checked before import). When it is set, anything not listed is skipped and reported in Settings > General instead of imported. When it is absent (or `null`), any plugin may load — the default.

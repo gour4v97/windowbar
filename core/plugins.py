@@ -8,12 +8,18 @@ It exports the same contract as a built-in widget module::
     def make_card(context): ...     # required, returns a Card
 
 and may add ``WIDGET_LABEL`` (display name), ``WIDGET_DEFAULT`` (enabled on
-first run, default False), ``WIDGET_ORDER`` and ``PLUGIN_API`` (default 1).
+first run, default False), ``WIDGET_ORDER`` and ``PLUGIN_API`` (default 2).
 
 Plugins are ordinary Python code and run with the user's permissions, so
 loading is off unless ``plugins_enabled`` is true in the config. A plugin that
 fails to import, is invalid, or reuses an id is skipped and reported; it can
 never stop the dock from starting.
+
+``PLUGIN_API`` is 2 (frozen). Version 1 plugins still load, but log a
+deprecation warning; declare ``PLUGIN_API = 2`` for new plugins. The optional
+``plugins_allowed`` config list names the plugin files/packages that may load
+(by folder entry name, checked before import); when it is set, anything not
+listed is skipped and reported instead of imported.
 """
 import importlib.util
 import logging
@@ -22,7 +28,9 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-API_VERSION = 1
+API_VERSION = 2
+SUPPORTED_API_VERSIONS = (1, 2)
+DEPRECATED_API_VERSIONS = (1,)
 ID_PATTERN = re.compile(r"^[a-z][a-z0-9_]{1,31}$")
 _log = logging.getLogger("windowsbar.plugins")
 
@@ -79,20 +87,29 @@ def validate(module, reserved_ids=()):
     if not callable(getattr(module, "make_card", None)):
         return "make_card(context) is missing"
     api = getattr(module, "PLUGIN_API", API_VERSION)
-    if api != API_VERSION:
-        return f"PLUGIN_API {api!r} is not supported (need {API_VERSION})"
+    if api not in SUPPORTED_API_VERSIONS:
+        return (f"PLUGIN_API {api!r} is not supported "
+                f"(supported: {', '.join(map(str, SUPPORTED_API_VERSIONS))})")
     return None
 
 
-def load_plugins(plugins_dir, reserved_ids=()):
+def load_plugins(plugins_dir, reserved_ids=(), allowed=None):
     """Import every plugin in ``plugins_dir``; return ``(modules, errors)``.
 
     ``reserved_ids`` are ids that may not be reused (built-in widgets).
+    ``allowed`` is an optional collection of plugin entry names (file or
+    folder names, checked before import): when given, anything not listed is
+    skipped and reported instead of imported. ``None`` allows everything.
     Results are also kept for ``loaded_modules()`` / ``load_errors()``.
     """
     unload_plugins()
+    allowed_set = None if allowed is None else {str(item) for item in allowed}
     taken = set(reserved_ids)
     for name, path in _candidates(plugins_dir):
+        if allowed_set is not None and name not in allowed_set:
+            _errors.append(PluginError(name, "not in the plugins allow-list"))
+            _log.warning("plugin %s skipped: not in the allow-list", name)
+            continue
         try:
             module = _import(name, path)
         except (Exception, SystemExit) as exc:   # must not kill the app
@@ -105,6 +122,10 @@ def load_plugins(plugins_dir, reserved_ids=()):
             _log.warning("plugin %s rejected: %s", name, reason)
             sys.modules.pop(module.__name__, None)
             continue
+        if getattr(module, "PLUGIN_API", API_VERSION) in DEPRECATED_API_VERSIONS:
+            _log.warning(
+                "plugin %s uses deprecated PLUGIN_API 1; declare PLUGIN_API = 2",
+                name)
         taken.add(module.WIDGET_ID)
         _loaded.append(module)
         _log.info("plugin %s loaded as widget %s", name, module.WIDGET_ID)
@@ -140,10 +161,11 @@ def unload_plugins():
 class PluginContext:
     """The small, documented object plugins receive instead of the raw Dock.
 
-    Stable members: ``get_config(key, default)``, ``tokens`` (current theme
-    tokens), ``app_dir`` and ``logger``. Anything else is forwarded to the
-    underlying Dock for backwards compatibility, but it is internal, may change
-    without notice, and logs a one-time warning naming the attribute.
+    Frozen for ``PLUGIN_API`` 2: ``get_config(key, default)``, ``tokens``
+    (current theme tokens), ``app_dir`` and ``logger`` are guaranteed to keep
+    working. Anything else is forwarded to the underlying Dock for backwards
+    compatibility, but it is internal, logs a one-time warning naming the
+    attribute, and is deprecated — it will stop being forwarded in API 3.
     """
 
     def __init__(self, dock, app_dir=None, logger=None):

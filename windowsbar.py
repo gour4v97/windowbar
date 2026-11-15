@@ -28,7 +28,8 @@ def main():
     _log.info("language: %s", set_locale(settings.get("language", "system")))
     if settings.get("plugins_enabled"):
         built_in = set(DEFAULTS["widgets"])
-        loaded, errors = plugins.load_plugins(PLUGINS_DIR, built_in)
+        loaded, errors = plugins.load_plugins(
+            PLUGINS_DIR, built_in, settings.get("plugins_allowed"))
         plugins.apply_plugins(loaded, DEFAULTS["widgets"], WIDGET_LABELS)
         for error in errors:
             _log.warning("plugin skipped: %s (%s)", error.name, error.reason)

@@ -217,3 +217,49 @@ def test_plugin_context_exposes_stable_members_and_warns_on_internals():
         pass
     else:
         raise AssertionError("dunder lookups must not be forwarded")
+
+
+# PLUGIN_API 2 freeze + allow-list
+def test_api_v2_loads_and_v1_loads_with_deprecation_warning(tmp_path):
+    import logging
+    _write(tmp_path, "v2.py",
+           'WIDGET_ID = "v2_plugin"\nPLUGIN_API = 2\ndef make_card(c): pass\n')
+    _write(tmp_path, "v1.py",
+           'WIDGET_ID = "v1_plugin"\nPLUGIN_API = 1\ndef make_card(c): pass\n')
+    _write(tmp_path, "plain.py",
+           'WIDGET_ID = "plain_plugin"\ndef make_card(c): pass\n')
+    records = []
+    handler = logging.Handler()
+    handler.emit = records.append
+    logging.getLogger("windowsbar.plugins").addHandler(handler)
+    try:
+        modules, errors = plugins.load_plugins(tmp_path)
+    finally:
+        logging.getLogger("windowsbar.plugins").removeHandler(handler)
+    assert errors == []
+    assert sorted(m.WIDGET_ID for m in modules) == [
+        "plain_plugin", "v1_plugin", "v2_plugin"]
+    # Undeclared PLUGIN_API defaults to the current version: no warning.
+    # The v1 plugin loads, but is warned about once.
+    warned = [r.getMessage() for r in records
+              if "deprecated" in r.getMessage()]
+    assert len(warned) == 1 and "v1" in warned[0]
+
+
+def test_allow_list_filters_before_import(tmp_path):
+    _write(tmp_path, "hello.py", GOOD)
+    _write(tmp_path, "evil.py", "raise RuntimeError('boom')\n")
+    modules, errors = plugins.load_plugins(tmp_path, allowed=["hello"])
+    assert [m.WIDGET_ID for m in modules] == ["hello_plugin"]
+    assert [(e.name, e.reason) for e in errors] == [
+        ("evil", "not in the plugins allow-list")]  # never imported: no boom
+
+
+def test_allow_list_none_allows_all_and_empty_blocks_all(tmp_path):
+    _write(tmp_path, "hello.py", GOOD)
+    modules, errors = plugins.load_plugins(tmp_path, allowed=None)
+    assert [m.WIDGET_ID for m in modules] == ["hello_plugin"]
+    modules, errors = plugins.load_plugins(tmp_path, allowed=[])
+    assert modules == []
+    assert [(e.name, e.reason) for e in errors] == [
+        ("hello", "not in the plugins allow-list")]

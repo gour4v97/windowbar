@@ -197,7 +197,7 @@ Rules: widgets never touch Win32 directly (go through `native/`); all native hoo
 ---
 ## 8. What is left to finish (prioritised)
 
-Done since the last revision: most static UI routed through `tr()` (a few runtime strings remain — see C1); `PluginContext` (stable plugin surface); Inno Setup script and winget templates; Linux CI job (experimental) with offscreen Qt tests and ruff. Since then: the remaining UI strings (dock menus, dialogs, tooltips, launcher rows) are routed through `tr()` too, and a Hindi locale (`locales/hi.json`, 226/226 keys) is drafted — it still needs a native-speaker review before it is advertised.
+Done since the last revision: most static UI routed through `tr()` (a few runtime strings remain — see C1); `PluginContext` (stable plugin surface); Inno Setup script and winget templates; Linux CI job (experimental) with offscreen Qt tests and ruff. Since then: the remaining UI strings (dock menus, dialogs, tooltips, launcher rows) are routed through `tr()` too, and the Hindi locale (`locales/hi.json`, 226/226 keys) was reviewed by a native speaker (Hinglish mix: 78 strings translated, 148 kept in English) and is advertised as supported. Since then: `PLUGIN_API = 2` frozen with a per-plugin allow-list (see C2).
 
 **A. Needs a real Windows session (cannot be checked from CI or a sandbox)**
 1. Run the app and click through Settings > General: language, plugins, export/import. Check that menus and popups still behave after the `tr()` wrapping.
@@ -212,8 +212,8 @@ Done since the last revision: most static UI routed through `tr()` (a few runtim
 4. Fill in `packaging/winget/` after the first public installer, and sign it if feasible.
 
 **C. Code**
-1. Hindi locale (`locales/hi.json`) drafted, 226/226 keys, `--strict` passes — needs a native-speaker review before it is advertised. Weather descriptions from the API stay English (they arrive as data, not UI text).
-2. Freeze `PLUGIN_API = 2` around `PluginContext` once it has had real use; consider a per-plugin allow-list.
+1. Hindi locale (`locales/hi.json`) reviewed and supported (see above). Weather descriptions from the API stay English (they arrive as data, not UI text).
+2. `PLUGIN_API = 2` frozen around `PluginContext` (`get_config`, `tokens`, `app_dir`, `logger` guaranteed; Dock forwarding deprecated, removed in API 3). Version 1 still loads with a deprecation warning. Per-plugin allow-list added: `plugins_allowed` in config.json (entry names, checked before import; `null` = allow all).
 3. Keyboard paths for the controls that still need a mouse.
 4. Live reload for language/plugin changes (currently needs a restart).
 

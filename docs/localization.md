@@ -27,4 +27,4 @@ To add a string: write it as `tr("English text")` in the UI code, then run `pyth
 - [x] Route the static UI (dock menus, popups, launcher, card titles) through `tr()`.
 - [x] Route runtime-built strings (f-strings, service messages) through `tr()` with placeholders.
 - [x] First non-English locale drafted: `locales/hi.json`, 226/226 keys, `check_locales.py --strict` passes.
-- [ ] Complete a native-speaker review before advertising a locale as supported.
+- [x] Native-speaker review done (2026-11-15, commit `bc80ae3`): the Hindi locale is a Hinglish mix — 78 strings translated, 148 kept in English, which is how the app is actually used. It is advertised as supported.

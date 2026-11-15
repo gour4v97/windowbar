@@ -124,9 +124,11 @@ def test_hindi_locale_is_complete_and_translates():
     assert set(hi) == set(en)  # no missing keys, no stale keys
     assert i18n.set_locale("hi") == "hi"
     try:
-        assert i18n.tr("Weather") == "मौसम"
-        assert i18n.tr("Settings…") == "सेटिंग्स…"
-        assert i18n.tr("Run: {cmd}", cmd="notepad.exe") == "चलाएँ: notepad.exe"
+        # Reviewed Hinglish mix (commit bc80ae3): some strings stay English,
+        # others are translated — assert on ones he did translate.
+        assert i18n.tr("Bar position") == "Bar ki position"
+        assert i18n.tr("Run: {cmd}", cmd="notepad.exe") == "Run karein: notepad.exe"
+        assert i18n.tr("Weather") == "Weather"  # kept English on purpose
         assert i18n.missing_keys() == []
     finally:
         i18n.set_locale("en")
