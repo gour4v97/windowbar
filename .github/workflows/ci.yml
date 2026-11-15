@@ -21,11 +21,11 @@ jobs:
         run: python scripts/validate_themes.py
       - run: pytest -q
 
-  # Experimental: pure-Python and offscreen-Qt tests on Linux, plus a linter.
-  # Windows-only code paths are skipped or fail here, so this never blocks merging.
+  # Pure-Python and offscreen-Qt tests on Linux, plus a linter.
+  # Blocking: the full suite (including the offscreen Settings tests) is
+  # expected to pass here; Windows-only paths are skipped, not failed.
   linux:
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
