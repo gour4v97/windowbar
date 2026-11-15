@@ -1,6 +1,7 @@
 """Shared Qt card base and small display helpers."""
 
-from PySide6.QtWidgets import QFrame, QLabel, QVBoxLayout
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QFrame, QLabel, QVBoxLayout, QWidget
 
 from core.i18n import tr
 
@@ -11,7 +12,13 @@ def clip(text, n):
 
 
 class Card(QFrame):
-    """A titled card refreshed by the dock's timer."""
+    """A titled card refreshed by the dock's timer.
+
+    Keyboard path: a card whose class handles a left-click is focusable
+    (Tab) and Enter/Space runs ``activate()`` — the keyboard equivalent of
+    that click. Shift+Enter runs ``activate_alternate()`` where the card
+    defines one (reset / set-minutes). Display-only cards stay unfocusable.
+    """
 
     INTERVAL = 1
     ALWAYS = False
@@ -20,6 +27,8 @@ class Card(QFrame):
     def __init__(self, title):
         super().__init__()
         self.setObjectName("card")
+        clickable = type(self).mousePressEvent is not QWidget.mousePressEvent
+        self.setFocusPolicy(Qt.StrongFocus if clickable else Qt.NoFocus)
         self._wmax = 0
         lay = QVBoxLayout(self)
         lay.setContentsMargins(12, 6, 12, 6)
@@ -30,6 +39,28 @@ class Card(QFrame):
         self.body.setObjectName("cardbody")
         lay.addWidget(self.title)
         lay.addWidget(self.body)
+
+    def activate(self):
+        """Keyboard equivalent of a left-click. Subclasses with their own
+        click action override this; the default covers the common wiring."""
+        for attr in ("open_popup", "open_panel", "on_click"):
+            action = getattr(self, attr, None)
+            if callable(action):
+                action()
+                return
+
+    def activate_alternate(self):
+        """Shift+Enter action (reset / set-minutes). No-op by default."""
+
+    def keyPressEvent(self, event):
+        if event.key() in (Qt.Key_Return, Qt.Key_Enter, Qt.Key_Space):
+            if event.modifiers() & Qt.ShiftModifier:
+                self.activate_alternate()
+            else:
+                self.activate()
+            event.accept()
+            return
+        super().keyPressEvent(event)
 
     def set_texts(self, title=None, body=None):
         changed = False

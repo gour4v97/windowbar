@@ -27,14 +27,23 @@ class PomodoroCard(Card):
             self.remaining -= now - self._t
         self._t = now
 
-    def mousePressEvent(self, e):
-        if e.button() == Qt.LeftButton:
-            self._advance()
-            self.running = not self.running
-
-    def mouseDoubleClickEvent(self, e):
+    def _reset(self):
         self.running = False
         self.remaining = self.minutes * 60.0
+
+    def activate(self):
+        self._advance()
+        self.running = not self.running
+
+    def activate_alternate(self):
+        self._reset()
+
+    def mousePressEvent(self, e):
+        if e.button() == Qt.LeftButton:
+            self.activate()
+
+    def mouseDoubleClickEvent(self, e):
+        self._reset()
 
     def tick(self):
         self._advance()

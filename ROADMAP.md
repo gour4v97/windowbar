@@ -214,10 +214,10 @@ Done since the last revision: most static UI routed through `tr()` (a few runtim
 **C. Code**
 1. Hindi locale (`locales/hi.json`) reviewed and supported (see above). Weather descriptions from the API stay English (they arrive as data, not UI text).
 2. `PLUGIN_API = 2` frozen around `PluginContext` (`get_config`, `tokens`, `app_dir`, `logger` guaranteed; Dock forwarding deprecated, removed in API 3). Version 1 still loads with a deprecation warning. Per-plugin allow-list added: `plugins_allowed` in config.json (entry names, checked before import; `null` = allow all).
-3. Keyboard paths for the controls that still need a mouse.
+3. Keyboard paths for the controls that still need a mouse — done: clickable cards are Tab-focusable with Enter/Space running `activate()` (the click action) and Shift+Enter running `activate_alternate()` (reset / set-minutes); focused cards get an accent outline; Ctrl+Alt+D focuses the dock from anywhere (`focus_hotkey`, Settings > Hotkeys); Alt+Up/Down moves rows in the Arrange widgets dialog. Not done on purpose: the desktop-widgets panel is `WindowDoesNotAcceptFocus` by design, so it stays drag-only; dock drag-to-edge already has a keyboard path via Settings > Layout.
 4. Live reload for language/plugin changes (currently needs a restart).
 
 **D. Quality**
 1. Offscreen Qt tests cover the Settings window (14 tests: tabs, widget/language/plugin toggles, plugin status, refresh, hotkeys, tiling controls, secondary-display disabling, export/import, Arrange widgets dialog incl. save/cancel/stored order); the Linux CI job is blocking and green on GitHub (run 254).
 
-**Suggested order:** A -> B1/B2 -> C1 -> B4 -> C2 -> D.
+**Suggested order:** A -> B1/B2 -> C1 -> B4 -> C2 -> D. Done since: C3 (keyboard paths), D (Settings tests + blocking Linux CI).

@@ -37,6 +37,19 @@ implement `start()` and `stop()` for work that should run only while enabled.
 The dock calls `tick()` during its refresh cycle. Keep I/O off the UI thread;
 use the existing worker/poller patterns for asynchronous work.
 
+## Keyboard
+
+Cards that handle a left-click are focusable (Tab) and Enter/Space runs
+`activate()` — the keyboard equivalent of that click. The base `Card`
+covers the common wiring (`open_popup`, `open_panel`, `on_click`); a card
+with its own click action overrides `activate()` and calls it from its
+`mousePressEvent`, so mouse and keyboard share one code path. Shift+Enter
+runs `activate_alternate()` where the card defines one (reset, set-minutes).
+Display-only cards stay unfocusable. The focused card gets an accent
+outline (`QFrame#card:focus` in `theme.build_qss`). Ctrl+Alt+D focuses the
+dock from anywhere (config key `focus_hotkey`, changeable in Settings >
+Hotkeys); Alt+Up/Down moves the current row in the Arrange widgets dialog.
+
 ## Register it in the product
 
 Add the widget's default key to `core/app_config.py` under `DEFAULTS["widgets"]`

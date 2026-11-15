@@ -1,5 +1,5 @@
 """Live settings window for Windows Bar."""
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QEvent, QObject, Qt
 from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QDialog, QFormLayout, QFrame, QGridLayout,
     QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem, QPushButton,
@@ -14,6 +14,22 @@ from core import plugins
 from core.app_config import (CONFIG, DEFAULTS, PLUGINS_DIR, THEMES_DIR,
                              WIDGET_LABELS, save_config, save_global_setting)
 from core.i18n import available_locales, locale_display_name, tr
+
+
+class _ListMoveFilter(QObject):
+    """Alt+Up/Down moves the current row in a QListWidget."""
+
+    def __init__(self, listing, move_item):
+        super().__init__(listing)
+        self._move_item = move_item
+
+    def eventFilter(self, watched, event):
+        if (event.type() == QEvent.KeyPress
+                and event.modifiers() == Qt.AltModifier
+                and event.key() in (Qt.Key_Up, Qt.Key_Down)):
+            self._move_item(-1 if event.key() == Qt.Key_Up else 1)
+            return True
+        return super().eventFilter(watched, event)
 
 
 class SettingsWindow(QDialog):
@@ -99,6 +115,7 @@ class SettingsWindow(QDialog):
 
         up.clicked.connect(lambda: move_item(-1))
         down.clicked.connect(lambda: move_item(1))
+        listing.installEventFilter(_ListMoveFilter(listing, move_item))
         buttons = QHBoxLayout()
         save = QPushButton(tr("Save order"))
         cancel = QPushButton(tr("Cancel"))
@@ -290,6 +307,10 @@ class SettingsWindow(QDialog):
         self.launcher_key.setPlaceholderText(tr("alt+space"))
         self.launcher_key.editingFinished.connect(self._set_launcher_hotkey)
         form.addRow(tr("Launcher hotkey"), self.launcher_key)
+        self.focus_key = QLineEdit()
+        self.focus_key.setPlaceholderText(tr("ctrl+alt+d"))
+        self.focus_key.editingFinished.connect(self._set_focus_hotkey)
+        form.addRow(tr("Focus bar hotkey"), self.focus_key)
         self.app_modifier = QComboBox()
         self.app_modifier.addItems(["Alt", "Ctrl+Alt", "Win"])
         self.app_modifier.currentTextChanged.connect(self._set_app_modifier)
@@ -407,6 +428,20 @@ class SettingsWindow(QDialog):
             save_config(self.dock.cfg)
             self.dock.sync_hotkey()
 
+    def _set_focus_hotkey(self):
+        value = self.focus_key.text().strip()
+        if value and value != self.dock.cfg.get("focus_hotkey"):
+            if search.parse_hotkey(value) is None:
+                QMessageBox.warning(
+                    self, "Invalid hotkey",
+                    "Use a modifier and key, for example alt+space or ctrl+shift+k.")
+                self.focus_key.setText(
+                    self.dock.cfg.get("focus_hotkey", "ctrl+alt+d"))
+                return
+            self.dock.cfg["focus_hotkey"] = value
+            save_config(self.dock.cfg)
+            self.dock.sync_focus_hotkey()
+
     def _set_app_modifier(self, value):
         key = value.lower()
         if key != self.dock.cfg.get("app_hotkey_modifier", "alt"):
@@ -474,6 +509,7 @@ class SettingsWindow(QDialog):
         self.theme_choice.setCurrentText(cfg.get("theme", "midnight"))
         self.theme_choice.blockSignals(False)
         self.launcher_key.setText(cfg.get("launcher_hotkey", "alt+space"))
+        self.focus_key.setText(cfg.get("focus_hotkey", "ctrl+alt+d"))
         self.custom_alt_tab.blockSignals(True)
         self.custom_alt_tab.setChecked(bool(cfg.get("custom_alt_tab", False)))
         self.custom_alt_tab.setEnabled(self.dock.is_primary_display)

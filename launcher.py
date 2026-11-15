@@ -26,12 +26,17 @@ MOD_NOREPEAT = 0x4000
 
 
 class HotkeyFilter(QAbstractNativeEventFilter):
-    """Global hotkey through RegisterHotKey; works while any app has focus."""
+    """Global hotkey through RegisterHotKey; works while any app has focus.
+
+    Each instance needs its own RegisterHotKey id, so pass one when a
+    second global hotkey is added (the launcher keeps the default).
+    """
     ID = 0xB17
 
-    def __init__(self, callback):
+    def __init__(self, callback, hotkey_id=None):
         super().__init__()
         self.callback = callback
+        self.id = self.ID if hotkey_id is None else hotkey_id
         self.registered = False
 
     def register(self, spec):
@@ -42,7 +47,7 @@ class HotkeyFilter(QAbstractNativeEventFilter):
         mods, vk = parsed
         try:
             self.registered = bool(ctypes.windll.user32.RegisterHotKey(
-                None, self.ID, mods | MOD_NOREPEAT, vk))
+                None, self.id, mods | MOD_NOREPEAT, vk))
         except Exception:
             self.registered = False
         return self.registered
@@ -50,7 +55,7 @@ class HotkeyFilter(QAbstractNativeEventFilter):
     def unregister(self):
         if self.registered and winapi.IS_WIN:
             try:
-                ctypes.windll.user32.UnregisterHotKey(None, self.ID)
+                ctypes.windll.user32.UnregisterHotKey(None, self.id)
             except Exception:
                 pass
         self.registered = False
@@ -60,7 +65,7 @@ class HotkeyFilter(QAbstractNativeEventFilter):
                                               "windows_generic_MSG"):
             try:
                 msg = wintypes.MSG.from_address(int(message))
-                if msg.message == WM_HOTKEY and msg.wParam == self.ID:
+                if msg.message == WM_HOTKEY and msg.wParam == self.id:
                     QTimer.singleShot(0, self.callback)
                     return True, 0
             except Exception:

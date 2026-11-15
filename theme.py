@@ -157,6 +157,7 @@ def build_qss(t):
 QFrame#card {{ background: {qss(t['card'])}; border-radius: {t['radius']}px;
               border: 1px solid transparent; padding: {t['spacing']}px; }}
 QFrame#card:hover {{ border: 1px solid {qss(t['accent'], 90)}; }}
+QFrame#card:focus {{ border: 1px solid {qss(t['accent'], 110)}; }}
 QLabel {{ background: transparent; }}
 QLabel#cardtitle {{ color: {qss(t['muted'])}; font-size: 9px;
                    font-weight: 600; letter-spacing: 1px; }}

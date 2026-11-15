@@ -135,6 +135,9 @@ class Dock(QWidget):
             self.hotkey = HotkeyFilter(self.launcher.toggle)
             QApplication.instance().installNativeEventFilter(self.hotkey)
             self.sync_hotkey()
+            self.focus_hotkey = HotkeyFilter(self.focus_bar, 0xB18)
+            QApplication.instance().installNativeEventFilter(self.focus_hotkey)
+            self.sync_focus_hotkey()
             self.app_hotkeys = AppHotkeyFilter(self._app_hotkey)
             QApplication.instance().installNativeEventFilter(self.app_hotkeys)
             self.app_hotkeys.register_all(
@@ -154,6 +157,7 @@ class Dock(QWidget):
         else:
             self.launcher = shared_shell.launcher
             self.hotkey = shared_shell.hotkey
+            self.focus_hotkey = shared_shell.focus_hotkey
             self.app_hotkeys = shared_shell.app_hotkeys
             self._window_tracker = shared_shell._window_tracker
 
@@ -446,6 +450,21 @@ class Dock(QWidget):
             self.hotkey.register(self.cfg.get("launcher_hotkey", "alt+space"))
         else:
             self.hotkey.unregister()
+
+    def sync_focus_hotkey(self):
+        self.focus_hotkey.register(
+            self.cfg.get("focus_hotkey", "ctrl+alt+d"))
+
+    def focus_bar(self):
+        """Focus the dock from anywhere: unhide, raise, Tab into the cards."""
+        if self._hidden:
+            self._slide(False)
+        self.activateWindow()
+        self.raise_()
+        for card in self.cards:
+            if card.focusPolicy() != Qt.NoFocus:
+                card.setFocus()
+                return
 
     def _sync_autohide_timer(self):
         if self.cfg.get("auto_hide"):

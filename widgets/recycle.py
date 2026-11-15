@@ -12,9 +12,12 @@ class RecycleCard(Card):
         self.setCursor(Qt.PointingHandCursor)
         self.setToolTip(tr("Click to empty the Recycle Bin"))
 
+    def activate(self):
+        QuickCard.empty_bin(self)
+
     def mousePressEvent(self, e):
         if e.button() == Qt.LeftButton:
-            QuickCard.empty_bin(self)
+            self.activate()
 
     def tick(self):
         n = self.poll.value

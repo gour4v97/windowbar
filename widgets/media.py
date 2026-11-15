@@ -12,12 +12,15 @@ class MediaCard(Card):
         self.setCursor(Qt.PointingHandCursor)
         self.setToolTip(tr("Click: details and playback controls"))
 
+    def activate(self):
+        if self.open_popup:
+            self.open_popup()
+        else:
+            self.media.toggle()
+
     def mousePressEvent(self, e):
         if e.button() == Qt.LeftButton:
-            if self.open_popup:
-                self.open_popup()
-            else:
-                self.media.toggle()
+            self.activate()
 
     def tick(self):
         m = self.media

@@ -30,12 +30,14 @@ class TimerCard(Card):
             self.remaining -= now - self._t
         self._t = now
 
-    def mousePressEvent(self, e):
-        if e.button() == Qt.LeftButton:
-            self._advance()
-            self.running = not self.running
+    def activate(self):
+        self._advance()
+        self.running = not self.running
 
-    def mouseDoubleClickEvent(self, e):
+    def activate_alternate(self):
+        self._set_minutes()
+
+    def _set_minutes(self):
         val, ok = QInputDialog.getInt(self, tr("Timer"), tr("Minutes:"),
                                       int(self.cfg["timer_minutes"]), 1, 480)
         if ok:
@@ -43,6 +45,13 @@ class TimerCard(Card):
             self.save(self.cfg)
             self.running = False
             self.remaining = val * 60.0
+
+    def mousePressEvent(self, e):
+        if e.button() == Qt.LeftButton:
+            self.activate()
+
+    def mouseDoubleClickEvent(self, e):
+        self._set_minutes()
 
     def tick(self):
         self._advance()

@@ -13,14 +13,20 @@ class ScriptCard(Card):
         if cfg.get("script_click_command"):
             self.setCursor(Qt.PointingHandCursor)
             self.setToolTip(tr("Click to run the click command"))
+        else:
+            self.setFocusPolicy(Qt.NoFocus)
 
-    def mousePressEvent(self, e):
+    def activate(self):
         cmd = self.cfg.get("script_click_command", "")
-        if e.button() == Qt.LeftButton and cmd:
+        if cmd:
             try:
                 subprocess.Popen(cmd, shell=True)
             except Exception:
                 pass
+
+    def mousePressEvent(self, e):
+        if e.button() == Qt.LeftButton:
+            self.activate()
 
     def tick(self):
         if self.poll.value is None:

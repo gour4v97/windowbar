@@ -61,6 +61,7 @@ DEFAULTS = {
     "plugins_allowed": None,   # None = any plugin may load; a list restricts by entry name
     "launcher": True,
     "launcher_hotkey": "alt+space",
+    "focus_hotkey": "ctrl+alt+d",
     "custom_alt_tab": False,
     "desktop_widgets": False,
     "desktop_widgets_geometry": {},

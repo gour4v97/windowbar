@@ -61,6 +61,7 @@
   "Float title patterns": "Float karne wale window title patterns",
   "Float window classes": "Float karne wali window classes",
   "Focus": "Focus",
+  "Focus bar hotkey": "Focus bar hotkey",
   "Focus timer": "Focus timer",
   "Folder or file path (e.g. D:\\work, %USERPROFILE%):": "Folder ya file ka path (e.g. D:\\work, %USERPROFILE%):",
   "Full width": "Full width",
@@ -222,6 +223,7 @@
   "World": "World",
   "World clocks": "World clocks",
   "alt+space": "alt+space",
+  "ctrl+alt+d": "ctrl+alt+d",
   "ctrl+alt+esc": "ctrl+alt+esc",
   "{label} Off": "{label} Off",
   "{label} On": "{label} On"

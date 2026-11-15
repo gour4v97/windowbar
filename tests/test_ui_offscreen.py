@@ -119,6 +119,7 @@ def _fake_dock(monkeypatch, primary=True, screen=None, tiling_ok=True):
     dock.set_theme = set_theme
     dock.place = lambda: dock.calls.append(("place",))
     dock.sync_hotkey = lambda: dock.calls.append(("sync_hotkey",))
+    dock.sync_focus_hotkey = lambda: dock.calls.append(("sync_focus_hotkey",))
     dock.set_custom_alt_tab = lambda v: dock.calls.append(
         ("set_custom_alt_tab", bool(v)))
     dock.set_window_tracking = lambda v: dock.calls.append(
@@ -386,3 +387,212 @@ def test_settings_arrange_widgets_respects_stored_order(qapp, monkeypatch):
     expected = ["weather", "clock"] + [
         key for key in WIDGET_LABELS if key not in ("weather", "clock")]
     assert seen == expected
+
+
+# --- Card keyboard paths (ROADMAP C3) --------------------------------------
+# Enter/Space on a focused card runs activate(); Shift+Enter runs
+# activate_alternate(). QTest.keyClick drives the real key path offscreen.
+
+def _key(widget, key, modifiers=None):
+    from PySide6.QtTest import QTest
+    widget.setFocus()
+    if modifiers is None:
+        QTest.keyClick(widget, key)
+    else:
+        QTest.keyClick(widget, key, modifiers)
+
+
+def test_card_keyboard_activation_runs_open_popup(qapp):
+    from PySide6.QtCore import Qt
+    from widgets.base import Card
+    calls = []
+    card = Card("Weather")
+    assert card.focusPolicy() == Qt.NoFocus  # display-only base card
+    card.open_popup = lambda: calls.append("popup")
+    # A card that gains a click action at runtime is still the base class,
+    # so activation works even though it is not Tab-focusable.
+    _key(card, Qt.Key_Return)
+    _key(card, Qt.Key_Space)
+    assert calls == ["popup", "popup"]
+    plain = Card("Plain")
+    _key(plain, Qt.Key_Return)  # no action, no crash
+
+
+def test_card_focus_policy_by_clickability(qapp):
+    from PySide6.QtCore import Qt
+    from types import SimpleNamespace
+    from widgets.battery import BatteryCard
+    from widgets.media import MediaCard
+    from widgets.poll import PollCard
+    from widgets.script import ScriptCard
+    poll = SimpleNamespace(value=None, error=None)
+    assert BatteryCard().focusPolicy() == Qt.NoFocus
+    assert MediaCard(SimpleNamespace()).focusPolicy() == Qt.StrongFocus
+    assert PollCard("X", poll).focusPolicy() == Qt.NoFocus
+    assert PollCard("X", poll, on_click=lambda: None).focusPolicy() \
+        == Qt.StrongFocus
+    assert ScriptCard(poll, {}).focusPolicy() == Qt.NoFocus
+    assert ScriptCard(poll, {"script_click_command": "echo hi"}).focusPolicy() \
+        == Qt.StrongFocus
+
+
+def test_pomodoro_keyboard_start_pause_reset(qapp):
+    from PySide6.QtCore import Qt
+    from widgets.focus import PomodoroCard
+    card = PomodoroCard(25)
+    _key(card, Qt.Key_Return)
+    assert card.running is True
+    _key(card, Qt.Key_Return)
+    assert card.running is False
+    _key(card, Qt.Key_Return)
+    _key(card, Qt.Key_Return, Qt.ShiftModifier)
+    assert card.running is False and card.remaining == 25 * 60.0
+
+
+def test_stopwatch_keyboard_start_pause_reset(qapp):
+    from PySide6.QtCore import Qt
+    from widgets.stopwatch import StopwatchCard
+    card = StopwatchCard()
+    _key(card, Qt.Key_Space)
+    assert card.running is True
+    _key(card, Qt.Key_Space, Qt.ShiftModifier)
+    assert card.running is False and card.elapsed == 0.0
+
+
+def test_timer_keyboard_start_and_set_minutes(qapp, monkeypatch):
+    import widgets.timer as timer_module
+    from PySide6.QtCore import Qt
+    from widgets.timer import TimerCard
+    saved = []
+    card = TimerCard({"timer_minutes": 25}, save=lambda cfg: saved.append(cfg))
+    _key(card, Qt.Key_Return)
+    assert card.running is True
+    monkeypatch.setattr(timer_module.QInputDialog, "getInt",
+                        staticmethod(lambda *a: (10, True)))
+    _key(card, Qt.Key_Return, Qt.ShiftModifier)
+    assert card.cfg["timer_minutes"] == 10
+    assert card.remaining == 10 * 60.0 and card.running is False
+    assert saved
+
+
+def test_media_keyboard_toggle_and_popup(qapp):
+    from PySide6.QtCore import Qt
+    from types import SimpleNamespace
+    from widgets.media import MediaCard
+    toggled, opened = [], []
+    media = SimpleNamespace(toggle=lambda: toggled.append(1))
+    card = MediaCard(media)
+    _key(card, Qt.Key_Return)
+    assert toggled == [1] and opened == []
+    card.open_popup = lambda: opened.append(1)
+    _key(card, Qt.Key_Return)
+    assert toggled == [1] and opened == [1]
+
+
+def test_downloads_keyboard_opens_folder(qapp, monkeypatch, tmp_path):
+    import widgets.downloads as downloads_module
+    from PySide6.QtCore import Qt
+    from types import SimpleNamespace
+    from widgets.downloads import DownloadsCard
+    opened = []
+    monkeypatch.setattr(downloads_module.os, "startfile",
+                        lambda path: opened.append(path), raising=False)
+    card = DownloadsCard(SimpleNamespace(value=None, error=None),
+                         folder=tmp_path)
+    _key(card, Qt.Key_Return)
+    assert opened == [str(tmp_path)]
+
+
+def test_script_keyboard_runs_command(qapp, monkeypatch):
+    import widgets.script as script_module
+    from PySide6.QtCore import Qt
+    from types import SimpleNamespace
+    from widgets.script import ScriptCard
+    ran = []
+    monkeypatch.setattr(script_module.subprocess, "Popen",
+                        lambda *a, **k: ran.append(a))
+    poll = SimpleNamespace(value=None, error=None)
+    card = ScriptCard(poll, {"script_click_command": "echo hi"})
+    _key(card, Qt.Key_Return)
+    assert ran == [("echo hi",)]
+    quiet = ScriptCard(poll, {})
+    _key(quiet, Qt.Key_Return)
+    assert ran == [("echo hi",)]
+
+
+def test_recycle_keyboard_calls_empty_bin(qapp, monkeypatch):
+    import widgets.recycle as recycle_module
+    from PySide6.QtCore import Qt
+    from types import SimpleNamespace
+    from widgets.recycle import RecycleCard
+    emptied = []
+    monkeypatch.setattr(recycle_module.QuickCard, "empty_bin",
+                        staticmethod(lambda self: emptied.append(1)))
+    card = RecycleCard(SimpleNamespace(value=None, error=None))
+    _key(card, Qt.Key_Return)
+    assert emptied == [1]
+
+
+def test_todo_keyboard_opens_panel(qapp):
+    from PySide6.QtCore import Qt
+    from widgets.todos import TodoCard
+    opened = []
+    card = TodoCard({"todos": []}, save=lambda cfg: None)
+    card.open_panel = lambda: opened.append(1)
+    _key(card, Qt.Key_Return)
+    assert opened == [1]
+
+
+def test_theme_focus_rule_present(qapp):
+    import theme
+    qss = theme.build_qss(theme.resolve("midnight"))
+    assert "QFrame#card:focus" in qss
+
+
+def test_settings_focus_hotkey_valid_and_invalid(qapp, monkeypatch):
+    import ui.settings as settings_module
+    warned = []
+    monkeypatch.setattr(settings_module.QMessageBox, "warning",
+                        staticmethod(lambda *a: warned.append(a)))
+    window, dock, saved = _settings(monkeypatch, qapp)
+    assert window.focus_key.text() == "ctrl+alt+d"
+    window.focus_key.setText("ctrl+alt+f")
+    window.focus_key.editingFinished.emit()
+    assert dock.cfg["focus_hotkey"] == "ctrl+alt+f"
+    assert ("save_config",) in saved
+    assert ("sync_focus_hotkey",) in dock.calls
+    window.focus_key.setText("bogus")
+    window.focus_key.editingFinished.emit()
+    assert warned, "invalid hotkey must warn"
+    assert window.focus_key.text() == "ctrl+alt+f"
+    assert dock.cfg["focus_hotkey"] == "ctrl+alt+f"
+
+
+def test_settings_arrange_alt_arrow_moves_item(qapp, monkeypatch):
+    import ui.settings as settings_module
+    from PySide6.QtCore import Qt
+    from PySide6.QtTest import QTest
+    from core.app_config import WIDGET_LABELS
+    window, dock, saved = _settings(monkeypatch, qapp)
+
+    def fake_exec(self):
+        listing = self.findChild(QtWidgets.QListWidget)
+        listing.setCurrentRow(0)
+        QTest.keyClick(listing, Qt.Key_Down, Qt.AltModifier)
+        return 1
+
+    monkeypatch.setattr(settings_module.QDialog, "exec", fake_exec)
+    _button(window, "Arrange widget order…").click()
+    order = dock.cfg["widget_order"]
+    assert order[0] == list(WIDGET_LABELS)[1]
+    assert order[1] == list(WIDGET_LABELS)[0]
+    assert ("save_config",) in saved and ("rebuild",) in dock.calls
+
+
+def test_hotkey_filter_ids_are_distinct(qapp):
+    from launcher import HotkeyFilter
+    assert HotkeyFilter(lambda: None).id == HotkeyFilter.ID == 0xB17
+    focus = HotkeyFilter(lambda: None, 0xB18)
+    assert focus.id == 0xB18
+    assert focus.register("ctrl+alt+d") is False  # no Windows here
+    assert focus.registered is False

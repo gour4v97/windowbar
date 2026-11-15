@@ -15,9 +15,12 @@ class DownloadsCard(Card):
         self.setCursor(Qt.PointingHandCursor)
         self.setToolTip(f"Click to open {name}")
 
+    def activate(self):
+        os.startfile(str(self.folder))
+
     def mousePressEvent(self, e):
         if e.button() == Qt.LeftButton:
-            os.startfile(str(self.folder))
+            self.activate()
 
     def tick(self):
         if self.poll.value is None:

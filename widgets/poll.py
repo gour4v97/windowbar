@@ -10,6 +10,8 @@ class PollCard(Card):
         self.poll, self.on_click, self.hint = poll, on_click, hint
         if on_click:
             self.setCursor(Qt.PointingHandCursor)
+        else:
+            self.setFocusPolicy(Qt.NoFocus)
 
     def mousePressEvent(self, e):
         if e.button() == Qt.LeftButton and self.on_click:

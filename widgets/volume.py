@@ -13,11 +13,14 @@ class VolumeCard(Card):
         self.setCursor(Qt.PointingHandCursor)
         self.setToolTip(tr("Click: volume and brightness controls   Scroll: volume"))
 
+    def activate(self):
+        if self.dock is not None:
+            from ui.flyouts import ControlFlyout
+            ControlFlyout(self.dock).show_near(self)
+
     def mousePressEvent(self, e):
         if e.button() == Qt.LeftButton:
-            if self.dock is not None:
-                from ui.flyouts import ControlFlyout
-                ControlFlyout(self.dock).show_near(self)
+            self.activate()
         elif e.button() == Qt.RightButton:
             v = winapi.get_volume()
             if v:

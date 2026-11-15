@@ -14,16 +14,19 @@ class TodoCard(Card):
         self.setCursor(Qt.PointingHandCursor)
         self.setToolTip(tr("Click: open the list   Right-click: complete first"))
 
+    def activate(self):
+        if self.open_panel:
+            self.open_panel()
+        else:
+            text, ok = QInputDialog.getText(self, tr("New todo"), tr("Todo:"))
+            if ok and text.strip():
+                self.cfg["todos"].append({"t": text.strip(),
+                                           "done": False})
+                self.save(self.cfg)
+
     def mousePressEvent(self, e):
         if e.button() == Qt.LeftButton:
-            if self.open_panel:
-                self.open_panel()
-            else:
-                text, ok = QInputDialog.getText(self, tr("New todo"), tr("Todo:"))
-                if ok and text.strip():
-                    self.cfg["todos"].append({"t": text.strip(),
-                                               "done": False})
-                    self.save(self.cfg)
+            self.activate()
         elif e.button() == Qt.RightButton:
             for t in self.cfg["todos"]:
                 if not t["done"]:
