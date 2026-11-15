@@ -218,6 +218,6 @@ Done since the last revision: most static UI routed through `tr()` (a few runtim
 4. Live reload for language/plugin changes (currently needs a restart).
 
 **D. Quality**
-1. Offscreen Qt tests cover the Settings window (11 tests: tabs, widget/language/plugin toggles, plugin status, refresh, hotkeys, tiling controls, secondary-display disabling, export/import); the Linux CI job is now blocking — `continue-on-error` removed from `.github/workflows/ci.yml` (upload the updated file via the web UI).
+1. Offscreen Qt tests cover the Settings window (14 tests: tabs, widget/language/plugin toggles, plugin status, refresh, hotkeys, tiling controls, secondary-display disabling, export/import, Arrange widgets dialog incl. save/cancel/stored order); the Linux CI job is blocking and green on GitHub (run 254).
 
 **Suggested order:** A -> B1/B2 -> C1 -> B4 -> C2 -> D.

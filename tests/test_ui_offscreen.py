@@ -328,3 +328,61 @@ def test_settings_export_import_use_config_store(qapp, monkeypatch, tmp_path):
     _button(window, "Import settings…").click()
     assert len(imported) == 1 and str(tmp_path / "in.json") in imported[0]
     assert informed and "Settings imported" in informed[0][2]
+
+
+def _arrange_dialog(monkeypatch, window, accept=True, move_down=False):
+    """Run _arrange_widgets with exec() stubbed: the stub drives the dialog
+    instead of showing it, so the test never blocks on a modal popup."""
+    import ui.settings as settings_module
+
+    def fake_exec(self):
+        listing = self.findChild(QtWidgets.QListWidget)
+        if move_down:
+            listing.setCurrentRow(0)
+            for button in self.findChildren(QtWidgets.QPushButton):
+                if button.text() == "Move down":
+                    button.click()
+        return 1 if accept else 0
+
+    monkeypatch.setattr(settings_module.QDialog, "exec", fake_exec)
+    _button(window, "Arrange widget order…").click()
+
+
+def test_settings_arrange_widgets_save_order(qapp, monkeypatch):
+    from core.app_config import WIDGET_LABELS
+    window, dock, saved = _settings(monkeypatch, qapp)
+    _arrange_dialog(monkeypatch, window, accept=True, move_down=True)
+    order = dock.cfg["widget_order"]
+    assert len(order) == len(WIDGET_LABELS)
+    assert order[0] == list(WIDGET_LABELS)[1]
+    assert order[1] == list(WIDGET_LABELS)[0]
+    assert ("save_config",) in saved
+    assert ("rebuild",) in dock.calls
+
+
+def test_settings_arrange_widgets_cancel_keeps_order(qapp, monkeypatch):
+    window, dock, saved = _settings(monkeypatch, qapp)
+    _arrange_dialog(monkeypatch, window, accept=False, move_down=True)
+    assert dock.cfg["widget_order"] == []
+    assert saved == [] and ("rebuild",) not in dock.calls
+
+
+def test_settings_arrange_widgets_respects_stored_order(qapp, monkeypatch):
+    import ui.settings as settings_module
+    from PySide6.QtCore import Qt
+    from core.app_config import WIDGET_LABELS
+    window, dock, saved = _settings(monkeypatch, qapp)
+    dock.cfg["widget_order"] = ["weather", "clock"]
+    seen = []
+
+    def fake_exec(self):
+        listing = self.findChild(QtWidgets.QListWidget)
+        seen.extend(listing.item(i).data(Qt.UserRole)
+                    for i in range(listing.count()))
+        return 0
+
+    monkeypatch.setattr(settings_module.QDialog, "exec", fake_exec)
+    _button(window, "Arrange widget order…").click()
+    expected = ["weather", "clock"] + [
+        key for key in WIDGET_LABELS if key not in ("weather", "clock")]
+    assert seen == expected
