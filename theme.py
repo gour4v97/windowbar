@@ -167,6 +167,15 @@ QPushButton {{ background: {qss(t['button'])}; color: {qss(t['text'])}; border: 
               font-size: 12px; padding: {max(4, t['spacing'] // 2)}px 10px; }}
 QPushButton:hover {{ background: {qss(t['accent'], 70)}; }}
 QPushButton[active="true"] {{ background: {qss(t['accent'], 120)}; }}
+QPushButton#appIcon {{ background: transparent; border: none;
+                       border-radius: {max(6, t['radius'] - 4)}px;
+                       padding: 0; }}
+QPushButton#appIcon:hover {{ background: {qss(t['button'], 190)}; }}
+QPushButton#appIcon:focus {{ border: 1px solid {qss(t['accent'], 190)}; }}
+QPushButton#appIcon[active="true"] {{
+    background: {qss(t['accent'], 45)};
+    border-bottom: 2px solid {qss(t['accent'])};
+}}
 QToolTip {{ color: {qss(t['text'])}; background: {qss(t['panel'], 255)};
            border: 1px solid {qss(t['border'])}; padding: 4px; }}
 """
