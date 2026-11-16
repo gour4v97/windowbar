@@ -1,8 +1,10 @@
 """Pinned-app card."""
+import shutil
 import subprocess
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QFileInfo, QSize, Qt
 from PySide6.QtGui import QAction
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QMenu, QPushButton
+from PySide6.QtWidgets import (QFileIconProvider, QFrame, QHBoxLayout,
+                               QMenu, QPushButton)
 import winapi
 
 def _exe_of(cmd):
@@ -15,6 +17,22 @@ def _exe_of(cmd):
     else:
         first = text.split()[0]
     return first.replace("/", "\\").rsplit("\\", 1)[-1].lower()
+
+def _icon_for_command(cmd):
+    """Return the shell icon for a configured executable when it resolves."""
+    text = (cmd or "").strip()
+    if not text:
+        return None
+    if text.startswith('"'):
+        executable = text[1:].split('"', 1)[0]
+    else:
+        executable = text.split()[0]
+    path = (executable if QFileInfo(executable).isAbsolute()
+            else shutil.which(executable))
+    if not path or not QFileInfo(path).exists():
+        return None
+    icon = QFileIconProvider().icon(QFileInfo(path))
+    return icon if not icon.isNull() else None
 
 class AppsCard(QFrame):
     """Pinned apps, with a dot on the running ones."""
@@ -31,8 +49,19 @@ class AppsCard(QFrame):
         lay.setSpacing(6)
         self.btns = {}
         for name, cmd in apps.items():
-            b = QPushButton(name)
+            b = QPushButton()
+            icon = _icon_for_command(cmd)
+            if icon is not None:
+                b.setIcon(icon)
+                b.setIconSize(QSize(23, 23))
+                b.setFixedSize(38, 38)
+                b.setObjectName("appIcon")
+            else:
+                b.setText(name)
+                b.setMinimumHeight(38)
+            b.setProperty("usesNativeIcon", icon is not None)
             b.setCursor(Qt.PointingHandCursor)
+            b.setAccessibleName(name)
             b.setToolTip(name + "  (Win/Alt+number opens or switches)")
             b.clicked.connect(lambda _=False, n=name: self.activate(n))
             b.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -91,7 +120,8 @@ class AppsCard(QFrame):
         self._running = running
         for name, on in running.items():
             b = self.btns[name]
-            b.setText(name + " ●" if on else name)
+            if not b.property("usesNativeIcon"):
+                b.setText(name + " ●" if on else name)
             prop = "true" if on else "false"
             if b.property("active") != prop:
                 b.setProperty("active", prop)

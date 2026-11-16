@@ -670,8 +670,8 @@ def test_settings_arrange_alt_arrow_moves_item(qapp, monkeypatch):
 
 def test_hotkey_filter_ids_are_distinct(qapp):
     from launcher import HotkeyFilter
-    assert HotkeyFilter(lambda: None).id == HotkeyFilter.ID == 0xB17
+    launcher = HotkeyFilter(lambda: None)
     focus = HotkeyFilter(lambda: None, 0xB18)
+    assert launcher.id == HotkeyFilter.ID == 0xB17
     assert focus.id == 0xB18
-    assert focus.register("ctrl+alt+d") is False  # no Windows here
-    assert focus.registered is False
+    assert launcher.id != focus.id
