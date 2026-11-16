@@ -15,8 +15,9 @@ import theme
 import winapi
 import widgets
 from core.app_config import (APP_DIR, PLUGINS_DIR, SCREEN_TIME_FILE,
-    THEMES_DIR, CUSTOM_QSS, DEFAULTS, WIDGET_LABELS, load_config,
-    save_config, autostart_command, PRESETS, MARGIN)
+    THEMES_DIR, CUSTOM_QSS, DEFAULTS, DEFAULT_WIDGET_ORDER,
+    WIDGET_LABELS, load_config, save_config, autostart_command, PRESETS,
+    MARGIN)
 from core import plugins
 from core.registry import WidgetRegistry
 from launcher import HotkeyFilter, Launcher
@@ -258,10 +259,14 @@ class Dock(QWidget):
         configured_order = self.cfg.get("widget_order", [])
         order_index = {key: index for index, key in enumerate(
             configured_order)}
+        default_index = {key: index for index, key in enumerate(
+            DEFAULT_WIDGET_ORDER)}
         active = dict(sorted(
             active.items(),
             key=lambda pair: order_index.get(
-                pair[0], len(order_index) + list(active).index(pair[0]))))
+                pair[0], len(order_index) + default_index.get(
+                    pair[0], len(default_index) + list(active).index(
+                        pair[0])))))
         self._widget_registry = registry
         self._cards_by_id = {widget_id: widget.card()
                              for widget_id, widget in active.items()}
