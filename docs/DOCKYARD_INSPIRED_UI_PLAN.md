@@ -21,6 +21,7 @@ The repository already has configurable widgets, theme tokens and QSS, per-widge
 - [x] Pinned apps use Windows shell icons when the configured executable resolves, retain a readable text fallback, and keep names available to accessibility tools.
 - [x] Detail popups use an opaque theme-matched surface with the existing edge-aware placement behavior.
 - [x] Fixed the Windows CI hotkey-ID test so it checks distinct IDs without attempting to register a real system-wide hotkey.
+- [x] Created an original SVG concept at `docs/mockups/harbor-dock.svg` to make the target layout reviewable before implementation.
 - [ ] Capture and review the dock, app icons, and popups in a real Windows session at common DPI scales; tune the layout from those screenshots.
 
 ## Work plan
