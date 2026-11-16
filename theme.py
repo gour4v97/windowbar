@@ -149,7 +149,10 @@ def build_widget_qss(tokens):
     return f"""
 QFrame#card {{ background: {qss(t['card'])}; border-radius: {t['radius']}px;
               border: 1px solid {qss(t['border'])}; }}
-QFrame#card:hover {{ border: 1px solid {qss(t['accent'], 150)}; }}
+QFrame#card:hover {{ background: {qss(t['accent'], 22)};
+                     border: 1px solid {qss(t['accent'], 150)}; }}
+QFrame#card:focus {{ background: {qss(t['accent'], 30)};
+                     border: 1px solid {qss(t['accent'], 230)}; }}
 QLabel#cardtitle {{ color: {qss(t['muted'])}; }}
 QLabel#cardbody {{ color: {qss(t['text'])}; }}
 QPushButton {{ background: {qss(t['button'])}; color: {qss(t['text'])};
@@ -221,3 +224,4 @@ def dominant_accent(pixels):
     val = min(1.0, max(0.75, sv / wsum))
     r, g, b = colorsys.hsv_to_rgb(hue, sat, val)
     return "#%02x%02x%02x" % (round(r * 255), round(g * 255), round(b * 255))
+
