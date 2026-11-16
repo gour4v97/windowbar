@@ -80,19 +80,27 @@ DEFAULTS = {
     "workspace_metadata": {},
 }
 
+DEFAULT_WIDGET_ORDER = (
+    "progress", "world", "weather", "system", "storage", "network",
+    "battery", "temperature", "downloads", "shots", "apps", "windows",
+    "media", "calendar", "volume", "toggles", "quick", "recycle",
+    "screentime", "github", "revenue", "notes", "todos", "pomodoro",
+    "timer", "stopwatch", "script", "clock",
+)
+
 WIDGET_LABELS = {
-    "apps": "App launcher", "clock": "Clock", "weather": "Weather",
-    "system": "CPU / RAM", "battery": "Battery", "media": "Now playing",
-    "calendar": "Next event", "quick": "Quick actions", "pomodoro": "Focus timer",
-    "todos": "Todos", "stopwatch": "Stopwatch", "downloads": "Downloads",
-    "notes": "Notes", "screentime": "Screen time", "github": "GitHub",
-    "revenue": "Stripe revenue", "recycle": "Recycle Bin",
-    "windows": "Open windows", "shots": "Screenshots",
-    "storage": "Storage", "world": "World clocks",
-    "temperature": "Temperature",
-    "progress": "Day / year progress", "timer": "Timer",
-    "script": "Script output", "network": "Network", "volume": "Volume",
-    "toggles": "Quick toggles",
+    "progress": "Day / year progress", "world": "World clocks",
+    "weather": "Weather", "system": "CPU / RAM", "storage": "Storage",
+    "network": "Network", "battery": "Battery",
+    "temperature": "Temperature", "downloads": "Downloads",
+    "shots": "Screenshots", "apps": "App launcher",
+    "windows": "Open windows", "media": "Now playing",
+    "calendar": "Next event", "volume": "Volume",
+    "toggles": "Quick toggles", "quick": "Quick actions",
+    "recycle": "Recycle Bin", "screentime": "Screen time",
+    "github": "GitHub", "revenue": "Stripe revenue", "notes": "Notes",
+    "todos": "Todos", "pomodoro": "Focus timer", "timer": "Timer",
+    "stopwatch": "Stopwatch", "script": "Script output", "clock": "Clock",
 }
 
 

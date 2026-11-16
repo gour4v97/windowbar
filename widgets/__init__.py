@@ -1,1 +1,0 @@
-"""Windows Bar card widgets."""

@@ -21,6 +21,7 @@ The repository already has configurable widgets, theme tokens and QSS, per-widge
 - [x] Pinned apps use Windows shell icons when the configured executable resolves, retain a readable text fallback, and keep names available to accessibility tools.
 - [x] Detail popups use an opaque theme-matched surface with the existing edge-aware placement behavior.
 - [x] Data tiles use a soft hover tint and a distinct keyboard-focus border, including when per-widget styles are applied.
+- [x] The default widget order groups data tiles before the pinned-app group, places utility widgets after it, and keeps the clock at the far right; any saved custom order still takes precedence.
 - [x] Fixed the Windows CI hotkey-ID test so it checks distinct IDs without attempting to register a real system-wide hotkey.
 - [x] Created an original SVG concept at `docs/mockups/harbor-dock.svg` to make the target layout reviewable before implementation.
 - [ ] Capture and review the dock, app icons, and popups in a real Windows session at common DPI scales; tune the layout from those screenshots.

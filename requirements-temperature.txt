@@ -1,3 +1,0 @@
-# Optional: WMI access for Temperature and compatible internal-display brightness (Windows only).
-wmi; sys_platform == "win32"
-
