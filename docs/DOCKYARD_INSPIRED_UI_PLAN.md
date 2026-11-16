@@ -1,6 +1,6 @@
 # Dockyard-Inspired Windows UI Plan
 
-**Status:** Proposed implementation plan  
+**Status:** In progress  
 **Repository:** `gour4v97/windowbar`  
 **Working branch:** `feature/dockyard-inspired-windows-ui`  
 **Target:** A cohesive, polished Windows dock experience inspired by Dockyard's interaction and visual ideas, implemented with Windows Bar's existing Python/PySide6 stack and Windows-native behavior.
@@ -14,6 +14,14 @@ Use Dockyard as a reference for behavior and visual principles only. Do not copy
 ## Current foundation
 
 The repository already has configurable widgets, theme tokens and QSS, per-widget styling, a launcher, shared popup infrastructure, app pinning, running indicators, hotkeys, per-display profiles, auto-hide, glass effects, and disabled-widget polling controls. This effort should refine and connect those pieces before adding more widgets.
+
+## Progress on the feature branch
+
+- [x] Added the selectable Harbor theme with compact spacing, cool glass surfaces, and distinct app-icon states; existing saved theme choices remain unchanged.
+- [x] Pinned apps use Windows shell icons when the configured executable resolves, retain a readable text fallback, and keep names available to accessibility tools.
+- [x] Detail popups use an opaque theme-matched surface with the existing edge-aware placement behavior.
+- [x] Fixed the Windows CI hotkey-ID test so it checks distinct IDs without attempting to register a real system-wide hotkey.
+- [ ] Capture and review the dock, app icons, and popups in a real Windows session at common DPI scales; tune the layout from those screenshots.
 
 ## Work plan
 
