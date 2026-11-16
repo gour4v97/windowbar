@@ -2,6 +2,7 @@
 from PySide6.QtCore import QPoint, QRect, Qt
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import QWidget
+import theme
 
 
 def popup_position(anchor, popup_size, screen, edge="bottom", gap=6):
@@ -24,10 +25,19 @@ class DetailPopup(QWidget):
     def __init__(self, parent=None, edge="bottom"):
         super().__init__(parent)
         self.edge = edge
+        self.setObjectName("detailPopup")
         self.setWindowFlags(Qt.Popup | Qt.FramelessWindowHint
                             | Qt.WindowStaysOnTopHint)
+        self.setAttribute(Qt.WA_TranslucentBackground)
         if parent is not None:
-            self.setStyleSheet(parent.styleSheet())
+            tokens = getattr(parent, "tokens", theme.resolve("midnight"))
+            self.setStyleSheet(
+                parent.styleSheet()
+                + f"""
+QWidget#detailPopup {{ background: {theme.qss(tokens['panel'], 255)};
+    border: 1px solid {theme.qss(tokens['border'])};
+    border-radius: {tokens['panel_radius']}px; }}
+""")
 
     def show_near(self, anchor, edge=None):
         self.adjustSize()
