@@ -13,6 +13,12 @@ from pathlib import Path
 DEFAULT_THEME = "default"
 
 BUILTIN = {
+    "harbor": dict(
+        panel=(17, 22, 31, 236), glass=(25, 32, 45, 76),
+        border=(196, 211, 235, 54), card=(222, 232, 248, 20),
+        text="#f4f7fc", muted=(192, 203, 221, 165),
+        button=(196, 211, 235, 32), accent="#67a8ff",
+        radius=14, panel_radius=25, font="Segoe UI", spacing=7, blur=92),
     "midnight": dict(
         panel=(18, 18, 22, 225), glass=(20, 20, 24, 60), border=(255, 255, 255, 40),
         card=(255, 255, 255, 18), text="#ffffff", muted=(255, 255, 255, 140),
