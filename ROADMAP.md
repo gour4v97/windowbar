@@ -1,0 +1,223 @@
+# Windows Bar Roadmap
+
+Goal: grow Windows Bar from a single smart dock into a full, customizable Windows desktop shell with the same *feature set* as [Seelen UI](https://github.com/eythaann/seelen-ui), plus the smart-dock extras from [Dockyard](https://github.com/aryansoni57/dockyard).
+
+Legend: ✅ done · 🟡 partial · ⬜ not started · Effort: S (a session) · M (a few sessions) · L (weeks) · XL (a month+)
+
+
+## 0. Ground rules
+
+**Licensing.** Seelen UI is AGPL-3.0. Windows Bar is MIT. Re-implementing *features and behaviour* is fine. Copying Seelen source, CSS, icons, logo or the name is not, and would force Windows Bar to become AGPL. Dockyard has no license file, so treat it as all-rights-reserved: take ideas, not code.
+
+**Stack decision.** The written Phase 3 decision is to stay on Python + PySide6. See `docs/decisions/0001-stack.md`; remeasure the full shell and real key response after hook integration and before expanding into Phase 5 tiling.
+
+
+
+## 1. Where Windows Bar is today
+
+Current state: see README.md and AUDIT.md.
+
+
+## 2. Feature matrix: Seelen UI → Windows Bar
+
+| Seelen feature | Windows Bar now | Target phase | Effort |
+|---|---|---|---|
+| Custom toolbar (replaces taskbar) | ✅ optional split toolbar + pinned-app dock, active-window title, virtual-desktop shortcuts; notification-area tray remains Windows-owned | — | — |
+| Dock with launch / focus / badges | ✅ pinned apps show running dots and focus or launch on click | — | — |
+| Desktop widgets on wallpaper layer | 🟡 draggable clock/system panel implemented; Windows desktop-layer visibility check remains | P4 | L |
+| Custom flyouts (volume, brightness, system) | ✅ volume and WMI internal-panel brightness; system detail popups | — | — |
+| Start menu / keyboard launcher (fuzzy search) | ✅ Alt+Space launcher searches apps, files, commands, and calculator | — | — |
+| Tiling window manager (BSP, columns, stacks) | 🟡 BSP/columns/master-stack engines, per-monitor geometry, keyboard controls, and restoration implemented; host hotkey registration denied here | P5 | XL |
+| Per-app rules, floating mode, gaps | 🟡 executable/class/title rules, floating toggle, and spacing controls implemented | P5 | L |
+| Custom Alt+Tab | 🟡 hook installs and switcher is implemented; real key-navigation/latency check remains | P4 | L |
+| Virtual desktops + workspace viewer | 🟡 control and named/icon viewer implemented; interactive COM access is unavailable in this session | P4 | L |
+| Wallpaper per workspace, named workspaces | 🟡 names/icons and Windows 11 wallpaper action implemented; live COM verification remains | P4 | M |
+| Theming engine (CSS/JSON-style) | ✅ built-in JSON themes, custom themes and QSS | — | — |
+| Dynamic accent from wallpaper | ✅ | — | — |
+| Per-widget theming | ✅ color/radius overrides through Settings | — | — |
+| Community themes / sharing | ⬜ | P6 | M |
+| Media controls | ✅ | — | — |
+| Multi-monitor, per-display config | ✅ one bar and settings profile per connected display | — | — |
+| Settings app with live preview | ✅ separate live Settings window | — | — |
+| Keyboard-first (everything reachable) | 🟡 pinned-app Alt+1..9 (modifier configurable); remaining controls still need keyboard paths | P2 → P3 | M |
+| i18n (Seelen: 70+ languages) | 🟡 loader, language picker, CI checks; only Settings translated, no non-English locale yet | P6 | M |
+| Widget SDK | 🟡 opt-in runtime plugin loader + docs + example; API v1 unstable, no sandbox | P6 | M |
+| Portable, plain-file config | ✅ `config.json`, schema v1 migration, export/import (CLI and Settings) | — | — |
+| Signed installer / winget | ⬜ | P6 | M |
+
+
+## 3. Dockyard ideas to adopt
+
+
+| Dockyard idea | Notes for Windows | Phase |
+|---|---|---|
+| Pinned apps with *running dots* | Match pinned entries to open windows by exe path | P2 |
+| Hotkeys to open/switch pinned apps 1–9 | `Win+1..9` belongs to Explorer; default to `Alt+1..9` (configurable) via `RegisterHotKey` | P2 |
+| World clocks | `zoneinfo`, pure Python | P2 |
+| Pomodoro + countdown timer | Extend the existing focus widget | P2 |
+| Temperature sensor | Often unavailable on Windows without a helper (LibreHardwareMonitor); make it optional | P2 |
+| Disk usage widget | `psutil` | P2 |
+| Click-to-open **detail popup** per widget | Core UI pattern; build once in P1 | P1/P2 |
+| Quick toggles: mute, Wi-Fi, Bluetooth | mute via native Core Audio; radios via WinRT. Do Not Disturb and Night Light are undocumented on Windows and remain unsupported | P2 |
+| Hidden modules stop their timers/sensors | — | P1 |
+| Glass desktop theme | Ship as a built-in theme | P3 |
+
+
+## 4. Target architecture
+
+```
+windows_bar/
+  app.py                 entry point (future split from windowsbar.py)
+  core/
+    config.py            schema, versioning, migrations, export/import
+    registry.py          widget discovery + lifecycle
+    events.py            small pub/sub (window events, theme changes)
+    theme.py             tokens (JSON) -> QSS, dynamic accent
+  native/                (split of today's winapi.py)
+    appbar.py  glass.py  taskbar.py  windows.py  hooks.py  vdesktop.py  audio.py
+  widgets/               one file per widget
+  ui/                    bar.py  card.py  popup.py  settings/
+  launcher/              fuzzy search window
+  wm/                    tiling engine (Phase 5)
+  themes/                default.json, glass.json, light.json
+tests/
+```
+
+**Widget contract** (this is the internal SDK; publish it in Phase 6):
+
+```python
+class Widget:
+    id = "weather"              
+    name = "Weather"
+    default_config = {...}
+    poll_seconds = 600          
+    def start(self): ...        
+    def stop(self): ...         
+    def card(self) -> QWidget: ...
+    def popup(self) -> QWidget | None: ... 
+    def on_click(self): ...
+```
+
+Rules: widgets never touch Win32 directly (go through `native/`); all native hooks run on one dedicated thread and post events to Qt; no widget does network work on the UI thread.
+
+
+## 5. Phases
+
+### Phase 0: Safety net *(S, do this first)*
+- [x] Add `ROADMAP.md`, `AGENTS.md`, `scripts/checkpoint.ps1`, `.github/workflows/ci.yml` to the repo
+- [ ] Commit and push (see section 7)
+- [x] Naming decision: keep repository `windowbar`, product name Windows Bar; README already uses Windows Bar
+- [x] Audit current code: line counts per file, what is untested, what is Windows-only (`AUDIT.md`)
+- [ ] Create GitHub Issues from the checklists below (one per bullet or per group)
+- [ ] Tag `v0.1.0` for the current state
+
+**Done when:** a fresh clone + `pip install -r requirements.txt` + `pytest -q` works, and CI is green.
+
+### Phase 1: Modular core *(M)*
+- [x] Split `windowsbar.py` / `winapi.py` into the structure in section 4, with no behaviour change; `windowsbar.py` is the entrypoint, Dock/config are in `ui/` and `core/`, and native helpers are in `native/`
+- [x] Give each configured widget its own module and factory; registry package discovery registers widgets from the modules and config defaults.
+- [x] Widget registry + widget contract; all 28 configured widgets are auto-discovered and registered through the compatibility adapter
+- [x] Versioned config with migration from the current `config.json` (schema v1, legacy migration, and focused tests; export/import is a later enhancement)
+- [x] Widgets stop their work when hidden or disabled (poll workers stop, Screen Time sampler is opt-in, and weather/calendar/media/radio workers stop when inactive)
+- [x] Detail-popup component (`ui/popup.py`, shared by calendar, notes, and todos panels)
+- [x] Rotating logging to `%APPDATA%\Windows Bar\logs` and a crash-recovery test for saved taskbar auto-hide state
+
+**Done when:** all 28 configured widgets run through the registry.
+
+### Phase 2: Dockyard parity + keyboard basics *(M–L)*
+- [x] Pinned apps with running dots and focus/launch behaviour
+- [x] Global hotkeys `Alt+1..9` by default; configurable modifier (Alt, Ctrl+Alt, or Win)
+- [x] World clocks, pomodoro/timer, disk widget, optional temperature (psutil or optional LibreHardwareMonitor WMI)
+- [x] Quick toggles: mute, Wi-Fi, Bluetooth; DND / Night Light documented as unsupported
+- [x] Detail popups for clock, system, media, weather
+
+
+### Phase 3: Shell basics, Seelen tier 1 *(L)*
+- [x] **Theming engine:** JSON theme files, color/radius/font/spacing/blur tokens, QSS, and default/glass/light/dark built-ins
+- [x] Dynamic accent colour from the current wallpaper (dominant-colour extraction, live update)
+- [x] Per-widget style overrides for accent, card background, text, button color, and radius
+- [x] Split **Toolbar** (top: active-window title, virtual-desktop shortcuts, enabled information widgets) and **Dock** (bottom: pinned apps + running); Windows notification-area tray remains OS-owned
+- [x] Multi-monitor: a bar per display with independent widget/layout profile
+- [x] Separate Settings window for widgets, layout, themes, hotkeys, and live preview
+- [x] **Launcher:** global hotkey, fuzzy search over apps, files, commands, calculator
+- [x] Volume and brightness flyouts (brightness via optional WMI on supported internal panels; external DDC displays are not supported)
+- [x] Optional notification-centre integration: open the native Windows notification surface; Windows owns the notification feed and rendering
+
+**Done when:** a non-programmer can restyle and rearrange widgets and layouts from Settings without editing JSON.
+
+
+### Phase 4: Workspaces, Alt+Tab, desktop widgets, Seelen tier 2 *(L)*
+- [🟡] Virtual desktop control (switch, move window, create/remove) through the maintained `pyvda` wrapper; shortcut fallback for switching/creation and graceful errors for unsupported operations; live COM access is denied in this session
+- [x] Workspace viewer overlay, named workspaces with custom symbols/icons
+- [🟡] Wallpaper per workspace through `pyvda` on supported Windows 11 builds; Windows 10 reports the limitation
+- [🟡] Custom Alt+Tab: dedicated low-level hook, window switcher overlay, captured previews, keyboard + mouse selection implemented; live Windows hook/latency validation remains
+- [🟡] Desktop-widgets layer: draggable, theme-aware clock/system panel with bottom z-order implemented; live desktop stacking and interaction validation remains
+
+**Phase 4 status:** all planned feature slices are present; exit is pending interactive checks for the custom switcher, desktop layer, and per-desktop wallpaper.
+
+### Phase 5: Tiling window manager *(XL)*
+- [🟡] Dedicated-thread `SetWinEventHook` and debounced top-level window snapshots; filtered taskbar windows feed the opt-in tiler
+- [x] BSP, columns, and master/stack layout engines; per-monitor work areas and configurable gaps/padding
+- [🟡] Keyboard focus cycle, BSP slot swap, and focused-branch resize (`Ctrl+Alt+J/K/H/L`)
+- [🟡] Floating mode toggle (`Ctrl+Alt+F`) and per-app executable, class, and title-regex rules
+- [🟡] Original window rectangles and show state are restored when tiling is disabled
+- [🟡] BSP order and split-ratio persistence keyed by virtual desktop ID when COM is accessible
+- [🟡] Move focused window to previous/next desktop (`Ctrl+Alt+Shift+Left/Right`) via pyvda; COM access denied in this session
+- [🟡] Ctrl+Alt+Esc safe release path implemented; host `RegisterHotKey` calls return Win32 error 5, so the app correctly refuses to enable tiling here
+
+### Phase 6: Ecosystem and release *(M–L)*
+- [x] Widget contract docs, copyable template, and an opt-in runtime plugin loader (`core/plugins.py`, example in `plugins-example/`); plugins get a small stable `PluginContext`; a frozen `PLUGIN_API = 2` and sandboxing remain future work
+- [x] Theme JSON sharing format documented and starter gallery added under `themes/gallery/`
+- [🟡] Localization: loader, language picker, string extractor and CI catalog checks done; static UI text is translatable; runtime-built strings and a reviewed non-English locale remain
+- [🟡] Release pipeline: tag-triggered GitHub Release with a source bundle and an experimental PyInstaller build (`.github/workflows/release.yml`, `packaging/windowbar.spec`, both unverified on Windows); an Inno Setup script (`packaging/windowbar.iss`) and winget templates (`packaging/winget/`) are written but unbuilt; code signing, a verified installer and the winget submission remain
+- [🟡] Contributor guide added in `CONTRIBUTING.md`; current README, screenshots/GIFs, and release-ready visuals still need work
+
+
+## 6. Risks
+
+| Risk | Mitigation |
+|---|---|
+| Python latency for Alt+Tab / tiling | Dedicated hook thread; decision gate after Phase 3; native core if needed |
+| Undocumented Windows APIs (virtual desktops, DND, Night Light) | Use maintained wrappers, feature-flag them, degrade gracefully |
+| Windows updates break shell tricks | Pin tested Windows builds in docs; keep a tested "safe restore" path for taskbar/AppBar state |
+| Scope: Seelen has 2,700+ commits and many contributors | Ship phase by phase. |
+| Accidental AGPL contamination | Never paste Seelen code or assets; implement from behaviour |
+| Locked-out desktop if the shell crashes | Crash-safe restore on next start + a documented recovery hotkey/command |
+
+
+## 7. GitHub workflow
+
+1. **Work on branches:** `phase-1-core`, `phase-2-dockyard`, … merge to `main` when the phase's "Done when" is met.
+2. **Checkpoint often:** run `scripts/checkpoint.ps1 "what you did"` at the end of every work session, and after any milestone. It commits and pushes.
+3. **Small commits:** `feat(widgets): add world clock`, `fix(appbar): restore taskbar on crash`, `refactor(core): split winapi`.
+4. **One Issue per roadmap bullet** (or group); close them from commits with `closes #N`.
+6. **Keep `AGENTS.md` current:**
+7. **Never commit secrets:** the Stripe key stays in `WINDOWSBAR_STRIPE_KEY`; check `.gitignore` before each push.
+
+---
+## 8. What is left to finish (prioritised)
+
+Done since the last revision: most static UI routed through `tr()` (a few runtime strings remain — see C1); `PluginContext` (stable plugin surface); Inno Setup script and winget templates; Linux CI job (now blocking) with offscreen Qt tests and ruff. Since then: the remaining UI strings (dock menus, dialogs, tooltips, launcher rows) are routed through `tr()` too, and the Hindi locale (`locales/hi.json`, 226/226 keys) was reviewed by a native speaker (Hinglish mix: 78 strings translated, 148 kept in English) and is advertised as supported. Since then: `PLUGIN_API = 2` frozen with a per-plugin allow-list (see C2). Since then: live reload for language/plugin changes (C4) — no restart needed.
+
+**A. Needs a real Windows session (cannot be checked from CI or a sandbox)**
+1. Run the app and click through Settings > General: language, plugins, export/import. Check that menus and popups still behave after the `tr()` wrapping.
+2. Phase 4/5 live checks: custom Alt+Tab hook and latency, desktop-layer widgets, per-desktop wallpaper, `pyvda` COM access, tiling hotkeys (`RegisterHotKey`) and safe release.
+3. Drop `plugins-example/hello_plugin.py` into the plugins folder, enable plugins and confirm the widget appears.
+4. Build the PyInstaller bundle, then the Inno Setup installer (`packaging/windowbar.iss`), on a clean account and test install, autostart and uninstall.
+
+**B. Release readiness**
+1. Push, confirm CI is green (Windows job; the Linux job is advisory), tag `v0.1.0`, then `v0.2.0`.
+2. Run `scripts/create_issues.ps1` to create the issues.
+3. README screenshots and a short GIF (needs the running app).
+4. Fill in `packaging/winget/` after the first public installer, and sign it if feasible.
+
+**C. Code**
+1. Hindi locale (`locales/hi.json`) reviewed and supported (see above). Weather descriptions from the API stay English (they arrive as data, not UI text).
+2. `PLUGIN_API = 2` frozen around `PluginContext` (`get_config`, `tokens`, `app_dir`, `logger` guaranteed; Dock forwarding deprecated, removed in API 3). Version 1 still loads with a deprecation warning. Per-plugin allow-list added: `plugins_allowed` in config.json (entry names, checked before import; `null` = allow all).
+3. Keyboard paths for the controls that still need a mouse — done: clickable cards are Tab-focusable with Enter/Space running `activate()` (the click action) and Shift+Enter running `activate_alternate()` (reset / set-minutes); focused cards get an accent outline; Ctrl+Alt+D focuses the dock from anywhere (`focus_hotkey`, Settings > Hotkeys); Alt+Up/Down moves rows in the Arrange widgets dialog. Not done on purpose: the desktop-widgets panel is `WindowDoesNotAcceptFocus` by design, so it stays drag-only; dock drag-to-edge already has a keyboard path via Settings > Layout.
+4. Live reload for language/plugin changes — done: changing the language or enabling/disabling a plugin in Settings > General applies right away, no restart.
+
+**D. Quality**
+1. Offscreen Qt tests cover the Settings window (14 tests: tabs, widget/language/plugin toggles, plugin status, refresh, hotkeys, tiling controls, secondary-display disabling, export/import, Arrange widgets dialog incl. save/cancel/stored order); the Linux CI job is blocking and green on GitHub (run 254).
+
+**Suggested order:** A -> B1/B2 -> C1 -> B4 -> C2 -> D. Done since: C3 (keyboard paths), D (Settings tests + blocking Linux CI), C4 (live reload).
