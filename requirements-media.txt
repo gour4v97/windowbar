@@ -1,0 +1,7 @@
+# Optional, for the Now playing widget. Prebuilt wheels only (no compiler needed).
+winsdk>=1.0.0b10; sys_platform == "win32" and python_version < "3.13"
+winrt-runtime; sys_platform == "win32" and python_version >= "3.13"
+winrt-Windows.Media.Control; sys_platform == "win32" and python_version >= "3.13"
+winrt-Windows.Foundation; sys_platform == "win32" and python_version >= "3.13"
+winrt-Windows.Foundation.Collections; sys_platform == "win32" and python_version >= "3.13"
+winrt-Windows.Storage.Streams; sys_platform == "win32" and python_version >= "3.13"

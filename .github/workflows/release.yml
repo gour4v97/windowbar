@@ -1,0 +1,52 @@
+name: Release
+# Push a tag such as v0.2.0 to publish a GitHub Release with a source bundle.
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: write
+jobs:
+  source-bundle:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt pytest
+      - run: pytest -q
+      - name: Build the source bundle (what setup.bat installs)
+        shell: bash
+        run: git archive --format=zip --prefix=windowbar/ -o "windowbar-${GITHUB_REF_NAME}.zip" HEAD
+      - name: Publish the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" "windowbar-${GITHUB_REF_NAME}.zip" --generate-notes --title "Windows Bar $GITHUB_REF_NAME"
+
+  # Experimental: a standalone .exe via PyInstaller. It cannot be verified
+  # without running the app on Windows, so a failure here never blocks a release.
+  experimental-exe:
+    runs-on: windows-latest
+    continue-on-error: true
+    needs: source-bundle
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt pyinstaller
+      - run: pyinstaller packaging/windowbar.spec --noconfirm
+      - name: Build the Inno Setup installer (experimental)
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          $v = "${env:GITHUB_REF_NAME}".TrimStart("v")
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" packaging\windowbar.iss "/DAppVersion=$v"
+      - name: Zip and attach
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd dist && 7z a "../windowbar-${GITHUB_REF_NAME}-exe-experimental.zip" "Windows Bar"
+          cd .. && gh release upload "$GITHUB_REF_NAME" "windowbar-${GITHUB_REF_NAME}-exe-experimental.zip" dist/WindowsBar-Setup-*.exe

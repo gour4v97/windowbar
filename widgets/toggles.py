@@ -1,0 +1,96 @@
+"""Quick-toggles card."""
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QPushButton
+import winapi
+from core.app_config import save_config
+from core.i18n import tr
+
+class TogglesCard(QFrame):
+    """Quick toggles.
+    Radio buttons only appear when the WinRT radios API is available."""
+
+    INTERVAL = 4
+
+    def __init__(self, radios, cfg, save):
+        super().__init__()
+        self.setObjectName("card")
+        self.radios, self.cfg, self.save = radios, cfg, save
+        lay = QHBoxLayout(self)
+        lay.setContentsMargins(8, 6, 8, 6)
+        lay.setSpacing(6)
+        self.btns = {}
+        for key, label in [("wifi", "Wi-Fi"), ("bluetooth", "BT"),
+                           ("airplane", "Plane"), ("awake", "Awake"),
+                           ("mute", "Mute")]:
+            b = QPushButton(tr(label))
+            b.setCursor(Qt.PointingHandCursor)
+            b.clicked.connect(lambda _=False, k=key: self.toggle(k))
+            lay.addWidget(b)
+            self.btns[key] = b
+        self.tick()
+
+    def toggle(self, key):
+        if key in ("wifi", "bluetooth"):
+            cur = self.radios.states.get(key)
+            if cur is not None:
+                self.radios.set(key, not cur)
+        elif key == "airplane":
+            states = self.radios.states
+            if states:
+                self.radios.set("airplane", not any(states.values()))
+        elif key == "awake":
+            on = not self.cfg.get("keep_awake", False)
+            self.cfg["keep_awake"] = on
+            self.save()
+            winapi.set_keep_awake(on)
+        elif key == "mute":
+            v = winapi.get_volume()
+            if v:
+                winapi.set_mute(not v[1])
+        QTimer.singleShot(600, self.tick)
+
+    def _set_btn(self, key, text, active):
+        b = self.btns[key]
+        changed = False
+        if b.text() != text:
+            b.setText(text)
+            changed = True
+        prop = "true" if active else "false"
+        if b.property("active") != prop:
+            b.setProperty("active", prop)
+            b.style().unpolish(b)
+            b.style().polish(b)
+            changed = True
+        return changed
+
+    def tick(self):
+        changed = False
+        states = self.radios.states if self.radios else {}
+        for key, label in [("wifi", "Wi-Fi"), ("bluetooth", "BT")]:
+            on = states.get(key)
+            self.btns[key].setVisible(on is not None)
+            if on is not None:
+                changed = self._set_btn(
+                    key, tr("{label} On", label=label) if on else tr("{label} Off", label=label),
+                    on) or changed
+        all_off = bool(states) and not any(states.values())
+        self.btns["airplane"].setVisible(bool(states))
+        if states:
+            changed = self._set_btn(
+                "airplane", tr("Plane On") if all_off else tr("Plane"), all_off) \
+                or changed
+        awake = bool(self.cfg.get("keep_awake"))
+        changed = self._set_btn(
+            "awake", tr("Awake On") if awake else tr("Awake"), awake) or changed
+        v = winapi.get_volume()
+        muted = bool(v and v[1])
+        changed = self._set_btn(
+            "mute", tr("Muted") if muted else tr("Mute"), muted) or changed
+        return changed
+
+
+WIDGET_ID = 'toggles'
+WIDGET_ORDER = 14
+
+def make_card(dock):
+    return TogglesCard(dock.radios, dock.cfg, lambda: save_config(dock.cfg))
