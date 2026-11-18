@@ -1,99 +1,118 @@
-# Dockyard-Inspired Windows UI Plan
+# Harbor UI and Windows Integration Roadmap
 
 **Status:** In progress  
-**Repository:** `gour4v97/windowbar`  
-**Working branch:** `feature/dockyard-inspired-windows-ui`  
-**Target:** A cohesive, polished Windows dock experience inspired by Dockyard's interaction and visual ideas, implemented with Windows Bar's existing Python/PySide6 stack and Windows-native behavior.
+**Repository:** gour4v97/windowbar  
+**Working branch:** feature/dockyard-inspired-windows-ui  
+**Base branch:** main  
+**Product:** Windows Bar for Windows 10/11, using the existing Python and PySide6 stack.
 
-## Product direction
+## Goal
 
-Make the dock feel like one adaptable surface: a floating glass or solid bar, compact tiles sized to their content, pinned app icons with clear running state, and predictable detail popups. Keep the interface configurable and accessible, and preserve Windows Bar's existing capabilities where they already work.
+Make Windows Bar feel like a cohesive, configurable Windows dock: a floating glass or solid surface, compact information tiles, recognizable pinned apps, useful popups, and reliable Windows shell behavior. Dockyard is a source of product and interaction ideas only. Do not copy its code, name, icons, screenshots, or stylesheets.
 
-Use Dockyard as a reference for behavior and visual principles only. Do not copy its code, name, icons, screenshots, stylesheets, or other assets. Windows Bar remains an independent MIT project.
+## Current state
 
-## Current foundation
+The feature branch has a complete repository snapshot. The latest verified code commit passed both Windows and Linux CI in workflow run 274. The local app could not be launched in this workspace, so the final DPI and desktop-shell checks still require a real Windows session.
 
-The repository already has configurable widgets, theme tokens and QSS, per-widget styling, a launcher, shared popup infrastructure, app pinning, running indicators, hotkeys, per-display profiles, auto-hide, glass effects, and disabled-widget polling controls. This effort should refine and connect those pieces before adding more widgets.
+### Completed on this branch
 
-## Progress on the feature branch
+- Added the selectable Harbor theme with compact spacing and cool glass colors; saved theme choices remain unchanged.
+- Pinned apps use Windows shell icons when their configured command resolves. Unresolved commands retain text labels; app names remain available to accessibility tools and tooltips.
+- Icon apps show a running state, while text fallback apps retain their running dot.
+- Detail popups use an opaque, theme-matched surface and keep their edge-aware placement behavior.
+- Data tiles have subtle hover tint and a visible keyboard-focus border, including when per-widget styling is active.
+- New/default widget order groups system and information tiles before pinned apps, utility widgets after them, and the clock at the far right. A saved custom widget order still wins.
+- Fixed the Windows CI hotkey-ID test so it checks distinct IDs without trying to register a real system-wide hotkey.
+- Added an original SVG concept at docs/mockups/harbor-dock.svg.
 
-- [x] Added the selectable Harbor theme with compact spacing, cool glass surfaces, and distinct app-icon states; existing saved theme choices remain unchanged.
-- [x] Pinned apps use Windows shell icons when the configured executable resolves, retain a readable text fallback, and keep names available to accessibility tools.
-- [x] Detail popups use an opaque theme-matched surface with the existing edge-aware placement behavior.
-- [x] Data tiles use a soft hover tint and a distinct keyboard-focus border, including when per-widget styles are applied.
-- [x] The default widget order groups data tiles before the pinned-app group, places utility widgets after it, and keeps the clock at the far right; any saved custom order still takes precedence.
-- [x] Fixed the Windows CI hotkey-ID test so it checks distinct IDs without attempting to register a real system-wide hotkey.
-- [x] Created an original SVG concept at `docs/mockups/harbor-dock.svg` to make the target layout reviewable before implementation.
-- [ ] Capture and review the dock, app icons, and popups in a real Windows session at common DPI scales; tune the layout from those screenshots.
+## Remaining roadmap
 
-## Work plan
+Complete these steps in order. Each step stays on the feature branch and should be reviewable as a focused change.
 
-### Milestone 1 — UI inventory and target spec
+### 1. Review the design on real Windows
 
-- Capture the current dock, Settings, and representative widget popups on Windows 10/11 at common DPI scales.
-- Map current widgets to their card and popup implementations; identify duplicated styling and interaction patterns.
-- Specify a small set of layout choices: floating pill or full-width bar, top or bottom placement, content-sized tile widths, app grouping, spacing, and popup anchoring.
-- Define design tokens for bar/tile surfaces, borders, corner radii, shadow, typography, icon sizes, focus, hover, and running-app state. Reuse the theme engine instead of introducing a second styling system.
-- Record Windows-specific constraints and graceful fallbacks, including unsupported radios, fullscreen apps, mixed-DPI monitors, and taskbar coexistence.
+- [ ] Run the branch build on Windows 10 and Windows 11.
+- [ ] Capture the combined dock, split toolbar, Settings preview, app group, and representative popups.
+- [ ] Review 100%, 125%, 150%, and 200% display scaling.
+- [ ] Check top and bottom placement, floating pill and full-width modes, and a mixed-DPI multi-monitor setup.
+- [ ] Compare the running app with docs/mockups/harbor-dock.svg and record specific visual defects before changing more styling.
 
-**Exit criteria:** approved mockups for the dock, one data tile, one app icon state, one popup, and Settings preview; documented token mapping to existing theme keys.
+**Done when:** screenshots and a short defect list cover both Windows versions, all target scales, and the combined/split layouts.
 
-### Milestone 2 — Shared dock and tile presentation
+### 2. Finish the shared dock layout
 
-- Implement the chosen layout using the existing dock and widget registry.
-- Use consistent outer bar and inner tile geometry, spacing, hover/focus/pressed feedback, and disabled/empty states.
-- Keep pinned app icons visually distinct from information tiles; show running and active states without relying on color alone.
-- Ensure text and numbers do not shift the layout as live values change.
-- Keep themes, per-widget overrides, and saved configuration backward-compatible.
+- [x] Establish a useful default order for data tiles, pinned apps, utilities, and clock.
+- [ ] Tune spacing, bar margins, tile height, corner radii, and app-icon hit targets using the Windows captures.
+- [ ] Check that the floating layout stays centered and usable when widgets are enabled or disabled.
+- [ ] Check full-width mode, top placement, auto-hide, and split toolbar geometry after the layout changes.
+- [ ] Keep the Settings widget arranger and live preview consistent with the actual dock order.
 
-**Exit criteria:** representative widgets and apps use the shared presentation; existing layouts and custom themes still load; screenshots show consistent rendering at 100%, 150%, and 200% scale.
+**Done when:** layout remains balanced with the Essentials, Focus, Creator, and Everything presets, and user-saved orders are preserved.
 
-### Milestone 3 — Popup and Settings consistency
+### 3. Finish tile and pinned-app behavior
 
-- Apply one popup pattern for size, placement, header, close behavior, shadow, keyboard focus, and dismissal.
-- Anchor popups to their triggering tile and flip them when near a screen edge or when the dock is at the top.
-- Make the live Settings preview reflect layout and theme changes without requiring a restart.
-- Preserve keyboard operation and readable contrast in light, dark, glass, and high-contrast modes.
+- [x] Add native app icons, readable fallback labels, running state, hover, and keyboard focus treatment.
+- [ ] Verify icons for executable paths, quoted commands, Start Menu shortcuts, and unresolved commands.
+- [ ] Confirm app launch, focus/minimize, right-click actions, and Alt+number shortcuts still work.
+- [ ] Check tile width with long labels, changing values, narrow displays, and all built-in themes.
+- [ ] Ensure disabled, unavailable, and empty widgets have clear states and do no unnecessary polling.
 
-**Exit criteria:** clock, media, system, and one list-style popup follow the same interaction rules; keyboard-only use remains possible.
+**Done when:** icons and information tiles remain readable and operable with mouse and keyboard across themes and scales.
 
-### Milestone 4 — Windows integration and resilience
+### 4. Unify popups and Settings
 
-- Review AppBar reservation, taskbar hiding/restoration, auto-hide, fullscreen detection, and multi-monitor geometry together.
-- Exercise mixed DPI, monitor add/remove, sleep/resume, explorer restart, and application crash/restart.
-- Keep Win32 calls behind `native/`; do not perform blocking work on the UI thread.
-- Keep unsupported or undocumented Windows functions optional and report limitations in the UI.
+- [x] Apply a shared opaque themed surface to detail popups.
+- [ ] Check popup placement near screen edges and on top- and bottom-docked layouts.
+- [ ] Normalize popup headings, spacing, close/dismiss behavior, shadows, and action buttons.
+- [ ] Check clock, system, weather, media, calendar, notes, and todos popups for visual consistency.
+- [ ] Verify keyboard focus, Escape dismissal, contrast, and high-contrast/readability behavior.
+- [ ] Confirm Settings theme/layout preview matches the live dock.
 
-**Exit criteria:** the dock does not cover maximized work areas unexpectedly, and taskbar state can be restored after a crash.
+**Done when:** each popup is anchored correctly, looks like part of Windows Bar, and remains usable with keyboard alone.
 
-### Milestone 5 — Performance and release polish
+### 5. Validate Windows integration and recovery
 
-- Measure startup time, idle CPU/RAM, update cost with common widgets enabled, and interaction latency on a real Windows session.
-- Confirm hidden/disabled widgets stop polling and slow service calls stay off the UI thread.
-- Check localization, accessibility, screenshots, installation, upgrade, and uninstall flows.
-- Update the README with the final design, Windows requirements, and an animated demo.
+- [ ] Check AppBar reservation and maximized-window work areas with taskbar visible and hidden.
+- [ ] Exercise auto-hide, fullscreen applications, Explorer restart, sleep/resume, monitor add/remove, and mixed scaling.
+- [ ] Confirm taskbar state and window geometry restore after normal quit, crash, and next launch.
+- [ ] Check virtual desktop, Alt+Tab, hotkey, and tiling features on supported Windows builds; keep graceful fallback messages for unsupported APIs.
+- [ ] Keep Win32 calls behind native helpers and all slow work away from the UI thread.
 
-**Exit criteria:** measurements and known limitations are recorded; CI is green; Windows packaging and recovery paths are verified before release.
+**Done when:** the dock does not strand the user, cover work areas unexpectedly, or leave the taskbar altered after failure.
 
-## First implementation slice
+### 6. Measure performance and accessibility
 
-Start with Milestone 1 and a small UI prototype using existing components. Do not rewrite the app architecture or add widgets in this slice. Compare the current dock against the target spec, then change one representative tile and its popup behind the existing theme/config system. Use that slice to validate spacing, transparency, DPI scaling, popup placement, and keyboard focus before applying the pattern broadly.
+- [ ] Measure cold start, idle CPU/RAM, live update cost, and key-to-visible-response latency on a real Windows machine.
+- [ ] Confirm hidden or disabled widgets stop polling and background workers stop when no longer needed.
+- [ ] Check keyboard navigation order, focus visibility, accessible names, contrast, and reduced-motion choices.
+- [ ] Record measurements and test machine details in the project docs.
 
-## Performance and usability guardrails
+**Done when:** measurements show no persistent UI stalls or excessive idle work, and known limitations are documented.
 
-- Keep networking, filesystem scans, and slow Windows queries off the UI thread.
-- Do not poll widgets that are disabled or hidden.
-- Prefer native app icons and Windows conventions for launching, focus, and window state.
-- Preserve keyboard access, focus visibility, contrast, and reduced-motion/animation choices.
-- Keep taskbar and work-area changes reversible, including after abnormal shutdown.
-- Measure the running application on Windows; do not treat offscreen Qt timings as full-app performance results.
+### 7. Prepare a reviewable release
 
-## GitHub-only workflow
+- [ ] Update README screenshots and add a short, privacy-safe demo.
+- [ ] Build and verify the Windows package, install/upgrade/uninstall paths, autostart, and recovery behavior.
+- [ ] Run the full Windows and Linux CI jobs on the final feature commit.
+- [ ] Open a pull request from feature/dockyard-inspired-windows-ui to main with screenshots, checks, and remaining limitations.
+- [ ] Merge only after review; do not commit project changes directly to main.
 
-- Do all project work on GitHub feature branches. Never commit project changes directly to `main`.
-- This effort uses `feature/dockyard-inspired-windows-ui`, created from `main`.
-- Commit each focused change to this branch and push it to GitHub.
-- Open a pull request from this branch into `main` when the milestone is reviewable; merge only through that pull request.
-- Keep the branch current with `main` without force-pushing shared history.
-- Use small commits, for example `docs(ui): define dockyard-inspired design plan` and `feat(ui): unify dock tile surfaces`.
-- Do not commit credentials, personal configuration, generated captures containing private data, or copied third-party assets.
+**Done when:** CI is green, the Windows package has been exercised on a clean profile, and the pull request explains the verified behavior and remaining limitations.
+
+## Guardrails
+
+- Keep all project changes on feature branches and publish them to GitHub. This effort uses feature/dockyard-inspired-windows-ui; main remains the stable target.
+- Preserve existing saved widget orders, themes, and configuration values.
+- Reimplement ideas independently; do not copy Dockyard code or assets.
+- Keep network, filesystem, and slow system work off the UI thread; disabled widgets should not poll.
+- Keep taskbar, work-area, hook, and window changes recoverable after crashes.
+- Never commit credentials, personal settings, runtime logs, or screenshots containing private data.
+- Use small commits and update this checklist as steps are completed.
+
+## Primary references
+
+- UI concept: docs/mockups/harbor-dock.svg
+- Existing project roadmap: ROADMAP.md
+- Windows shell audit: AUDIT.md
+- Stack decision and performance baseline: docs/decisions/0001-stack.md
+- Project instructions: AGENTS.md
