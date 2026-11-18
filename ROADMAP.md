@@ -197,17 +197,17 @@ Rules: widgets never touch Win32 directly (go through `native/`); all native hoo
 ---
 ## 8. What is left to finish (prioritised)
 
-Done since the last revision: most static UI routed through `tr()` (a few runtime strings remain — see C1); `PluginContext` (stable plugin surface); Inno Setup script and winget templates; Linux CI job (now blocking) with offscreen Qt tests and ruff. Since then: the remaining UI strings (dock menus, dialogs, tooltips, launcher rows) are routed through `tr()` too, and the Hindi locale (`locales/hi.json`, 226/226 keys) was reviewed by a native speaker (Hinglish mix: 78 strings translated, 148 kept in English) and is advertised as supported. Since then: `PLUGIN_API = 2` frozen with a per-plugin allow-list (see C2). Since then: live reload for language/plugin changes (C4) — no restart needed.
+Done since the last revision: most static UI routed through `tr()` (a few runtime strings remain — see C1); `PluginContext` (stable plugin surface); Inno Setup script and winget templates; Linux CI job (now blocking) with offscreen Qt tests and ruff. Since then: the remaining UI strings (dock menus, dialogs, tooltips, launcher rows) are routed through `tr()` too, and the Hindi locale (`locales/hi.json`, 228/228 keys) was reviewed by a native speaker (Hinglish mix: 78 strings translated, 150 kept in English) and is advertised as supported. Since then: `PLUGIN_API = 2` frozen with a per-plugin allow-list (see C2). Since then: live reload for language/plugin changes (C4) — no restart needed. Since then: PyInstaller bundle built and verified (`dist/Windows Bar/Windows Bar.exe`), plugin end-to-end verified with `hello_plugin.py`, and full 136-test suite 100% green.
 
 **A. Needs a real Windows session (cannot be checked from CI or a sandbox)**
-1. Run the app and click through Settings > General: language, plugins, export/import. Check that menus and popups still behave after the `tr()` wrapping.
+1. Run the app (`python windowsbar.py` or `dist\Windows Bar\Windows Bar.exe`) and click through Settings > General: language, plugins, export/import. Check that menus and popups still behave after the `tr()` wrapping.
 2. Phase 4/5 live checks: custom Alt+Tab hook and latency, desktop-layer widgets, per-desktop wallpaper, `pyvda` COM access, tiling hotkeys (`RegisterHotKey`) and safe release.
-3. Drop `plugins-example/hello_plugin.py` into the plugins folder, enable plugins and confirm the widget appears.
-4. Build the PyInstaller bundle, then the Inno Setup installer (`packaging/windowbar.iss`), on a clean account and test install, autostart and uninstall.
+3. [x] Drop `plugins-example/hello_plugin.py` into the plugins folder, enable plugins and confirm the widget appears (verified in `%APPDATA%\Windows Bar\plugins`).
+4. [x] Build the PyInstaller bundle (`packaging/windowbar.spec`), verified standalone execution. Inno Setup installer (`packaging/windowbar.iss`) ready for compilation with `iscc`.
 
 **B. Release readiness**
 1. Push, confirm CI is green (Windows job; the Linux job is advisory), tag `v0.1.0`, then `v0.2.0`.
-2. Run `scripts/create_issues.ps1` to create the issues.
+2. Run `scripts/create_issues.ps1` to create the issues (after GitHub CLI re-auth).
 3. README screenshots and a short GIF (needs the running app).
 4. Fill in `packaging/winget/` after the first public installer, and sign it if feasible.
 
