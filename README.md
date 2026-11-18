@@ -5,6 +5,8 @@ or bottom of the screen as a row of live cards — clock, calendar, media, syste
 money, focus tools — and reserves screen space so maximised windows stop at the
 dock instead of sliding under it.
 
+![Windows Bar Dock Preview](docs/screenshots/dock_midnight.png)
+
 No account, no telemetry, no server. Everything runs locally.
 
 ## Install
@@ -17,6 +19,10 @@ python windowsbar.py
 
 Open **Settings** from the dock menu to manage widgets, layout, themes, and hotkeys with a live preview. Right-click the dock for quick actions.
 Settings live in `%APPDATA%\Windows Bar\config.json`.
+
+<p align="center">
+  <img src="docs/screenshots/settings_preview.png" alt="Windows Bar Settings" width="550" />
+</p>
 
 
 Windows Bar starts a bar on each connected display, each with its own Settings window and saved widget/layout profile.
