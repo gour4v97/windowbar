@@ -56,6 +56,7 @@ def _manager(monkeypatch, **kwargs):
         focus_window=lambda h: None)
     monkeypatch.setattr(tiling, "winapi", fake)
     monkeypatch.setattr(tiling, "sys", types.SimpleNamespace(platform="win32"))
+    monkeypatch.setattr(tiling.TilingManager, "_workspace_id", lambda self: "default")
     saved = []
     options = dict(gap=0, padding=0, workspace_layouts={},
                    on_change=lambda: saved.append(1))
