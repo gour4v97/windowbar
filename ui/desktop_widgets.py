@@ -13,14 +13,14 @@ class DesktopWidgetsWindow(QWidget):
     """A draggable, non-activating panel kept behind ordinary app windows."""
 
     def __init__(self, dock):
-        super().__init__(None, Qt.Tool | Qt.FramelessWindowHint
-                         | Qt.WindowStaysOnBottomHint
-                         | Qt.WindowDoesNotAcceptFocus)
+        super().__init__(None, Qt.WindowType.Tool | Qt.WindowType.FramelessWindowHint
+                         | Qt.WindowType.WindowStaysOnBottomHint
+                         | Qt.WindowType.WindowDoesNotAcceptFocus)
         self.dock = dock
         self.cfg = dock.cfg
         self.setObjectName("desktopWidgets")
         self.setWindowTitle(tr("Windows Bar Desktop Widgets"))
-        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setMinimumWidth(340)
         self.setStyleSheet(dock.styleSheet())
         self._drag_offset = None
@@ -30,14 +30,14 @@ class DesktopWidgetsWindow(QWidget):
         root.setSpacing(6)
         self.handle = QLabel(tr("WINDOWS BAR · DRAG TO MOVE"))
         self.handle.setObjectName("cardbody")
-        self.handle.setAlignment(Qt.AlignCenter)
+        self.handle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         root.addWidget(self.handle)
         row = QHBoxLayout()
         row.setSpacing(8)
         self.clock = ClockCard()
         self.system = SystemCard()
         for widget_id, card in (("clock", self.clock), ("system", self.system)):
-            card.setAttribute(Qt.WA_TransparentForMouseEvents)
+            card.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
             card.setStyleSheet(theme.build_widget_qss(theme.widget_tokens(
                 dock.tokens, self.cfg.get("widget_styles", {}).get(widget_id, {}))))
             row.addWidget(card)

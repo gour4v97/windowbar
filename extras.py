@@ -2,6 +2,7 @@
 Recycle Bin and a generic background poller."""
 import json
 import os
+import ssl
 import threading
 import time
 import urllib.parse
@@ -12,12 +13,13 @@ from pathlib import Path
 import winapi
 
 IDLE_LIMIT = 300  # seconds without input before screen time pauses
+_SSL_CTX = ssl.create_default_context()
 
 
 def get_json(url, headers=None, timeout=10):
     req = urllib.request.Request(
         url, headers={"User-Agent": "WindowsBar/0.3", **(headers or {})})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
+    with urllib.request.urlopen(req, timeout=timeout, context=_SSL_CTX) as r:
         return json.loads(r.read().decode("utf-8"))
 
 

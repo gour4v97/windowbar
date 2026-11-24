@@ -18,9 +18,9 @@ class SwitcherDialog(QDialog):
     def __init__(self, parent, windows, current_hwnd):
         super().__init__(parent)
         self.setWindowTitle(tr("Windows Bar — Switch windows"))
-        self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint
-                            | Qt.WindowStaysOnTopHint)
-        self.setAttribute(Qt.WA_DeleteOnClose)
+        self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint
+                            | Qt.WindowType.WindowStaysOnTopHint)
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         self.resize(620, 390)
         self._windows = list(windows)
         self._frames = {}
@@ -33,7 +33,7 @@ class SwitcherDialog(QDialog):
         self.listing = QListWidget()
         self.listing.setMinimumWidth(240)
         self.preview = QLabel(tr("Choose a window"))
-        self.preview.setAlignment(Qt.AlignCenter)
+        self.preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.preview.setMinimumSize(320, 180)
         self.preview.setObjectName("card")
         body.addWidget(self.listing, 1)
@@ -45,7 +45,7 @@ class SwitcherDialog(QDialog):
 
         for hwnd, caption in self._windows:
             item = QListWidgetItem(caption)
-            item.setData(Qt.UserRole, hwnd)
+            item.setData(Qt.ItemDataRole.UserRole, hwnd)
             self.listing.addItem(item)
         self.listing.itemDoubleClicked.connect(lambda _item: self.accept())
         self.listing.currentRowChanged.connect(self._preview_row)

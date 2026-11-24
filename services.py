@@ -5,16 +5,19 @@ import asyncio
 import importlib
 import json
 import re
+import ssl
 import threading
 import time
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
 
+_SSL_CTX = ssl.create_default_context()
+
 
 def http_get(url, timeout=10):
-    req = urllib.request.Request(url, headers={"User-Agent": "WindowsBar/0.2"})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
+    req = urllib.request.Request(url, headers={"User-Agent": "WindowsBar/0.3"})
+    with urllib.request.urlopen(req, timeout=timeout, context=_SSL_CTX) as r:
         return r.read().decode("utf-8", errors="replace")
 
 

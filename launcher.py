@@ -82,17 +82,17 @@ class Launcher(QWidget):
         self._start_menu = []
         self._scanned_at = 0.0
         self._scanning = False
-        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
-        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.Tool)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         lay = QVBoxLayout(self)
         lay.setContentsMargins(16, 16, 16, 16)
         lay.setSpacing(8)
         self.edit = QLineEdit()
         self.edit.setPlaceholderText(tr("Search apps and windows…   > command   = math"))
         self.list = QListWidget()
-        self.list.setFocusPolicy(Qt.NoFocus)
+        self.list.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.list.setUniformItemSizes(True)
-        self.list.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         lay.addWidget(self.edit)
         lay.addWidget(self.list)
         self.setFixedWidth(560)
@@ -176,7 +176,7 @@ class Launcher(QWidget):
         self.list.clear()
         for name, target, kind in rows[: self.MAX_ROWS]:
             item = QListWidgetItem(name)
-            item.setData(Qt.UserRole, (target, kind))
+            item.setData(Qt.ItemDataRole.UserRole, (target, kind))
             self.list.addItem(item)
         if self.list.count():
             self.list.setCurrentRow(0)
@@ -186,16 +186,16 @@ class Launcher(QWidget):
     def eventFilter(self, obj, e):
         if obj is self.edit and e.type() == QEvent.KeyPress:
             key = e.key()
-            if key == Qt.Key_Escape:
+            if key == Qt.Key.Key_Escape:
                 self.hide()
                 return True
-            if key in (Qt.Key_Return, Qt.Key_Enter):
+            if key in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
                 self.run_current()
                 return True
-            if key in (Qt.Key_Down, Qt.Key_Up):
+            if key in (Qt.Key.Key_Down, Qt.Key.Key_Up):
                 n = self.list.count()
                 if n:
-                    step = 1 if key == Qt.Key_Down else -1
+                    step = 1 if key == Qt.Key.Key_Down else -1
                     self.list.setCurrentRow((self.list.currentRow() + step) % n)
                 return True
         return super().eventFilter(obj, e)
@@ -204,7 +204,7 @@ class Launcher(QWidget):
         item = self.list.currentItem()
         if item is None:
             return
-        target, kind = item.data(Qt.UserRole)
+        target, kind = item.data(Qt.ItemDataRole.UserRole)
         self.hide()
         try:
             if kind in ("cmd", "shell"):
