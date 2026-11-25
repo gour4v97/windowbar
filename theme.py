@@ -14,11 +14,11 @@ DEFAULT_THEME = "default"
 
 BUILTIN = {
     "harbor": dict(
-        panel=(17, 22, 31, 236), glass=(25, 32, 45, 76),
-        border=(196, 211, 235, 54), card=(222, 232, 248, 20),
-        text="#f4f7fc", muted=(192, 203, 221, 165),
-        button=(196, 211, 235, 32), accent="#67a8ff",
-        radius=14, panel_radius=25, font="Segoe UI", spacing=7, blur=92),
+        panel=(18, 22, 32, 232), glass=(24, 29, 41, 78),
+        border=(210, 220, 240, 62), card=(225, 234, 250, 22),
+        text="#f5f7fc", muted=(198, 208, 226, 176),
+        button=(196, 211, 235, 34), accent="#8bb8ff",
+        radius=16, panel_radius=28, font="Segoe UI", spacing=8, blur=92),
     "midnight": dict(
         panel=(18, 18, 22, 225), glass=(20, 20, 24, 60), border=(255, 255, 255, 40),
         card=(255, 255, 255, 18), text="#ffffff", muted=(255, 255, 255, 140),
@@ -170,6 +170,14 @@ QFrame#card:focus {{ border: 1px solid {qss(t['accent'], 110)}; }}
 QLabel {{ background: transparent; }}
 QLabel#cardtitle {{ color: {qss(t['muted'])}; font-size: 9px;
                    font-weight: 600; letter-spacing: 1px; }}
+QLabel#activeWindow {{ color: {qss(t['text'])}; font-size: 12px;
+                       font-weight: 600; padding: 0 10px;
+                       border-right: 1px solid {qss(t['border'])}; }}
+QPushButton#toolbarButton {{ background: {qss(t['button'])}; color: {qss(t['text'])};
+                             border: 1px solid {qss(t['border'], 90)};
+                             border-radius: 17px; font-size: 17px; padding: 0; }}
+QPushButton#toolbarButton:hover {{ background: {qss(t['accent'], 82)};
+                                   border-color: {qss(t['accent'], 190)}; }}
 QLabel#cardbody {{ color: {qss(t['text'])}; font-size: 15px; font-weight: 600; }}
 QPushButton {{ background: {qss(t['button'])}; color: {qss(t['text'])}; border: none;
               border-radius: {max(4, t['radius'] - 4)}px;

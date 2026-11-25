@@ -53,12 +53,12 @@ class AppsCard(QFrame):
             icon = _icon_for_command(cmd)
             if icon is not None:
                 b.setIcon(icon)
-                b.setIconSize(QSize(23, 23))
-                b.setFixedSize(38, 38)
+                b.setIconSize(QSize(25, 25))
+                b.setFixedSize(44, 44)
                 b.setObjectName("appIcon")
             else:
                 b.setText(name)
-                b.setMinimumHeight(38)
+                b.setMinimumHeight(44)
             b.setProperty("usesNativeIcon", icon is not None)
             b.setCursor(Qt.PointingHandCursor)
             b.setAccessibleName(name)

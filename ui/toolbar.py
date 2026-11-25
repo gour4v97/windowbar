@@ -1,7 +1,9 @@
 """Top toolbar window used by the optional split shell layout."""
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, QRectF
+from PySide6.QtGui import QColor, QPainter, QPainterPath
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QWidget
 
+import theme
 import winapi
 from core.app_config import MARGIN
 from native import vdesktop
@@ -21,12 +23,13 @@ class Toolbar(QWidget):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setStyleSheet(dock.styleSheet())
         self.row = QHBoxLayout(self)
-        self.row.setContentsMargins(14, 8, 14, 8)
-        self.row.setSpacing(10)
+        self.row.setContentsMargins(16, 8, 16, 8)
+        self.row.setSpacing(8)
         self._cards = []
         self.active_window = QLabel()
-        self.active_window.setMinimumWidth(100)
-        self.active_window.setMaximumWidth(360)
+        self.active_window.setObjectName("activeWindow")
+        self.active_window.setMinimumWidth(120)
+        self.active_window.setMaximumWidth(300)
         self.active_window.setToolTip(tr("Active window"))
         self.row.addWidget(self.active_window)
         self._add_desktop_button("‹", "Previous desktop", "previous")
@@ -41,8 +44,9 @@ class Toolbar(QWidget):
 
     def _add_desktop_button(self, label, tip, action):
         button = QPushButton(label)
+        button.setObjectName("toolbarButton")
         button.setToolTip(tip)
-        button.setFixedWidth(28)
+        button.setFixedSize(34, 34)
         button.clicked.connect(lambda _checked=False, name=action:
                                self._workspace_action(name))
         self.row.addWidget(button)
@@ -98,12 +102,28 @@ class Toolbar(QWidget):
         self.resize(self.sizeHint())
         self.move(int(full.x() + (full.width() - self.width()) // 2), int(y))
 
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        tokens = self.dock.tokens
+        rect = QRectF(self.rect()).adjusted(1, 1, -1, -1)
+        path = QPainterPath()
+        path.addRoundedRect(rect, tokens["panel_radius"], tokens["panel_radius"])
+        fill = tokens["glass"] if self.dock.glass_active else tokens["panel"]
+        painter.fillPath(path, QColor(*theme.to_rgba(fill)))
+        painter.setPen(QColor(*theme.to_rgba(tokens["border"])))
+        painter.drawPath(path)
+        super().paintEvent(event)
+
     def showEvent(self, event):
         super().showEvent(event)
         self.appbar.hwnd = int(self.winId())
+        if self.dock.cfg.get("glass") and self.dock.tokens.get("blur", 0):
+            winapi.enable_glass(self.appbar.hwnd)
         self.place()
 
     def shutdown(self):
         self.appbar.remove()
+        winapi.disable_glass(self.appbar.hwnd)
         self.close()
 
