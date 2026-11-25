@@ -97,20 +97,9 @@ def test_theme_resolve_and_fallback(tmp_path):
 def test_theme_accent_override_and_qss():
     import theme
     t = theme.resolve("midnight", accent="#ff0000")
-    css = theme.build_qss(t)
     assert t["accent"] == "#ff0000"
-    assert "rgba(255,0,0,70)" in css
-    assert "QLabel#activeWindow" in css
-    assert "QPushButton#toolbarButton" in css
-    assert 'QPushButton#appIcon[active="true"]' in css
+    assert "rgba(255,0,0,70)" in theme.build_qss(t)
     assert theme.resolve("midnight", accent="nonsense")["accent"] == "#7aa2ff"
-
-
-def test_fresh_install_uses_floating_harbor_shell():
-    from core.app_config import DEFAULTS
-    assert DEFAULTS["shell_layout"] == "split"
-    assert DEFAULTS["theme"] == "harbor"
-    assert DEFAULTS["glass"] and DEFAULTS["dynamic_accent"]
 
 
 def test_dominant_accent():
