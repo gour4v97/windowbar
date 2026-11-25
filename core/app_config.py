@@ -14,7 +14,7 @@ PLUGINS_DIR = APP_DIR / "plugins"
 _CONFIG_SAVE_LOCK = threading.RLock()
 DEFAULTS = {
     "position": "bottom",
-    "shell_layout": "split",
+    "shell_layout": "combined",
     "widget_order": [],
     "reserve_space": True,
     "hide_taskbar": False,
@@ -53,7 +53,7 @@ DEFAULTS = {
     "notes_list": [],
     "notes_current": 0,
     "keep_awake": False,
-    "theme": "harbor",
+    "theme": "midnight",
     "widget_styles": {},
     "dynamic_accent": True,
     "language": "system",
