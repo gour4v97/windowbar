@@ -14,10 +14,10 @@ hidden += ["services", "extras", "winapi", "theme", "search", "launcher"]
 a = Analysis(
     ["../windowsbar.py"],
     pathex=[".."],
-    datas=[("../themes", "themes"), ("../locales", "locales")],
+    datas=[("../themes", "themes"), ("../locales", "locales"), ("../assets", "assets")],
     hiddenimports=hidden,
 )
 pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="Windows Bar",
-          console=False)
+          console=False, icon="../assets/windowbar.ico")
 coll = COLLECT(exe, a.binaries, a.datas, name="Windows Bar")

@@ -1,3 +1,12 @@
+[project]
+name = "windowsbar"
+version = "0.2.0"
+description = "A customizable smart dock and desktop shell for Windows 10/11."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [{ name = "Gaurav Manjhi" }]
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"

@@ -10,7 +10,7 @@
 AppId={{B7A5E3C4-6D2F-4C11-9E55-3F0A7D1C2B90}
 AppName=Windows Bar
 AppVersion={#AppVersion}
-AppPublisher=gour4v97
+AppPublisher=Gaurav Manjhi
 AppPublisherURL=https://github.com/gour4v97/windowbar
 DefaultDirName={localappdata}\Windows Bar
 DefaultGroupName=Windows Bar
@@ -19,6 +19,7 @@ OutputDir=..\dist
 OutputBaseFilename=WindowsBar-Setup-{#AppVersion}
 Compression=lzma2
 SolidCompression=yes
+SetupIconFile=..\assets\windowbar.ico
 UninstallDisplayIcon={app}\Windows Bar.exe
 LicenseFile=..\LICENSE
 

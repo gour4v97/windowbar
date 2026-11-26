@@ -3,8 +3,9 @@ Windows Bar - a smart dock for Windows 10/11.
 """
 import logging
 import sys
+from pathlib import Path
 
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QFont, QIcon
 from PySide6.QtWidgets import QApplication
 
 from core import plugins
@@ -35,6 +36,12 @@ def main():
             _log.warning("plugin skipped: %s (%s)", error.name, error.reason)
     app = QApplication(sys.argv)
     app.setFont(QFont("Segoe UI", 10))
+    base_dir = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
+    for icon_name in ("windowbar.ico", "windowbar.png"):
+        icon_path = base_dir / "assets" / icon_name
+        if icon_path.is_file():
+            app.setWindowIcon(QIcon(str(icon_path)))
+            break
     all_screens = app.screens() or [None]
     primary_screen = app.primaryScreen() or all_screens[0]
     screens = ([primary_screen]
