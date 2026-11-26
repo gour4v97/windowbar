@@ -18,7 +18,7 @@ STRIPE_VAR = "WINDOWSBAR_STRIPE_KEY"
 CORE_FILES = ["windowsbar.py", "services.py", "extras.py", "winapi.py",
               "theme.py", "search.py", "launcher.py", "requirements.txt"]
 EXTRA_FILES = ["requirements-media.txt", "requirements-temperature.txt", "LICENSE", "README.md"]
-CORE_DIRS = ["core", "locales", "native", "themes", "ui", "widgets", "wm"]
+CORE_DIRS = ["assets", "core", "locales", "native", "themes", "ui", "widgets", "wm"]
 
 LOCAL = Path(os.environ.get("LOCALAPPDATA", str(Path.home() / "AppData" / "Local")))
 ROAMING = Path(os.environ.get("APPDATA", str(Path.home() / "AppData" / "Roaming")))
@@ -87,14 +87,15 @@ def special_folder(kind):
     return Path(path) if path else None
 
 
-def make_shortcut(kind, target, arguments, workdir):
+def make_shortcut(kind, target, arguments, workdir, icon_path=None):
+    icon_line = f"$l.IconLocation = {q(icon_path)}; " if icon_path else ""
     script = (
         f"$d = [Environment]::GetFolderPath({q(kind)}); "
         f"$sh = New-Object -ComObject WScript.Shell; "
         f"$l = $sh.CreateShortcut((Join-Path $d {q(SHORTCUT_NAME)})); "
         f"$l.TargetPath = {q(target)}; $l.Arguments = {q(arguments)}; "
         f"$l.WorkingDirectory = {q(workdir)}; $l.Description = 'Windows Bar smart dock'; "
-        f"$l.Save()"
+        f"{icon_line}$l.Save()"
     )
     res = powershell(script)
     if res.returncode != 0:
@@ -172,15 +173,17 @@ def install(args):
     say("\n[3/5] Creating shortcuts")
     script = str(INSTALL_DIR / "windowsbar.py")
     launch_args = f'"{script}"'
-    if make_shortcut("Programs", str(venv_pythonw), launch_args, str(INSTALL_DIR)):
+    ico = INSTALL_DIR / "assets" / "windowbar.ico"
+    icon_path = str(ico) if ico.is_file() else None
+    if make_shortcut("Programs", str(venv_pythonw), launch_args, str(INSTALL_DIR), icon_path):
         say("    Start Menu: Windows Bar")
     if confirm("Add a Desktop shortcut?", not args.no_desktop, args.yes) and not args.no_desktop:
-        if make_shortcut("Desktop", str(venv_pythonw), launch_args, str(INSTALL_DIR)):
+        if make_shortcut("Desktop", str(venv_pythonw), launch_args, str(INSTALL_DIR), icon_path):
             say("    Desktop: Windows Bar")
     if args.autostart or confirm(
             "Start Windows Bar when Windows starts? (skip this if you already enabled\n"
             "    'Start with Windows' inside the dock's own menu)", False, args.yes):
-        if make_shortcut("Startup", str(venv_pythonw), launch_args, str(INSTALL_DIR)):
+        if make_shortcut("Startup", str(venv_pythonw), launch_args, str(INSTALL_DIR), icon_path):
             say("    Startup folder: Windows Bar")
 
     say("\n[4/5] Optional: Stripe revenue widget")
