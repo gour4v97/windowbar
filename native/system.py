@@ -106,8 +106,11 @@ def is_dark_mode():
     if not IS_WIN:
         return True
     import winreg
-    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, PERSONALIZE) as key:
-        return winreg.QueryValueEx(key, "AppsUseLightTheme")[0] == 0
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, PERSONALIZE) as key:
+            return winreg.QueryValueEx(key, "AppsUseLightTheme")[0] == 0
+    except OSError:
+        return True
 
 
 def set_dark_mode(dark):
@@ -115,12 +118,15 @@ def set_dark_mode(dark):
         return
     import winreg
     value = 0 if dark else 1
-    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, PERSONALIZE, 0,
-                        winreg.KEY_SET_VALUE) as key:
-        winreg.SetValueEx(key, "AppsUseLightTheme", 0, winreg.REG_DWORD, value)
-        winreg.SetValueEx(key, "SystemUsesLightTheme", 0, winreg.REG_DWORD, value)
-    ctypes.windll.user32.SendMessageTimeoutW(
-        0xFFFF, 0x001A, 0, ctypes.c_wchar_p("ImmersiveColorSet"), 2, 1000, None)
+    try:
+        with winreg.CreateKeyEx(winreg.HKEY_CURRENT_USER, PERSONALIZE, 0,
+                                 winreg.KEY_SET_VALUE) as key:
+            winreg.SetValueEx(key, "AppsUseLightTheme", 0, winreg.REG_DWORD, value)
+            winreg.SetValueEx(key, "SystemUsesLightTheme", 0, winreg.REG_DWORD, value)
+        ctypes.windll.user32.SendMessageTimeoutW(
+            0xFFFF, 0x001A, 0, ctypes.c_wchar_p("ImmersiveColorSet"), 2, 1000, None)
+    except OSError:
+        pass
 
 
 def lock_screen():

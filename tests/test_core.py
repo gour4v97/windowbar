@@ -450,3 +450,17 @@ def test_builtin_theme_aliases_and_spacing_blur_tokens():
     assert "padding: 12px" in theme.build_qss(glass)
     assert {"default", "glass", "light", "dark"}.issubset(
         theme.list_themes())
+
+
+def test_is_dark_mode_defaults_true_when_registry_missing(monkeypatch):
+    import sys
+    import types
+    from native import system
+
+    fake_winreg = types.SimpleNamespace(
+        HKEY_CURRENT_USER=1,
+        OpenKey=lambda *_args, **_kwargs: (_ for _ in ()).throw(FileNotFoundError()),
+    )
+    monkeypatch.setattr(system, "IS_WIN", True)
+    monkeypatch.setitem(sys.modules, "winreg", fake_winreg)
+    assert system.is_dark_mode() is True
