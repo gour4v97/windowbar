@@ -121,27 +121,28 @@ def test_floating_rules_include_shell_and_system_defaults():
     assert not rules.matches(exe="notepad.exe")
 
 
-def test_switcher_dialog_uses_translucent_backdrop(monkeypatch):
-    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+def test_switcher_dialog_uses_translucent_backdrop(qapp):
     from PySide6.QtCore import Qt
-    from PySide6.QtWidgets import QApplication
     from ui.alt_tab import SwitcherDialog
 
-    app = QApplication.instance() or QApplication([])
     dlg = SwitcherDialog(None, [(101, "Editor")], 101)
     assert dlg.testAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
     dlg.close()
-    app.processEvents()
+    qapp.processEvents()
 
 
-def test_workspace_viewer_uses_translucent_backdrop(monkeypatch):
-    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+def test_workspace_viewer_uses_translucent_backdrop(qapp, monkeypatch):
     from PySide6.QtCore import Qt
-    from PySide6.QtWidgets import QApplication, QWidget
+    from PySide6.QtWidgets import QWidget
     import theme
+    from native import vdesktop
     from ui.workspaces import WorkspaceViewer
 
-    app = QApplication.instance() or QApplication([])
+    # The test only checks the backdrop attribute. Do not enumerate real
+    # virtual desktops here: on Windows that imports pyvda and starts COM,
+    # and reload() would also write the fake dock's config to disk.
+    monkeypatch.setattr(vdesktop, "desktops", lambda: [])
+    monkeypatch.setattr(vdesktop, "current", lambda: None)
 
     class FakeDock(QWidget):
         shared_shell = None
@@ -156,17 +157,14 @@ def test_workspace_viewer_uses_translucent_backdrop(monkeypatch):
     assert viewer.testAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
     viewer.close()
     fake_dock.close()
-    app.processEvents()
+    qapp.processEvents()
 
 
-def test_apps_card_shows_unpinned_running_programs(monkeypatch):
-    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+def test_apps_card_shows_unpinned_running_programs(qapp, monkeypatch):
     from types import SimpleNamespace
-    from PySide6.QtWidgets import QApplication
     import winapi
     from widgets.apps import AppsCard
 
-    app = QApplication.instance() or QApplication([])
     monkeypatch.setattr(winapi, "window_process_path", lambda _hwnd: "")
     poll = SimpleNamespace(value={"notepad.exe": 10, "code.exe": 20, "windowsbar.exe": 30})
     card = AppsCard({"Notepad": "notepad.exe"}, poll)
@@ -178,7 +176,7 @@ def test_apps_card_shows_unpinned_running_programs(monkeypatch):
     assert card.tick() is True
     assert "code.exe" not in card._dynamic_btns
     card.close()
-    app.processEvents()
+    qapp.processEvents()
 
 
 def test_dominant_accent():

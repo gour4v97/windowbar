@@ -15,11 +15,6 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 QtWidgets = pytest.importorskip("PySide6.QtWidgets")
 
 
-@pytest.fixture(scope="module")
-def qapp():
-    return QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
-
-
 def test_card_title_is_translated_and_uppercased(qapp, tmp_path):
     import json
     from core import i18n
