@@ -159,6 +159,28 @@ def test_workspace_viewer_uses_translucent_backdrop(monkeypatch):
     app.processEvents()
 
 
+def test_apps_card_shows_unpinned_running_programs(monkeypatch):
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    from types import SimpleNamespace
+    from PySide6.QtWidgets import QApplication
+    import winapi
+    from widgets.apps import AppsCard
+
+    app = QApplication.instance() or QApplication([])
+    monkeypatch.setattr(winapi, "window_process_path", lambda _hwnd: "")
+    poll = SimpleNamespace(value={"notepad.exe": 10, "code.exe": 20, "windowsbar.exe": 30})
+    card = AppsCard({"Notepad": "notepad.exe"}, poll)
+    assert card.tick() is True
+    assert "code.exe" in card._dynamic_btns
+    assert "windowsbar.exe" not in card._dynamic_btns
+
+    poll.value = {"notepad.exe": 10}
+    assert card.tick() is True
+    assert "code.exe" not in card._dynamic_btns
+    card.close()
+    app.processEvents()
+
+
 def test_dominant_accent():
     import theme
     reddish = [(220, 30, 30)] * 10 + [(128, 128, 128)] * 50
