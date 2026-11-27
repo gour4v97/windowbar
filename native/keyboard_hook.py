@@ -26,8 +26,11 @@ class KBDLLHOOKSTRUCT(ctypes.Structure):
                 ("dwExtraInfo", ctypes.c_size_t)]
 
 
-_HOOKPROC = ctypes.WINFUNCTYPE(
-    ctypes.c_ssize_t, ctypes.c_int, ctypes.c_size_t, ctypes.c_ssize_t)
+_HOOKPROC = (
+    ctypes.WINFUNCTYPE(
+        ctypes.c_ssize_t, ctypes.c_int, ctypes.c_size_t, ctypes.c_ssize_t)
+    if IS_WIN else None
+)
 
 
 class LowLevelKeyboardHook:
