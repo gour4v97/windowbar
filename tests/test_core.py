@@ -134,6 +134,31 @@ def test_switcher_dialog_uses_translucent_backdrop(monkeypatch):
     app.processEvents()
 
 
+def test_workspace_viewer_uses_translucent_backdrop(monkeypatch):
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    from PySide6.QtCore import Qt
+    from PySide6.QtWidgets import QApplication, QWidget
+    import theme
+    from ui.workspaces import WorkspaceViewer
+
+    app = QApplication.instance() or QApplication([])
+
+    class FakeDock(QWidget):
+        shared_shell = None
+        cfg = {"workspace_metadata": {}}
+        last_external_hwnd = 0
+        target_screen = None
+        tokens = theme.resolve("harbor")
+        glass_active = False
+
+    fake_dock = FakeDock()
+    viewer = WorkspaceViewer(fake_dock)
+    assert viewer.testAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+    viewer.close()
+    fake_dock.close()
+    app.processEvents()
+
+
 def test_dominant_accent():
     import theme
     reddish = [(220, 30, 30)] * 10 + [(128, 128, 128)] * 50

@@ -1,4 +1,4 @@
-"""Keyboard-first launcher (Rofi/Seelen-style): Alt+Space, type, Enter.
+"""Keyboard-first launcher: Alt+Space, type, Enter.
 
 Searches your configured apps, Start Menu programs and open windows with fuzzy
 matching. Extras: `> command` runs a shell command, `= 2*(3+4)` calculates

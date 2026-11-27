@@ -10,6 +10,7 @@ import winapi
 from core.app_config import save_config
 from native import vdesktop
 from core.i18n import tr
+from ui.popup import paint_shell_panel
 
 
 class WorkspaceViewer(QDialog):
@@ -23,10 +24,12 @@ class WorkspaceViewer(QDialog):
         self.setWindowFlag(Qt.Window, True)
         self.setWindowFlag(Qt.FramelessWindowHint, True)
         self.setWindowFlag(Qt.WindowStaysOnTopHint, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setStyleSheet(dock.styleSheet())
         self.setWindowTitle(tr("Workspaces"))
         self.resize(760, 600)
         root = QVBoxLayout(self)
+        root.setContentsMargins(16, 14, 16, 14)
         self.status = QLabel()
         self.status.setWordWrap(True)
         root.addWidget(self.status)
@@ -58,6 +61,10 @@ class WorkspaceViewer(QDialog):
             self.move(area.x() + (area.width() - self.width()) // 2,
                       area.y() + (area.height() - self.height()) // 2)
         self.reload()
+
+    def paintEvent(self, event):
+        paint_shell_panel(self, self.dock.tokens, bool(getattr(self.dock, "glass_active", False)))
+        super().paintEvent(event)
 
     def _metadata(self, desktop):
         key = str(desktop.id)
