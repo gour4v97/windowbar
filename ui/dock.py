@@ -360,14 +360,20 @@ class Dock(QWidget):
         if QApplication.font().family() != font:
             QApplication.setFont(QFont(font, 10))
         self.setStyleSheet(css)
+        want_glass = bool(self.cfg["glass"] and self.tokens["blur"])
         if getattr(self, "toolbar", None) is not None:
             self.toolbar.setStyleSheet(css)
+            self.toolbar.update()
+            if self.toolbar.appbar.hwnd:
+                if want_glass:
+                    winapi.enable_glass(self.toolbar.appbar.hwnd)
+                else:
+                    winapi.disable_glass(self.toolbar.appbar.hwnd)
         if self._desktop_widgets_window is not None:
             self._desktop_widgets_window.apply_theme()
         if hasattr(self, "row"):
             self.row.setSpacing(self.tokens["spacing"])
         if getattr(self, "appbar", None) and self.appbar.hwnd:
-            want_glass = bool(self.cfg["glass"] and self.tokens["blur"])
             if want_glass and not self.glass_active:
                 self.glass_active = winapi.enable_glass(self.appbar.hwnd)
             elif not want_glass and self.glass_active:
@@ -987,6 +993,12 @@ class Dock(QWidget):
             else:
                 winapi.disable_glass(self.appbar.hwnd)
                 self.glass_active = False
+            if self.toolbar is not None and self.toolbar.appbar.hwnd:
+                if on and self.tokens.get("blur", 0):
+                    winapi.enable_glass(self.toolbar.appbar.hwnd)
+                else:
+                    winapi.disable_glass(self.toolbar.appbar.hwnd)
+                self.toolbar.update()
             self._bg = None
             self.update()
         elif key == "dynamic_accent":

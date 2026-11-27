@@ -6,6 +6,7 @@ import winapi
 from core.app_config import MARGIN
 from native import vdesktop
 from core.i18n import tr
+from ui.popup import paint_shell_panel
 
 
 class Toolbar(QWidget):
@@ -21,12 +22,13 @@ class Toolbar(QWidget):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setStyleSheet(dock.styleSheet())
         self.row = QHBoxLayout(self)
-        self.row.setContentsMargins(14, 8, 14, 8)
-        self.row.setSpacing(10)
+        self.row.setContentsMargins(16, 8, 16, 8)
+        self.row.setSpacing(8)
         self._cards = []
         self.active_window = QLabel()
-        self.active_window.setMinimumWidth(100)
-        self.active_window.setMaximumWidth(360)
+        self.active_window.setObjectName("activeWindow")
+        self.active_window.setMinimumWidth(120)
+        self.active_window.setMaximumWidth(300)
         self.active_window.setToolTip(tr("Active window"))
         self.row.addWidget(self.active_window)
         self._add_desktop_button("‹", "Previous desktop", "previous")
@@ -41,8 +43,9 @@ class Toolbar(QWidget):
 
     def _add_desktop_button(self, label, tip, action):
         button = QPushButton(label)
+        button.setObjectName("toolbarButton")
         button.setToolTip(tip)
-        button.setFixedWidth(28)
+        button.setFixedSize(34, 34)
         button.clicked.connect(lambda _checked=False, name=action:
                                self._workspace_action(name))
         self.row.addWidget(button)
@@ -98,12 +101,19 @@ class Toolbar(QWidget):
         self.resize(self.sizeHint())
         self.move(int(full.x() + (full.width() - self.width()) // 2), int(y))
 
+    def paintEvent(self, event):
+        paint_shell_panel(self, self.dock.tokens, self.dock.glass_active)
+        super().paintEvent(event)
+
     def showEvent(self, event):
         super().showEvent(event)
         self.appbar.hwnd = int(self.winId())
+        if self.dock.cfg.get("glass") and self.dock.tokens.get("blur", 0):
+            winapi.enable_glass(self.appbar.hwnd)
         self.place()
 
     def shutdown(self):
         self.appbar.remove()
+        winapi.disable_glass(self.appbar.hwnd)
         self.close()
 

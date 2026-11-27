@@ -7,9 +7,11 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
+import theme
 import winapi
 from native.keyboard_hook import LowLevelKeyboardHook
 from core.i18n import tr
+from ui.popup import paint_shell_panel
 
 
 class SwitcherDialog(QDialog):
@@ -20,7 +22,10 @@ class SwitcherDialog(QDialog):
         self.setWindowTitle(tr("Windows Bar — Switch windows"))
         self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint
                             | Qt.WindowType.WindowStaysOnTopHint)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        if parent is not None and hasattr(parent, "styleSheet"):
+            self.setStyleSheet(parent.styleSheet())
         self.resize(620, 390)
         self._windows = list(windows)
         self._frames = {}
@@ -58,6 +63,12 @@ class SwitcherDialog(QDialog):
             area = screen.availableGeometry()
             self.move(area.x() + (area.width() - self.width()) // 2,
                       area.y() + (area.height() - self.height()) // 2)
+
+    def paintEvent(self, event):
+        parent = self.parent()
+        tokens = getattr(parent, "tokens", None) or theme.resolve("harbor")
+        paint_shell_panel(self, tokens, bool(getattr(parent, "glass_active", False)))
+        super().paintEvent(event)
 
     def _preview_row(self, row):
         if not 0 <= row < len(self._windows):

@@ -97,9 +97,41 @@ def test_theme_resolve_and_fallback(tmp_path):
 def test_theme_accent_override_and_qss():
     import theme
     t = theme.resolve("midnight", accent="#ff0000")
+    css = theme.build_qss(t)
     assert t["accent"] == "#ff0000"
-    assert "rgba(255,0,0,70)" in theme.build_qss(t)
+    assert "rgba(255,0,0,70)" in css
+    assert "QLabel#activeWindow" in css
+    assert "QPushButton#toolbarButton" in css
+    assert 'QPushButton#appIcon[active="true"]' in css
     assert theme.resolve("midnight", accent="nonsense")["accent"] == "#7aa2ff"
+
+
+def test_fresh_install_uses_floating_harbor_shell():
+    from core.app_config import DEFAULTS
+    assert DEFAULTS["shell_layout"] == "split"
+    assert DEFAULTS["theme"] == "harbor"
+    assert DEFAULTS["glass"] and DEFAULTS["dynamic_accent"]
+
+
+def test_floating_rules_include_shell_and_system_defaults():
+    from wm.rules import FloatingRules
+    rules = FloatingRules()
+    assert rules.matches(exe="Windows Bar.exe")
+    assert rules.matches(exe="Taskmgr.exe")
+    assert not rules.matches(exe="notepad.exe")
+
+
+def test_switcher_dialog_uses_translucent_backdrop(monkeypatch):
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    from PySide6.QtCore import Qt
+    from PySide6.QtWidgets import QApplication
+    from ui.alt_tab import SwitcherDialog
+
+    app = QApplication.instance() or QApplication([])
+    dlg = SwitcherDialog(None, [(101, "Editor")], 101)
+    assert dlg.testAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+    dlg.close()
+    app.processEvents()
 
 
 def test_dominant_accent():
