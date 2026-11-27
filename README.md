@@ -1,9 +1,17 @@
+<div align="center">
+
+<img src="assets/windowbar.png" alt="Windows Bar Logo" width="84" />
+
 # Windows Bar
+
+</div>
 
 A smart dock for Windows 10/11, written in Python (PySide6). It sits at the top
 or bottom of the screen as a row of live cards — clock, calendar, media, system,
 money, focus tools — and reserves screen space so maximised windows stop at the
 dock instead of sliding under it.
+
+![Windows Bar Poster](assets/poster.jpg)
 
 ![Windows Bar Dock Preview](docs/screenshots/dock_midnight.png)
 
