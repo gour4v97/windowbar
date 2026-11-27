@@ -1,8 +1,21 @@
 
-from PySide6.QtCore import QPoint, QRect, Qt
-from PySide6.QtGui import QGuiApplication
+from PySide6.QtCore import QPoint, QRect, QRectF, Qt
+from PySide6.QtGui import QColor, QGuiApplication, QPainter, QPainterPath
 from PySide6.QtWidgets import QWidget
 import theme
+
+
+def paint_shell_panel(widget, tokens, glass_active=False):
+    """Paint a rounded translucent shell surface from theme tokens."""
+    painter = QPainter(widget)
+    painter.setRenderHint(QPainter.Antialiasing)
+    rect = QRectF(widget.rect()).adjusted(1, 1, -1, -1)
+    path = QPainterPath()
+    path.addRoundedRect(rect, tokens["panel_radius"], tokens["panel_radius"])
+    fill = tokens["glass"] if glass_active else tokens["panel"]
+    painter.fillPath(path, QColor(*theme.to_rgba(fill)))
+    painter.setPen(QColor(*theme.to_rgba(tokens["border"])))
+    painter.drawPath(path)
 
 
 def popup_position(anchor, popup_size, screen, edge="bottom", gap=6):

@@ -110,6 +110,16 @@ def minimize_window(hwnd):
             pass
 
 
+def toggle_maximize_window(hwnd):
+    if IS_WIN and hwnd:
+        try:
+            user32 = ctypes.windll.user32
+            h = wintypes.HWND(int(hwnd))
+            user32.ShowWindow(h, 9 if user32.IsZoomed(h) else 3)  # SW_RESTORE / SW_MAXIMIZE
+        except Exception:
+            pass
+
+
 def open_window_processes():
     """{exe_name_lower: hwnd} for taskbar windows -- which pinned apps are
     currently running, and where to focus them."""
@@ -220,6 +230,20 @@ def window_process_name(hwnd):
         ctypes.windll.user32.GetWindowThreadProcessId(
             wintypes.HWND(int(hwnd)), ctypes.byref(pid))
         return psutil.Process(pid.value).name().lower()
+    except Exception:
+        return ""
+
+
+def window_process_path(hwnd):
+    """Full executable path for a window handle, or empty string."""
+    if not IS_WIN or not hwnd:
+        return ""
+    try:
+        import psutil
+        pid = wintypes.DWORD()
+        ctypes.windll.user32.GetWindowThreadProcessId(
+            wintypes.HWND(int(hwnd)), ctypes.byref(pid))
+        return psutil.Process(pid.value).exe() or ""
     except Exception:
         return ""
 

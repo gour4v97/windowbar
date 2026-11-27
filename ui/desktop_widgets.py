@@ -7,6 +7,7 @@ from core.app_config import display_config_id, save_config
 from widgets.clock import ClockCard
 from widgets.cpu_ram import SystemCard
 from core.i18n import tr
+from ui.popup import paint_shell_panel
 
 
 class DesktopWidgetsWindow(QWidget):
@@ -79,6 +80,11 @@ class DesktopWidgetsWindow(QWidget):
                 self.dock.tokens,
                 self.cfg.get("widget_styles", {}).get(widget_id, {}))
             card.setStyleSheet(theme.build_widget_qss(tokens))
+
+    def paintEvent(self, event):
+        paint_shell_panel(self, self.dock.tokens,
+                          bool(self.cfg.get("glass") and self.dock.glass_active))
+        super().paintEvent(event)
 
     def show_behind_windows(self):
         self.show()

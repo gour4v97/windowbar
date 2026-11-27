@@ -7,9 +7,11 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
+import theme
 import winapi
 from native.keyboard_hook import LowLevelKeyboardHook
 from core.i18n import tr
+from ui.popup import paint_shell_panel
 
 
 class SwitcherDialog(QDialog):
@@ -20,10 +22,20 @@ class SwitcherDialog(QDialog):
         self.setWindowTitle(tr("Windows Bar — Switch windows"))
         self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint
                             | Qt.WindowType.WindowStaysOnTopHint)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        if parent is not None and hasattr(parent, "styleSheet"):
+            self.setStyleSheet(parent.styleSheet())
         self.resize(620, 390)
         self._windows = list(windows)
         self._frames = {}
+        # Owned by the dialog: if it is destroyed before the delay elapses
+        # (e.g. closed right after opening), the pending capture is dropped
+        # instead of firing on a deleted C++ object.
+        self._preview_hwnd = 0
+        self._preview_timer = QTimer(self)
+        self._preview_timer.setSingleShot(True)
+        self._preview_timer.timeout.connect(self._preview_timeout)
 
         root = QVBoxLayout(self)
         title = QLabel(tr("Switch windows"))
@@ -59,13 +71,23 @@ class SwitcherDialog(QDialog):
             self.move(area.x() + (area.width() - self.width()) // 2,
                       area.y() + (area.height() - self.height()) // 2)
 
+    def paintEvent(self, event):
+        parent = self.parent()
+        tokens = getattr(parent, "tokens", None) or theme.resolve("harbor")
+        paint_shell_panel(self, tokens, bool(getattr(parent, "glass_active", False)))
+        super().paintEvent(event)
+
     def _preview_row(self, row):
         if not 0 <= row < len(self._windows):
             return
         hwnd = self._windows[row][0]
         self.preview.setText(tr("Loading preview…"))
         # Capture after the overlay is visible so the first paint is responsive.
-        QTimer.singleShot(35, lambda: self._capture(hwnd))
+        self._preview_hwnd = hwnd
+        self._preview_timer.start(35)
+
+    def _preview_timeout(self):
+        self._capture(self._preview_hwnd)
 
     def _capture(self, hwnd):
         if not self.isVisible() or self.listing.currentItem() is None:

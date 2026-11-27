@@ -97,9 +97,86 @@ def test_theme_resolve_and_fallback(tmp_path):
 def test_theme_accent_override_and_qss():
     import theme
     t = theme.resolve("midnight", accent="#ff0000")
+    css = theme.build_qss(t)
     assert t["accent"] == "#ff0000"
-    assert "rgba(255,0,0,70)" in theme.build_qss(t)
+    assert "rgba(255,0,0,70)" in css
+    assert "QLabel#activeWindow" in css
+    assert "QPushButton#toolbarButton" in css
+    assert 'QPushButton#appIcon[active="true"]' in css
     assert theme.resolve("midnight", accent="nonsense")["accent"] == "#7aa2ff"
+
+
+def test_fresh_install_uses_floating_harbor_shell():
+    from core.app_config import DEFAULTS
+    assert DEFAULTS["shell_layout"] == "split"
+    assert DEFAULTS["theme"] == "harbor"
+    assert DEFAULTS["glass"] and DEFAULTS["dynamic_accent"]
+
+
+def test_floating_rules_include_shell_and_system_defaults():
+    from wm.rules import FloatingRules
+    rules = FloatingRules()
+    assert rules.matches(exe="Windows Bar.exe")
+    assert rules.matches(exe="Taskmgr.exe")
+    assert not rules.matches(exe="notepad.exe")
+
+
+def test_switcher_dialog_uses_translucent_backdrop(qapp):
+    from PySide6.QtCore import Qt
+    from ui.alt_tab import SwitcherDialog
+
+    dlg = SwitcherDialog(None, [(101, "Editor")], 101)
+    assert dlg.testAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+    dlg.close()
+    qapp.processEvents()
+
+
+def test_workspace_viewer_uses_translucent_backdrop(qapp, monkeypatch):
+    from PySide6.QtCore import Qt
+    from PySide6.QtWidgets import QWidget
+    import theme
+    from native import vdesktop
+    from ui.workspaces import WorkspaceViewer
+
+    # The test only checks the backdrop attribute. Do not enumerate real
+    # virtual desktops here: on Windows that imports pyvda and starts COM,
+    # and reload() would also write the fake dock's config to disk.
+    monkeypatch.setattr(vdesktop, "desktops", lambda: [])
+    monkeypatch.setattr(vdesktop, "current", lambda: None)
+
+    class FakeDock(QWidget):
+        shared_shell = None
+        cfg = {"workspace_metadata": {}}
+        last_external_hwnd = 0
+        target_screen = None
+        tokens = theme.resolve("harbor")
+        glass_active = False
+
+    fake_dock = FakeDock()
+    viewer = WorkspaceViewer(fake_dock)
+    assert viewer.testAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+    viewer.close()
+    fake_dock.close()
+    qapp.processEvents()
+
+
+def test_apps_card_shows_unpinned_running_programs(qapp, monkeypatch):
+    from types import SimpleNamespace
+    import winapi
+    from widgets.apps import AppsCard
+
+    monkeypatch.setattr(winapi, "window_process_path", lambda _hwnd: "")
+    poll = SimpleNamespace(value={"notepad.exe": 10, "code.exe": 20, "windowsbar.exe": 30})
+    card = AppsCard({"Notepad": "notepad.exe"}, poll)
+    assert card.tick() is True
+    assert "code.exe" in card._dynamic_btns
+    assert "windowsbar.exe" not in card._dynamic_btns
+
+    poll.value = {"notepad.exe": 10}
+    assert card.tick() is True
+    assert "code.exe" not in card._dynamic_btns
+    card.close()
+    qapp.processEvents()
 
 
 def test_dominant_accent():

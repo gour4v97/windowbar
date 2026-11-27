@@ -2,6 +2,14 @@
 import re
 
 _SPLIT = re.compile(r"[,;\r\n]+")
+DEFAULT_FLOATING_EXECUTABLES = frozenset({
+    "windows bar.exe",
+    "windowsbar.exe",
+    "taskmgr.exe",
+    "snippingtool.exe",
+    "searchhost.exe",
+    "shellexperiencehost.exe",
+})
 
 
 def _values(raw, key):
@@ -27,8 +35,9 @@ class FloatingRules:
 
     def __init__(self, rules=None, floating_apps=()):
         rules = rules if isinstance(rules, dict) else {}
-        self.executables = split_names(_values(rules.get("executables", []),
-                                               "executables"))
+        self.executables = set(DEFAULT_FLOATING_EXECUTABLES)
+        self.executables |= split_names(_values(rules.get("executables", []),
+                                                "executables"))
         self.executables |= split_names(floating_apps)
         self.classes = split_names(_values(rules.get("classes", []), "classes"))
         self.title_patterns, self.invalid_title_patterns = [], []
